@@ -1,0 +1,119 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600;750;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import 'mapbox-gl/dist/mapbox-gl.css';
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  --color-orange-brand: #ff5500;
+  --color-orange-dark: #cc4400;
+  --color-orange-light: #ff7733;
+  --color-slate-850: #161e2e;
+  --color-slate-950: #030712;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes pulseslow {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.6; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes pulseslow {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.6; }
+}
+
+@keyframes bounceIn {
+  0% { transform: scale(0.3); opacity: 0; }
+  50% { transform: scale(1.1); }
+  75% { transform: scale(0.95); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes popCheck {
+  0% { transform: scale(0); transform: rotate(-45deg); opacity: 0; }
+  70% { transform: scale(1.3); transform: rotate(10deg); opacity: 1; }
+  100% { transform: scale(1); transform: rotate(0deg); opacity: 1; }
+}
+
+@keyframes ringExpand {
+  0% { transform: scale(0.6); opacity: 0.8; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+
+@keyframes confettiBurst1 {
+  0% { transform: translate(0, 0) scale(0) rotate(0deg); opacity: 1; }
+  100% { transform: translate(-60px, -60px) scale(1) rotate(140deg); opacity: 0; }
+}
+
+@keyframes confettiBurst2 {
+  0% { transform: translate(0, 0) scale(0) rotate(0deg); opacity: 1; }
+  100% { transform: translate(70px, -50px) scale(0.9) rotate(-120deg); opacity: 0; }
+}
+
+@keyframes confettiBurst3 {
+  0% { transform: translate(0, 0) scale(0) rotate(0deg); opacity: 1; }
+  100% { transform: translate(-50px, 60px) scale(1.1) rotate(200deg); opacity: 0; }
+}
+
+@keyframes confettiBurst4 {
+  0% { transform: translate(0, 0) scale(0) rotate(0deg); opacity: 1; }
+  100% { transform: translate(65px, 55px) scale(0.8) rotate(-180deg); opacity: 0; }
+}
+
+@keyframes textFadeIn {
+  0% { transform: translateY(12px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+.animate-pulseslow {
+  animation: pulseslow 3s ease-in-out infinite;
+}
+
+.animate-bounce-in {
+  animation: bounceIn 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+}
+
+.animate-pop-check {
+  animation: popCheck 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.2) 0.5s both;
+}
+
+.animate-ring-expand {
+  animation: ringExpand 2s cubic-bezier(0.1, 0.8, 0.3, 1) infinite;
+}
+
+.animate-confetti-1 {
+  animation: confettiBurst1 1.6s cubic-bezier(0.1, 0.8, 0.3, 1) 0.1s infinite;
+}
+
+.animate-confetti-2 {
+  animation: confettiBurst2 1.4s cubic-bezier(0.1, 0.8, 0.3, 1) 0.3s infinite;
+}
+
+.animate-confetti-3 {
+  animation: confettiBurst3 1.8s cubic-bezier(0.1, 0.8, 0.3, 1) 0.2s infinite;
+}
+
+.animate-confetti-4 {
+  animation: confettiBurst4 1.5s cubic-bezier(0.1, 0.8, 0.3, 1) 0.4s infinite;
+}
+
+.animate-text-fade-in {
+  animation: textFadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.4s both;
+}
+

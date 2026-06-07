@@ -1,0 +1,146 @@
+/* Premium Checkout Motion & Aesthetic System */
+
+.checkout-container {
+  background-color: #000000;
+  color: #ffffff;
+  min-height: 100vh;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  overflow-x: hidden;
+}
+
+/* Glassmorphism Overlays */
+.glass-panel {
+  background: rgba(20, 20, 20, 0.65);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  border-radius: 20px;
+}
+
+/* Gold Accent Micro-interactions */
+.gold-glow {
+  position: relative;
+}
+
+.gold-glow::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  border-radius: inherit;
+  box-shadow: 0 0 15px rgba(212, 175, 55, 0.0);
+  transition: box-shadow 0.3s ease;
+  pointer-events: none;
+}
+
+.gold-glow:hover::after {
+  box-shadow: 0 0 20px rgba(212, 175, 55, 0.4);
+}
+
+.gold-text {
+  background: linear-gradient(135deg, #FFD700, #D4AF37, #AA7A00);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Cinematic Button */
+.btn-cinematic {
+  position: relative;
+  background: linear-gradient(135deg, #1f1f1f, #0a0a0a);
+  color: #fff;
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  overflow: hidden;
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+}
+
+.btn-cinematic::before {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%; width: 100%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.2), transparent);
+  transition: all 0.6s ease;
+}
+
+.btn-cinematic:hover {
+  border-color: rgba(212, 175, 55, 0.8);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(212, 175, 55, 0.25);
+}
+
+.btn-cinematic:hover::before {
+  left: 100%;
+}
+
+.btn-cinematic:active {
+  transform: translateY(1px);
+}
+
+/* Primary Checkout Action */
+.btn-checkout-primary {
+  background: linear-gradient(135deg, #D4AF37, #AA7A00);
+  color: #000;
+  border: none;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  box-shadow: 0 4px 20px rgba(212, 175, 55, 0.4);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-checkout-primary:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 8px 30px rgba(212, 175, 55, 0.6);
+}
+
+.btn-checkout-primary:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* Custom Scrollbar for Checkout */
+.checkout-scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.checkout-scroll::-webkit-scrollbar-track {
+  background: rgba(0,0,0,0.1);
+}
+.checkout-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.1);
+  border-radius: 10px;
+}
+.checkout-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(212, 175, 55, 0.5);
+}
+
+/* Animations */
+@keyframes goldShimmer {
+  0% { background-position: -1000px 0; }
+  100% { background-position: 1000px 0; }
+}
+
+.shimmer-loading {
+  background: linear-gradient(to right, #111 4%, #222 25%, #111 36%);
+  background-size: 1000px 100%;
+  animation: goldShimmer 2s infinite linear;
+}
+
+/* Map specific overlay logic */
+.map-gradient-overlay {
+  background: linear-gradient(to top, #000000 0%, rgba(0,0,0,0.8) 40%, transparent 100%);
+}
+
+.dark-input {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+  transition: all 0.3s ease;
+}
+
+.dark-input:focus {
+  border-color: #D4AF37;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.15);
+  outline: none;
+}

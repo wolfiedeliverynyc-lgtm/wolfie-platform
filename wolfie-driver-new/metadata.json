@@ -1,0 +1,6 @@
+{
+  "name": "Wolfie Driver",
+  "description": "Wolfie Driver - Deliver fast, earn more. An interactive driver simulator featuring real-time map navigation, order checklists, earnings graph trackers, and on-duty performance stats.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

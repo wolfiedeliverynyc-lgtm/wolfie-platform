@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#00d4ff">
+    <meta name="description" content="أسرع خدمة توصيل في نيويورك مع أسعار منخفضة وسائقين موثوقين">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Wolfie">
+    
+    <!-- Manifest Link -->
+    <link rel="manifest" href="/manifest.json">
+    
+    <!-- Icons -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/icons/icon-32x32.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/images/icons/icon-192x192.png">
+    <link rel="apple-touch-icon" href="/images/icons/icon-192x192.png">
+    <link rel="mask-icon" href="/images/icons/mask-icon.svg" color="#00d4ff">
+    
+    <!-- Splash Screens (iOS) -->
+    <link rel="apple-touch-startup-image" href="/images/splash/splash-1125x2436.png" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)">
+    <link rel="apple-touch-startup-image" href="/images/splash/splash-1242x2208.png" media="(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3)">
+    <link rel="apple-touch-startup-image" href="/images/splash/splash-768x1024.png" media="(device-width: 768px) and (device-height: 1024px)">
+    
+    <!-- Open Graph -->
+    <meta property="og:title" content="Wolfie Delivery - توصيل سريع">
+    <meta property="og:description" content="أسرع خدمة توصيل في نيويورك">
+    <meta property="og:image" content="/images/og-image.png">
+    <meta property="og:url" content="https://wolfie.delivery">
+    <meta property="og:type" content="website">
+    
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Wolfie Delivery">
+    <meta name="twitter:description" content="أسرع توصيل في NYC">
+    <meta name="twitter:image" content="/images/og-image.png">
+    
+    <!-- Stylesheet -->
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/pwa.css">
+    
+    <!-- Preconnect to APIs -->
+    <link rel="preconnect" href="https://api.mapbox.com">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    
+    <title>Wolfie Delivery - توصيل سريع في نيويورك</title>
+</head>
+<body>
+    <!-- App Container -->
+    <div id="app" class="app-container">
+        <!-- Status Bar (iOS) -->
+        <div class="pwa-status-bar"></div>
+        
+        <!-- Online/Offline Indicator -->
+        <div id="wolfie-online-indicator" class="online-indicator"></div>
+        
+        <!-- App Content -->
+        <main class="app-main">
+            <!-- Your content here -->
+        </main>
+        
+        <!-- Bottom Navigation -->
+        <nav class="bottom-nav">
+            <a href="/" class="nav-item active">
+                <span class="icon">🏠</span>
+                <span class="label">الرئيسية</span>
+            </a>
+            <a href="/orders" class="nav-item">
+                <span class="icon">📦</span>
+                <span class="label">طلباتي</span>
+            </a>
+            <a href="/wallet" class="nav-item">
+                <span class="icon">💳</span>
+                <span class="label">المحفظة</span>
+            </a>
+            <a href="/account" class="nav-item">
+                <span class="icon">👤</span>
+                <span class="label">حسابي</span>
+            </a>
+        </nav>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/pwa-integration.js"></script>
+    <script src="/static/js/app.js"></script>
+
+    <!-- Inline initialization script -->
+    <script>
+        // Initialize app
+        console.log('🐺 Wolfie Delivery PWA App Loaded');
+        
+        // Check if running as app
+        if (window.wolfiePWA?.isAppInstalled()) {
+            console.log('✅ Running as installed app');
+            document.body.classList.add('pwa-app');
+        }
+        
+        // Handle app lifecycle
+        document.addEventListener('pause', () => {
+            console.log('App paused');
+        });
+        
+        document.addEventListener('resume', () => {
+            console.log('App resumed');
+        });
+        
+        // Listen for app visibility
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                console.log('App hidden');
+            } else {
+                console.log('App visible');
+            }
+        });
+    </script>
+</body>
+</html>
