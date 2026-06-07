@@ -1,0 +1,1335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wolfie for Restaurants — Keep More. Grow Faster. Own Your Customers.</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+:root {
+  --bg:        #0a0a0a;
+  --bg2:       #111111;
+  --bg3:       #161616;
+  --card:      #1a1a1a;
+  --border:    rgba(255,255,255,0.08);
+  --border-o:  rgba(255,107,0,0.35);
+  --orange:    #FF6B00;
+  --orange2:   #FF8C33;
+  --orange-d:  #CC5500;
+  --orange-glow: 0 0 30px rgba(255,107,0,0.4), 0 0 80px rgba(255,107,0,0.15);
+  --orange-sm:   0 0 12px rgba(255,107,0,0.5);
+  --cream:     #F5F0E8;
+  --white:     #FFFFFF;
+  --muted:     rgba(245,240,232,0.45);
+  --muted2:    rgba(245,240,232,0.25);
+  --success:   #22C55E;
+  --danger:    #EF4444;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--cream);
+  font-family: 'Inter', sans-serif;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── NAV ── */
+nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 300;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  padding: 0 3rem;
+  background: rgba(10,10,10,0.92);
+  backdrop-filter: blur(24px);
+  border-bottom: 1px solid var(--border);
+}
+
+.nav-brand {
+  display: flex; align-items: center; gap: 0.5rem;
+  text-decoration: none; margin-right: 3rem; flex-shrink: 0;
+}
+.nav-claw {
+  width: 24px; height: 24px;
+}
+.nav-brand-text {
+  font-family: 'Syne', sans-serif;
+  font-weight: 800;
+  font-size: 17px;
+  letter-spacing: 0.06em;
+  color: var(--white);
+}
+.nav-brand-text .dot { color: var(--orange); }
+
+.nav-links {
+  display: flex; gap: 0; list-style: none; flex: 1;
+}
+.nav-links a {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+  text-decoration: none;
+  padding: 0 1rem;
+  height: 64px;
+  display: flex; align-items: center;
+  border-bottom: 2px solid transparent;
+  transition: color 0.2s, border-color 0.2s;
+  white-space: nowrap;
+}
+.nav-links a:hover { color: var(--white); border-bottom-color: var(--orange); }
+
+.nav-auth { display: flex; align-items: center; gap: 0.75rem; margin-left: auto; }
+.btn-ghost {
+  font-size: 13px; font-weight: 600;
+  color: var(--cream);
+  background: transparent;
+  border: 1px solid var(--border);
+  padding: 0.5rem 1.25rem;
+  border-radius: 6px;
+  cursor: pointer; text-decoration: none;
+  transition: border-color 0.2s, color 0.2s;
+}
+.btn-ghost:hover { border-color: rgba(255,255,255,0.3); color: var(--white); }
+
+.btn-orange {
+  font-size: 13px; font-weight: 700;
+  color: var(--white);
+  background: var(--orange);
+  border: none;
+  padding: 0.52rem 1.35rem;
+  border-radius: 6px;
+  cursor: pointer; text-decoration: none;
+  transition: background 0.2s, box-shadow 0.2s, transform 0.15s;
+  letter-spacing: 0.01em;
+}
+.btn-orange:hover { background: var(--orange2); box-shadow: var(--orange-sm); transform: translateY(-1px); }
+
+/* ── HERO ── */
+#hero {
+  min-height: 100vh;
+  padding: 120px 3rem 5rem;
+  display: grid;
+  grid-template-columns: 1fr 1.05fr;
+  gap: 4rem;
+  align-items: center;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Subtle background pattern */
+#hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 700px 500px at 70% 50%, rgba(255,107,0,0.07) 0%, transparent 70%),
+    radial-gradient(ellipse 400px 400px at 15% 80%, rgba(255,107,0,0.04) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.hero-eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--orange);
+  margin-bottom: 1.5rem;
+  display: flex; align-items: center; gap: 0.6rem;
+  opacity: 0; transform: translateY(20px);
+}
+.hero-eyebrow::before {
+  content: '';
+  width: 28px; height: 2px;
+  background: var(--orange);
+  display: inline-block;
+}
+
+.hero-title {
+  font-family: 'Syne', sans-serif;
+  font-weight: 800;
+  font-size: clamp(44px, 6.5vw, 82px);
+  line-height: 0.93;
+  letter-spacing: -0.01em;
+  margin-bottom: 2rem;
+  opacity: 0; transform: translateY(30px);
+}
+.hero-title .line { display: block; overflow: hidden; }
+.hero-title .accent { color: var(--orange); }
+
+.hero-sub {
+  font-size: 17px;
+  font-weight: 400;
+  color: var(--muted);
+  line-height: 1.7;
+  max-width: 480px;
+  margin-bottom: 2.5rem;
+  opacity: 0; transform: translateY(20px);
+}
+.hero-sub strong { color: var(--cream); font-weight: 600; }
+
+.hero-cta {
+  display: flex; align-items: center; gap: 1rem;
+  flex-wrap: wrap;
+  opacity: 0; transform: translateY(20px);
+}
+.btn-hero-primary {
+  font-size: 15px; font-weight: 700;
+  color: var(--white);
+  background: var(--orange);
+  border: none;
+  padding: 0.9rem 2rem;
+  border-radius: 8px;
+  cursor: pointer; text-decoration: none;
+  transition: background 0.2s, box-shadow 0.2s, transform 0.15s;
+}
+.btn-hero-primary:hover { background: var(--orange2); box-shadow: var(--orange-glow); transform: translateY(-2px); }
+.btn-hero-secondary {
+  font-size: 15px; font-weight: 600;
+  color: var(--cream);
+  background: transparent;
+  border: 1px solid var(--border);
+  padding: 0.9rem 2rem;
+  border-radius: 8px;
+  cursor: pointer; text-decoration: none;
+  display: flex; align-items: center; gap: 0.5rem;
+  transition: border-color 0.2s, color 0.2s;
+}
+.btn-hero-secondary:hover { border-color: rgba(255,255,255,0.25); color: var(--white); }
+.play-icon {
+  width: 18px; height: 18px;
+  background: rgba(255,255,255,0.12);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 8px; padding-left: 1px;
+}
+
+.hero-trust {
+  margin-top: 2.5rem;
+  display: flex; align-items: center; gap: 1rem;
+  opacity: 0;
+}
+.trust-text { font-size: 12px; color: var(--muted2); font-weight: 500; letter-spacing: 0.05em; }
+.trust-dots { display: flex; gap: 0.4rem; }
+.trust-dot {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--card);
+  border: 2px solid var(--bg2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; margin-left: -6px;
+}
+
+/* ── DASHBOARD MOCKUP ── */
+.hero-right {
+  position: relative;
+  perspective: 1200px;
+  opacity: 0; transform: translateX(40px);
+}
+
+.dashboard-wrap {
+  transform: rotateY(-8deg) rotateX(4deg);
+  transform-style: preserve-3d;
+  transition: transform 0.6s cubic-bezier(0.25,0.46,0.45,0.94);
+  will-change: transform;
+}
+.dashboard-wrap:hover {
+  transform: rotateY(-2deg) rotateX(1deg);
+}
+
+.dashboard-shell {
+  background: #1C1C1E;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.1);
+  overflow: hidden;
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.05),
+    0 40px 80px rgba(0,0,0,0.7),
+    0 0 60px rgba(255,107,0,0.1);
+}
+
+.db-titlebar {
+  background: #252527;
+  padding: 0.6rem 1rem;
+  display: flex; align-items: center; gap: 0.5rem;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.db-dot { width: 10px; height: 10px; border-radius: 50%; }
+.db-title {
+  font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.4);
+  margin-left: 0.5rem; letter-spacing: 0.05em;
+}
+
+.db-layout {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  min-height: 380px;
+}
+
+.db-sidebar {
+  background: #1A1A1C;
+  border-right: 1px solid rgba(255,255,255,0.06);
+  padding: 1rem 0;
+}
+.db-sidebar-title {
+  font-size: 9px; font-weight: 700; color: var(--orange);
+  letter-spacing: 0.2em; text-transform: uppercase;
+  padding: 0.4rem 1rem 0.8rem;
+}
+.db-sidebar-item {
+  display: flex; align-items: center; gap: 0.6rem;
+  padding: 0.55rem 1rem;
+  font-size: 11.5px; font-weight: 500;
+  color: rgba(255,255,255,0.4);
+  cursor: pointer; transition: all 0.2s;
+  border-left: 2px solid transparent;
+}
+.db-sidebar-item.active {
+  color: var(--white);
+  background: rgba(255,107,0,0.1);
+  border-left-color: var(--orange);
+}
+.db-sidebar-item:hover:not(.active) { color: rgba(255,255,255,0.7); background: rgba(255,255,255,0.03); }
+.db-icon { font-size: 12px; opacity: 0.7; width: 14px; text-align: center; }
+
+.db-main { padding: 1.2rem; overflow: hidden; }
+
+.db-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 1rem;
+}
+.db-page-title { font-size: 15px; font-weight: 700; color: var(--white); }
+.db-badge {
+  font-size: 9px; font-weight: 700;
+  background: rgba(34,197,94,0.15);
+  color: var(--success);
+  border: 1px solid rgba(34,197,94,0.25);
+  padding: 2px 8px; border-radius: 20px;
+  letter-spacing: 0.05em;
+}
+
+.db-stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; margin-bottom: 1rem; }
+.db-stat-card {
+  background: #252527;
+  border-radius: 8px; padding: 0.8rem;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.db-stat-label { font-size: 9px; font-weight: 600; color: rgba(255,255,255,0.4); letter-spacing: 0.08em; margin-bottom: 0.3rem; }
+.db-stat-val { font-size: 18px; font-weight: 800; color: var(--white); line-height: 1; margin-bottom: 0.25rem; }
+.db-stat-change { font-size: 9px; font-weight: 600; }
+.db-stat-change.up { color: var(--success); }
+.db-stat-change.dn { color: var(--danger); }
+
+.db-chart-area { background: #252527; border-radius: 8px; padding: 0.8rem; border: 1px solid rgba(255,255,255,0.06); margin-bottom: 0.6rem; }
+.db-chart-title { font-size: 9px; font-weight: 600; color: rgba(255,255,255,0.4); letter-spacing: 0.08em; margin-bottom: 0.6rem; }
+.db-chart {
+  height: 70px; position: relative; overflow: hidden;
+}
+.chart-svg { width: 100%; height: 100%; }
+
+.db-orders-title { font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.5); letter-spacing: 0.08em; margin-bottom: 0.5rem; }
+.db-order-row {
+  display: grid; grid-template-columns: 1fr auto auto auto;
+  gap: 0.5rem; align-items: center;
+  padding: 0.4rem 0.6rem;
+  border-radius: 5px;
+  background: rgba(255,255,255,0.02);
+  margin-bottom: 0.3rem;
+  font-size: 10px;
+}
+.db-order-name { color: rgba(255,255,255,0.7); font-weight: 500; }
+.db-order-tag {
+  font-size: 8px; font-weight: 700; padding: 1px 6px; border-radius: 3px;
+  letter-spacing: 0.05em;
+}
+.tag-delivered { background: rgba(34,197,94,0.15); color: var(--success); }
+.tag-transit { background: rgba(255,107,0,0.15); color: var(--orange); }
+.db-order-amount { color: var(--white); font-weight: 700; }
+.db-order-date { color: rgba(255,255,255,0.3); font-size: 9px; }
+
+/* Floating stat card */
+.hero-float-card {
+  position: absolute;
+  bottom: -20px; left: -30px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.9rem 1.1rem;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+  min-width: 180px;
+  opacity: 0; transform: translateY(20px);
+}
+.float-label { font-size: 9px; font-weight: 600; color: var(--muted2); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 0.5rem; }
+.float-val { font-size: 26px; font-weight: 800; color: var(--orange); line-height: 1; margin-bottom: 0.2rem; }
+.float-sub { font-size: 10px; color: var(--muted); font-weight: 500; }
+
+.hero-float-card2 {
+  position: absolute;
+  top: 20px; right: -20px;
+  background: var(--card);
+  border: 1px solid var(--border-o);
+  border-radius: 10px;
+  padding: 0.8rem 1rem;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+  opacity: 0; transform: translateY(-10px);
+}
+.float2-label { font-size: 9px; font-weight: 600; color: var(--orange); letter-spacing: 0.12em; margin-bottom: 0.4rem; }
+.float2-list { display: flex; flex-direction: column; gap: 0.3rem; }
+.float2-item { font-size: 10.5px; font-weight: 500; color: var(--cream); display: flex; gap: 0.4rem; align-items: center; }
+.float2-item::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: var(--success); flex-shrink: 0; }
+
+/* ── STATS BAR ── */
+.stats-bar {
+  background: var(--bg2);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+}
+.stats-bar-item {
+  padding: 2rem 2.5rem;
+  border-right: 1px solid var(--border);
+  display: flex; align-items: center; gap: 1rem;
+  opacity: 0; transform: translateY(20px);
+  transition: background 0.3s;
+  cursor: default;
+}
+.stats-bar-item:hover { background: rgba(255,107,0,0.04); }
+.stats-bar-item:last-child { border-right: none; }
+.stats-icon {
+  width: 40px; height: 40px; border-radius: 8px;
+  background: rgba(255,107,0,0.12);
+  border: 1px solid rgba(255,107,0,0.2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; flex-shrink: 0;
+  color: var(--orange);
+}
+.stats-icon svg { width: 18px; height: 18px; }
+.stats-info {}
+.stats-val {
+  font-size: 15px; font-weight: 800; color: var(--orange);
+  line-height: 1; margin-bottom: 0.25rem;
+}
+.stats-label { font-size: 12px; font-weight: 600; color: var(--cream); line-height: 1.2; }
+.stats-sub { font-size: 11px; color: var(--muted); margin-top: 0.15rem; }
+
+/* ── SECTION SHARED ── */
+section.s {
+  padding: 7rem 3rem;
+  position: relative;
+}
+
+.s-eyebrow {
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--orange);
+  margin-bottom: 1rem;
+  display: flex; align-items: center; gap: 0.6rem;
+}
+.s-eyebrow::before { content: ''; width: 24px; height: 2px; background: var(--orange); }
+
+.s-title {
+  font-family: 'Syne', sans-serif;
+  font-weight: 800;
+  font-size: clamp(34px, 4.5vw, 58px);
+  line-height: 0.95;
+  letter-spacing: -0.01em;
+  margin-bottom: 1.2rem;
+}
+.s-title .accent { color: var(--orange); }
+
+.s-sub {
+  font-size: 16px; color: var(--muted); line-height: 1.7;
+  max-width: 560px; font-weight: 400;
+}
+
+/* ── WHY SWITCH ── */
+#why {
+  background: #111213;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.why-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 1px; background: var(--border); margin-top: 4rem; }
+.why-card {
+  background: var(--bg);
+  padding: 2.5rem 2rem;
+  position: relative; overflow: hidden;
+  opacity: 0; transform: translateY(30px);
+  transition: background 0.3s;
+}
+.why-card:hover { background: #0d0d0d; }
+.why-card::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--orange);
+  transform: scaleX(0); transform-origin: left;
+  transition: transform 0.4s ease;
+}
+.why-card:hover::after { transform: scaleX(1); }
+.why-big-num {
+  font-family: 'Syne', sans-serif;
+  font-size: 56px; font-weight: 800;
+  color: var(--orange);
+  line-height: 1; margin-bottom: 0.5rem;
+  opacity: 0.9;
+}
+.why-card-label { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255,255,255,0.4); margin-bottom: 0.8rem; }
+.why-card-title { font-size: 17px; font-weight: 700; color: var(--white); margin-bottom: 0.6rem; line-height: 1.25; }
+.why-card-desc { font-size: 13px; color: var(--muted); line-height: 1.7; }
+
+/* ── FEATURES TABLE ── */
+#features { background: var(--bg); }
+
+.feat-table-header {
+  display: grid; grid-template-columns: 1.6fr repeat(3,1fr);
+  margin-bottom: 0;
+  border: 1px solid var(--border); border-radius: 12px 12px 0 0;
+  overflow: hidden;
+}
+.feat-table-col-head {
+  padding: 1.2rem 1.4rem;
+  border-right: 1px solid var(--border);
+}
+.feat-table-col-head:last-child { border-right: none; }
+.feat-table-col-head.wolfie { background: rgba(255,107,0,0.07); border-top: 2px solid var(--orange); }
+.col-label { font-size: 9px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted2); margin-bottom: 0.3rem; }
+.col-name { font-size: 15px; font-weight: 700; color: var(--white); }
+.wolfie-badge {
+  display: inline-block; font-size: 9px; font-weight: 700;
+  color: var(--white); background: var(--orange);
+  padding: 2px 8px; border-radius: 20px; margin-left: 0.5rem;
+  letter-spacing: 0.05em;
+}
+
+.feat-table-body {
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 12px 12px;
+  overflow: hidden;
+}
+.feat-table-row {
+  display: grid; grid-template-columns: 1.6fr repeat(3,1fr);
+  border-bottom: 1px solid var(--border);
+  opacity: 0; transform: translateX(-20px);
+}
+.feat-table-row:last-child { border-bottom: none; }
+.feat-cell {
+  padding: 1rem 1.4rem;
+  border-right: 1px solid var(--border);
+  display: flex; align-items: center;
+  font-size: 13px; font-weight: 500; color: var(--muted);
+}
+.feat-cell:last-child { border-right: none; }
+.feat-cell.feature-name { font-weight: 600; color: var(--cream); font-size: 14px; }
+.feat-cell.wolfie { background: rgba(255,107,0,0.04); }
+.feat-cell.wolfie.yes { color: var(--success); font-weight: 700; }
+.feat-cell.no { color: rgba(255,255,255,0.2); }
+.feat-cell.partial { color: rgba(255,107,0,0.6); }
+.check { color: var(--success); font-size: 15px; font-weight: 700; margin-right: 0.4rem; }
+.cross { color: rgba(255,255,255,0.2); font-size: 14px; margin-right: 0.4rem; }
+
+/* ── HOW IT WORKS ── */
+#how { background: var(--bg2); border-top: 1px solid var(--border); }
+
+.how-steps { display: grid; grid-template-columns: repeat(4,1fr); gap: 0; position: relative; margin-top: 4rem; }
+.how-steps::before {
+  content: '';
+  position: absolute;
+  top: 32px; left: calc(12.5% + 1rem); right: calc(12.5% + 1rem);
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--orange), transparent);
+  opacity: 0.3;
+  z-index: 0;
+}
+.how-step {
+  padding: 0 1.5rem;
+  text-align: center;
+  position: relative; z-index: 1;
+  opacity: 0; transform: translateY(30px);
+}
+.step-num {
+  width: 64px; height: 64px;
+  border-radius: 50%;
+  background: var(--card);
+  border: 1px solid var(--border-o);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Syne', sans-serif;
+  font-size: 20px; font-weight: 800; color: var(--orange);
+  margin: 0 auto 1.5rem;
+  box-shadow: 0 0 20px rgba(255,107,0,0.15);
+}
+.step-title { font-size: 15px; font-weight: 700; color: var(--white); margin-bottom: 0.6rem; }
+.step-desc { font-size: 13px; color: var(--muted); line-height: 1.65; }
+
+/* ── TESTIMONIALS / PROOF ── */
+#proof { background: var(--bg); }
+
+.proof-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 1.5rem; margin-top: 4rem; }
+.proof-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 2rem;
+  position: relative;
+  overflow: hidden;
+  opacity: 0; transform: translateY(30px);
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+.proof-card:hover {
+  border-color: var(--border-o);
+  box-shadow: 0 20px 50px rgba(0,0,0,0.4), 0 0 30px rgba(255,107,0,0.08);
+}
+.proof-card::before {
+  content: '"';
+  position: absolute;
+  top: -10px; right: 1.2rem;
+  font-size: 100px; font-weight: 800;
+  color: rgba(255,107,0,0.08);
+  font-family: 'Syne', sans-serif;
+  line-height: 1;
+}
+.proof-quote { font-size: 14px; line-height: 1.75; color: var(--cream); margin-bottom: 1.5rem; font-style: italic; }
+.proof-metric {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  background: rgba(255,107,0,0.1);
+  border: 1px solid rgba(255,107,0,0.2);
+  border-radius: 20px;
+  padding: 0.3rem 0.8rem;
+  font-size: 12px; font-weight: 700; color: var(--orange);
+  margin-bottom: 1.2rem;
+}
+.proof-author { font-size: 13px; font-weight: 600; color: var(--white); }
+.proof-biz { font-size: 12px; color: var(--muted); margin-top: 0.1rem; }
+
+/* ── PRICING TEASER ── */
+#pricing-teaser { background: var(--bg2); border-top: 1px solid var(--border); }
+
+.price-tease-grid { display: grid; grid-template-columns: 1fr 1.2fr; gap: 5rem; align-items: center; margin-top: 3rem; }
+.price-breakdown { display: flex; flex-direction: column; gap: 0; }
+.price-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 1.1rem 0;
+  border-bottom: 1px solid var(--border);
+  opacity: 0; transform: translateX(-20px);
+}
+.price-item:last-child { border-bottom: none; }
+.price-item-left { display: flex; flex-direction: column; gap: 0.2rem; }
+.price-item-label { font-size: 14px; font-weight: 600; color: var(--cream); }
+.price-item-note { font-size: 12px; color: var(--muted); }
+.price-item-val { font-size: 20px; font-weight: 800; color: var(--white); }
+.price-item-val.orange { color: var(--orange); }
+.price-item-val.green { color: var(--success); font-size: 14px; font-weight: 700; }
+
+.price-card-big {
+  background: linear-gradient(135deg, #1E1108 0%, #1A0F05 100%);
+  border: 1px solid var(--border-o);
+  border-radius: 16px;
+  padding: 2.5rem;
+  position: relative; overflow: hidden;
+  opacity: 0; transform: translateX(30px);
+}
+.price-card-big::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, var(--orange-d), var(--orange), var(--orange2));
+}
+.pcb-eyebrow { font-size: 10px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--orange); margin-bottom: 0.8rem; }
+.pcb-name { font-size: 24px; font-weight: 800; color: var(--white); margin-bottom: 0.5rem; }
+.pcb-price { font-size: 48px; font-weight: 800; color: var(--orange); line-height: 1; margin-bottom: 0.3rem; }
+.pcb-price-note { font-size: 13px; color: var(--muted); margin-bottom: 2rem; }
+.pcb-features { display: flex; flex-direction: column; gap: 0.7rem; margin-bottom: 2rem; }
+.pcb-feat { font-size: 13px; color: var(--cream); display: flex; gap: 0.5rem; align-items: flex-start; font-weight: 500; }
+.pcb-feat .ck { color: var(--success); font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+.pcb-cta {
+  display: block; text-align: center;
+  font-size: 14px; font-weight: 700;
+  color: var(--white); background: var(--orange);
+  padding: 0.9rem; border-radius: 8px;
+  text-decoration: none;
+  transition: background 0.2s, box-shadow 0.2s;
+}
+.pcb-cta:hover { background: var(--orange2); box-shadow: var(--orange-sm); }
+.pcb-trial { text-align: center; font-size: 11px; color: var(--muted); margin-top: 0.8rem; font-weight: 500; }
+
+/* ── FINAL CTA ── */
+#final-cta {
+  background: var(--bg);
+  text-align: center;
+  padding: 8rem 3rem;
+  position: relative; overflow: hidden;
+}
+#final-cta::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse 800px 500px at 50% 50%, rgba(255,107,0,0.07) 0%, transparent 70%);
+  pointer-events: none;
+}
+.cta-title {
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(40px, 6vw, 72px);
+  font-weight: 800;
+  line-height: 0.95;
+  letter-spacing: -0.01em;
+  margin-bottom: 1.5rem;
+  opacity: 0; transform: translateY(30px);
+}
+.cta-sub { font-size: 17px; color: var(--muted); max-width: 500px; margin: 0 auto 3rem; line-height: 1.7; opacity: 0; transform: translateY(20px); }
+.cta-btns { display: flex; gap: 1rem; justify-content: center; opacity: 0; }
+.cta-small { font-size: 12px; color: var(--muted2); margin-top: 1.2rem; opacity: 0; }
+
+/* ── FOOTER ── */
+footer {
+  background: #060606;
+  border-top: 1px solid var(--border);
+  padding: 1.5rem 3rem;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.footer-brand {
+  font-family: 'Syne', sans-serif;
+  font-weight: 800; font-size: 16px; letter-spacing: 0.05em;
+  color: rgba(255,255,255,0.3);
+}
+.footer-brand span { color: var(--orange); }
+.footer-legal { font-size: 11px; color: rgba(255,255,255,0.2); }
+.footer-links { display: flex; gap: 1.5rem; }
+.footer-links a { font-size: 12px; color: rgba(255,255,255,0.3); text-decoration: none; transition: color 0.2s; }
+.footer-links a:hover { color: var(--orange); }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 1024px) {
+  #hero { grid-template-columns: 1fr; gap: 3rem; padding: 100px 2rem 4rem; }
+  .hero-right { display: none; }
+  .stats-bar { grid-template-columns: repeat(2,1fr); }
+  .why-grid, .how-steps { grid-template-columns: repeat(2,1fr); }
+  .proof-grid { grid-template-columns: 1fr; }
+  .price-tease-grid { grid-template-columns: 1fr; }
+  nav { padding: 0 1.5rem; }
+  .nav-links { display: none; }
+  section.s { padding: 5rem 2rem; }
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav id="navbar">
+  <a href="#" class="nav-brand">
+    <svg class="nav-claw" viewBox="0 0 28 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <line x1="4" y1="3" x2="2" y2="33" stroke="#FF6B00" stroke-width="2.2" stroke-linecap="round"/>
+      <line x1="10" y1="2" x2="8" y2="31" stroke="#FF6B00" stroke-width="1.7" stroke-linecap="round"/>
+      <line x1="15" y1="4" x2="13.5" y2="33" stroke="#FF6B00" stroke-width="1.2" stroke-linecap="round" opacity="0.6"/>
+    </svg>
+    <span class="nav-brand-text">WOLFIE<span class="dot">.</span></span>
+  </a>
+  <ul class="nav-links">
+    <li><a href="#why">Why Wolfie</a></li>
+    <li><a href="#features">Features</a></li>
+    <li><a href="#pricing-teaser">Pricing</a></li>
+    <li><a href="#how">How It Works</a></li>
+    <li><a href="#proof">Success Stories</a></li>
+  </ul>
+  <div class="nav-auth">
+    <a href="/restaurant/login" class="btn-ghost">Login</a>
+    <a href="/restaurant/book-demo" class="btn-orange">Book a Demo</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section id="hero">
+  <div class="hero-left">
+    <div class="hero-eyebrow" id="heroEyebrow">For Restaurant Partners</div>
+    <h1 class="hero-title" id="heroTitle">
+      <span class="line">KEEP MORE.</span>
+      <span class="line">GROW FASTER.</span>
+      <span class="line accent">OWN YOUR CUSTOMERS.</span>
+    </h1>
+    <p class="hero-sub" id="heroSub">
+      DoorDash charges <strong>30% commission</strong> and keeps your customers. Wolfie charges <strong>10%</strong> and hands you a loyal audience, real-time data, and a platform built to make them order again and again.
+    </p>
+    <div class="hero-cta" id="heroCta">
+      <a href="/restaurant/book-demo" class="btn-hero-primary">Book a Demo</a>
+      <a href="#how" class="btn-hero-secondary">
+        <span class="play-icon">▶</span>
+        See How It Works
+      </a>
+    </div>
+    <div class="hero-trust" id="heroTrust">
+      <span class="trust-text">TRUSTED BY 50+ NYC RESTAURANTS</span>
+      <div class="trust-dots">
+        <div class="trust-dot">🍕</div>
+        <div class="trust-dot">🍜</div>
+        <div class="trust-dot">🌮</div>
+        <div class="trust-dot">🍔</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DASHBOARD MOCKUP -->
+  <div class="hero-right" id="heroRight">
+    <div class="dashboard-wrap" id="dashWrap">
+      <div class="dashboard-shell">
+        <div class="db-titlebar">
+          <div class="db-dot" style="background:#FF5F57"></div>
+          <div class="db-dot" style="background:#FFBD2E"></div>
+          <div class="db-dot" style="background:#28C840"></div>
+          <span class="db-title">WOLFIE RESTAURANT DASHBOARD</span>
+        </div>
+        <div class="db-layout">
+          <div class="db-sidebar">
+            <div class="db-sidebar-title">Abu Ali's Kitchen</div>
+            <div class="db-sidebar-item active"><span class="db-icon">▦</span> Overview</div>
+            <div class="db-sidebar-item"><span class="db-icon">◈</span> Orders</div>
+            <div class="db-sidebar-item"><span class="db-icon">◉</span> Customers</div>
+            <div class="db-sidebar-item"><span class="db-icon">☰</span> Menu</div>
+            <div class="db-sidebar-item"><span class="db-icon">⟴</span> Marketing</div>
+            <div class="db-sidebar-item"><span class="db-icon">⎊</span> Analytics</div>
+            <div class="db-sidebar-item"><span class="db-icon">◎</span> Payouts</div>
+            <div class="db-sidebar-item"><span class="db-icon">⊙</span> Settings</div>
+          </div>
+          <div class="db-main">
+            <div class="db-header">
+              <div class="db-page-title">Overview</div>
+              <div class="db-badge">LIVE</div>
+            </div>
+            <div class="db-stat-row">
+              <div class="db-stat-card">
+                <div class="db-stat-label">TOTAL SALES</div>
+                <div class="db-stat-val" id="db-sales">$0</div>
+                <div class="db-stat-change up" id="db-sales-c">+18%</div>
+              </div>
+              <div class="db-stat-card">
+                <div class="db-stat-label">NET PROFIT</div>
+                <div class="db-stat-val" id="db-profit">$0</div>
+                <div class="db-stat-change up" id="db-profit-c">+23%</div>
+              </div>
+              <div class="db-stat-card">
+                <div class="db-stat-label">ORDERS</div>
+                <div class="db-stat-val" id="db-orders">0</div>
+                <div class="db-stat-change up">+13%</div>
+              </div>
+            </div>
+            <div class="db-chart-area">
+              <div class="db-chart-title">REVENUE — LAST 30 DAYS</div>
+              <div class="db-chart">
+                <svg class="chart-svg" viewBox="0 0 300 70" preserveAspectRatio="none">
+                  <defs>
+                    <linearGradient id="chartGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                      <stop offset="0%" style="stop-color:#FF6B00;stop-opacity:0.3"/>
+                      <stop offset="100%" style="stop-color:#FF6B00;stop-opacity:0"/>
+                    </linearGradient>
+                  </defs>
+                  <path d="M0,60 L15,52 L30,55 L45,45 L60,48 L75,38 L90,35 L105,28 L120,30 L135,20 L150,22 L165,15 L180,18 L195,10 L210,12 L225,8 L240,5 L255,7 L270,4 L285,3 L300,2 L300,70 L0,70 Z" fill="url(#chartGrad)"/>
+                  <path d="M0,60 L15,52 L30,55 L45,45 L60,48 L75,38 L90,35 L105,28 L120,30 L135,20 L150,22 L165,15 L180,18 L195,10 L210,12 L225,8 L240,5 L255,7 L270,4 L285,3 L300,2" fill="none" stroke="#FF6B00" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
+            </div>
+            <div class="db-orders-title">RECENT ORDERS</div>
+            <div class="db-order-row">
+              <span class="db-order-name">DabiraKhashem</span>
+              <span class="db-order-tag tag-delivered">DELIVERED</span>
+              <span class="db-order-amount">$43.50</span>
+              <span class="db-order-date">12:41</span>
+            </div>
+            <div class="db-order-row">
+              <span class="db-order-name">DalsChowmein</span>
+              <span class="db-order-tag tag-transit">IN TRANSIT</span>
+              <span class="db-order-amount">$31.00</span>
+              <span class="db-order-date">12:38</span>
+            </div>
+            <div class="db-order-row">
+              <span class="db-order-name">DannilaFryers</span>
+              <span class="db-order-tag tag-transit">IN TRANSIT</span>
+              <span class="db-order-amount">$58.20</span>
+              <span class="db-order-date">12:33</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Floating cards -->
+    <div class="hero-float-card" id="floatCard1">
+      <div class="float-label">SAVED THIS MONTH</div>
+      <div class="float-val">$847</div>
+      <div class="float-sub">vs. DoorDash commission</div>
+    </div>
+    <div class="hero-float-card2" id="floatCard2">
+      <div class="float2-label">WOLFIE ADVANTAGE</div>
+      <div class="float2-list">
+        <div class="float2-item">AI loyalty system live</div>
+        <div class="float2-item">Customer data: yours</div>
+        <div class="float2-item">3x repeat orders</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- STATS BAR -->
+<div class="stats-bar">
+  <div class="stats-bar-item" data-reveal="stat">
+    <div class="stats-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+    </div>
+    <div class="stats-info">
+      <div class="stats-val">Save up to 25%</div>
+      <div class="stats-label">Lower commission</div>
+      <div class="stats-sub">10–18% vs 25–30%</div>
+    </div>
+  </div>
+  <div class="stats-bar-item" data-reveal="stat">
+    <div class="stats-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+    </div>
+    <div class="stats-info">
+      <div class="stats-val">Own Your Customers</div>
+      <div class="stats-label">Get customer data</div>
+      <div class="stats-sub">Build real loyalty</div>
+    </div>
+  </div>
+  <div class="stats-bar-item" data-reveal="stat">
+    <div class="stats-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+    </div>
+    <div class="stats-info">
+      <div class="stats-val">Grow Your Profit</div>
+      <div class="stats-label">Increase repeat orders</div>
+      <div class="stats-sub">+30% repeat rate avg</div>
+    </div>
+  </div>
+  <div class="stats-bar-item" data-reveal="stat">
+    <div class="stats-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+    </div>
+    <div class="stats-info">
+      <div class="stats-val">Transparent Pricing</div>
+      <div class="stats-label">No hidden fees</div>
+      <div class="stats-sub">No surprises. Ever.</div>
+    </div>
+  </div>
+</div>
+
+<!-- WHY SWITCH -->
+<section id="why" class="s">
+  <div class="s-eyebrow">Why Restaurants Switch</div>
+  <h2 class="s-title">THE MATH IS SIMPLE.<br><span class="accent">YOUR MARGIN ISN'T.</span></h2>
+  <p class="s-sub">Every dollar DoorDash takes is a dollar that should be yours. We built Wolfie for one reason: restaurants deserved a platform that worked for them, not against them.</p>
+  <div class="why-grid">
+    <div class="why-card" data-reveal="why">
+      <div class="why-big-num" data-count="25" data-suffix="%">0%</div>
+      <div class="why-card-label">Commission savings</div>
+      <div class="why-card-title">Save up to 25% on commission fees</div>
+      <div class="why-card-desc">DoorDash takes 25–30% off every single order. Wolfie's tiered model runs 10–18%. On 600 orders a month, that's $400 to $1,000 back in your pocket — every month, compounding.</div>
+    </div>
+    <div class="why-card" data-reveal="why">
+      <div class="why-big-num" data-count="3" data-suffix="x">0x</div>
+      <div class="why-card-label">Repeat order multiplier</div>
+      <div class="why-card-title">Customers order 3x more often</div>
+      <div class="why-card-desc">Wolfie's AI loyalty system learns each customer and sends perfectly-timed personal offers on your behalf. Same customers. Same radius. Three times the order frequency. Proven by the data.</div>
+    </div>
+    <div class="why-card" data-reveal="why">
+      <div class="why-big-num" data-count="100" data-suffix="%">0%</div>
+      <div class="why-card-label">Data ownership</div>
+      <div class="why-card-title">Your customers. Your data. Full stop.</div>
+      <div class="why-card-desc">When you use DoorDash, you're building their audience for them. On Wolfie, every customer is yours — name, order history, preferences, contact. Run campaigns. Retarget. Build something that compounds.</div>
+    </div>
+    <div class="why-card" data-reveal="why">
+      <div class="why-big-num" data-count="1" data-suffix=" day">0</div>
+      <div class="why-card-label">Payout speed</div>
+      <div class="why-card-title">Get paid in 1–3 days, not 7</div>
+      <div class="why-card-desc">Cash flow is the life of a restaurant. Weekly payouts are a 2015 solution. Wolfie processes daily — so what you earn on Monday hits your account before the week is out.</div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES COMPARISON TABLE -->
+<section id="features" class="s" style="background:var(--bg2); border-top:1px solid var(--border);">
+  <div class="s-eyebrow">Platform Comparison</div>
+  <h2 class="s-title">NOT ALL PLATFORMS<br><span class="accent">ARE EQUAL.</span></h2>
+  <p class="s-sub" style="margin-bottom:3rem;">Side by side. No spin. Just what each platform actually gives you — and what it takes.</p>
+
+  <div class="feat-table-header">
+    <div class="feat-table-col-head"><div class="col-label">Feature</div><div class="col-name">Comparison</div></div>
+    <div class="feat-table-col-head wolfie"><div class="col-label">Your platform</div><div class="col-name">Wolfie <span class="wolfie-badge">BEST</span></div></div>
+    <div class="feat-table-col-head"><div class="col-label">Market leader</div><div class="col-name">DoorDash</div></div>
+    <div class="feat-table-col-head"><div class="col-label">Self-managed</div><div class="col-name">GloriaFood</div></div>
+  </div>
+  <div class="feat-table-body">
+    <div class="feat-table-row" data-reveal="row">
+      <div class="feat-cell feature-name">Commission rate</div>
+      <div class="feat-cell wolfie yes"><span class="check">✓</span> 10–18% tiered</div>
+      <div class="feat-cell no"><span class="cross">✗</span> 25–30%</div>
+      <div class="feat-cell partial">~ None (no delivery)</div>
+    </div>
+    <div class="feat-table-row" data-reveal="row">
+      <div class="feat-cell feature-name">Customer data ownership</div>
+      <div class="feat-cell wolfie yes"><span class="check">✓</span> Full — yours forever</div>
+      <div class="feat-cell no"><span class="cross">✗</span> DoorDash owns it</div>
+      <div class="feat-cell partial">~ Limited</div>
+    </div>
+    <div class="feat-table-row" data-reveal="row">
+      <div class="feat-cell feature-name">AI loyalty & personalization</div>
+      <div class="feat-cell wolfie yes"><span class="check">✓</span> Built in, automatic</div>
+      <div class="feat-cell no"><span class="cross">✗</span> None</div>
+      <div class="feat-cell no"><span class="cross">✗</span> None</div>
+    </div>
+    <div class="feat-table-row" data-reveal="row">
+      <div class="feat-cell feature-name">Gamification & rewards</div>
+      <div class="feat-cell wolfie yes"><span class="check">✓</span> Levels, challenges, cashback</div>
+      <div class="feat-cell no"><span class="cross">✗</span> No</div>
+      <div class="feat-cell no"><span class="cross">✗</span> No</div>
+    </div>
+    <div class="feat-table-row" data-reveal="row">
+      <div class="feat-cell feature-name">Delivery network</div>
+      <div class="feat-cell wolfie yes"><span class="check">✓</span> Smart-matched, live GPS</div>
+      <div class="feat-cell partial">~ Yes (30% cost)</div>
+      <div class="feat-cell no"><span class="cross">✗</span> None — you arrange it</div>
+    </div>
+    <div class="feat-table-row" data-reveal="row">
+      <div class="feat-cell feature-name">Real-time analytics dashboard</div>
+      <div class="feat-cell wolfie yes"><span class="check">✓</span> Full suite, live data</div>
+      <div class="feat-cell partial">~ Basic</div>
+      <div class="feat-cell partial">~ Limited</div>
+    </div>
+    <div class="feat-table-row" data-reveal="row">
+      <div class="feat-cell feature-name">Payout speed</div>
+      <div class="feat-cell wolfie yes"><span class="check">✓</span> 1–3 days</div>
+      <div class="feat-cell partial">~ 7 days</div>
+      <div class="feat-cell partial">~ Varies</div>
+    </div>
+    <div class="feat-table-row" data-reveal="row">
+      <div class="feat-cell feature-name">Group orders</div>
+      <div class="feat-cell wolfie yes"><span class="check">✓</span> One fee, viral growth</div>
+      <div class="feat-cell no"><span class="cross">✗</span> No</div>
+      <div class="feat-cell no"><span class="cross">✗</span> No</div>
+    </div>
+    <div class="feat-table-row" data-reveal="row">
+      <div class="feat-cell feature-name">Setup cost &amp; lock-in</div>
+      <div class="feat-cell wolfie yes"><span class="check">✓</span> $0. No contract. 7-day trial.</div>
+      <div class="feat-cell no"><span class="cross">✗</span> Onboarding fees, terms</div>
+      <div class="feat-cell partial">~ Monthly subscription</div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section id="how" class="s">
+  <div class="s-eyebrow">The Process</div>
+  <h2 class="s-title">UP AND RUNNING<br><span class="accent">IN 48 HOURS.</span></h2>
+  <p class="s-sub">No technical setup. No IT team. No downtime. You're open for business on Wolfie before you finish your morning coffee.</p>
+  <div class="how-steps">
+    <div class="how-step" data-reveal="step">
+      <div class="step-num">01</div>
+      <div class="step-title">Apply in 5 minutes</div>
+      <div class="step-desc">Business license, menu, bank details. That's it. No long interviews, no vetting process that takes weeks. We move at restaurant speed.</div>
+    </div>
+    <div class="how-step" data-reveal="step">
+      <div class="step-num">02</div>
+      <div class="step-title">Get onboarded same day</div>
+      <div class="step-desc">Your account manager sets up your dashboard, uploads your menu, and configures your loyalty program. Zero technical work on your side.</div>
+    </div>
+    <div class="how-step" data-reveal="step">
+      <div class="step-num">03</div>
+      <div class="step-title">Go live — first 20 orders free</div>
+      <div class="step-desc">We waive commission on your first 20 orders. Zero cost, full platform access. See the numbers before you commit to anything.</div>
+    </div>
+    <div class="how-step" data-reveal="step">
+      <div class="step-num">04</div>
+      <div class="step-title">Watch the data compound</div>
+      <div class="step-desc">The AI starts learning your customers from order one. Every week, your retention improves, your repeat rate climbs, and your per-customer value grows.</div>
+    </div>
+  </div>
+</section>
+
+<!-- SOCIAL PROOF -->
+<section id="proof" class="s" style="background:var(--bg2); border-top:1px solid var(--border);">
+  <div class="s-eyebrow">Success Stories</div>
+  <h2 class="s-title">THE NUMBERS<br><span class="accent">DON'T LIE.</span></h2>
+  <p class="s-sub">Real restaurants. Real results. No cherry-picked edge cases.</p>
+  <div class="proof-grid">
+    <div class="proof-card" data-reveal="proof">
+      <p class="proof-quote">"We saved $1,100 in the first month alone. But the bigger story is the loyalty data — I finally know who my top 50 customers are and I can reach them directly. DoorDash never gave me that."</p>
+      <div class="proof-metric">+$1,100 saved month one</div>
+      <div class="proof-author">Ali Hassan</div>
+      <div class="proof-biz">Abu Ali's Kitchen, Brooklyn</div>
+    </div>
+    <div class="proof-card" data-reveal="proof">
+      <p class="proof-quote">"The AI loyalty system is the part nobody talks about enough. My average customer now orders 4 times a month instead of 1.5. Same marketing budget, same menu — just Wolfie's personalization doing the work."</p>
+      <div class="proof-metric">2.7x repeat order rate</div>
+      <div class="proof-author">Maria Chen</div>
+      <div class="proof-biz">Golden Bowl, Queens</div>
+    </div>
+    <div class="proof-card" data-reveal="proof">
+      <p class="proof-quote">"I was paying DoorDash 28% for two years. Two years of watching my margin evaporate. Switching to Wolfie's 12% was the single best financial decision I made for the restaurant. Full stop."</p>
+      <div class="proof-metric">16% more margin per order</div>
+      <div class="proof-author">Jamal Williams</div>
+      <div class="proof-biz">Uptown Smokehouse, Bronx</div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING TEASER -->
+<section id="pricing-teaser" class="s">
+  <div class="s-eyebrow">Pricing</div>
+  <h2 class="s-title">ONE FLAT RATE.<br><span class="accent">ZERO SURPRISES.</span></h2>
+  <p class="s-sub">No setup fees. No contracts. No sudden rate increases. We print our margins — because we're not embarrassed by them.</p>
+  <div class="price-tease-grid">
+    <div class="price-breakdown">
+      <div class="price-item" data-reveal="price">
+        <div class="price-item-left">
+          <div class="price-item-label">Commission (orders under $30)</div>
+          <div class="price-item-note">You keep 90 cents of every dollar</div>
+        </div>
+        <div class="price-item-val orange">10%</div>
+      </div>
+      <div class="price-item" data-reveal="price">
+        <div class="price-item-left">
+          <div class="price-item-label">Commission ($30–$100 orders)</div>
+          <div class="price-item-note">Higher ticket, lower rate</div>
+        </div>
+        <div class="price-item-val orange">12%</div>
+      </div>
+      <div class="price-item" data-reveal="price">
+        <div class="price-item-left">
+          <div class="price-item-label">Commission ($100+ orders)</div>
+          <div class="price-item-note">Large orders get the best rate</div>
+        </div>
+        <div class="price-item-val orange">15%</div>
+      </div>
+      <div class="price-item" data-reveal="price">
+        <div class="price-item-left">
+          <div class="price-item-label">Setup fee</div>
+          <div class="price-item-note">Nothing. Not a dollar.</div>
+        </div>
+        <div class="price-item-val green">FREE</div>
+      </div>
+      <div class="price-item" data-reveal="price">
+        <div class="price-item-left">
+          <div class="price-item-label">Contract or lock-in</div>
+          <div class="price-item-note">Cancel any time. No penalties.</div>
+        </div>
+        <div class="price-item-val green">NONE</div>
+      </div>
+      <div class="price-item" data-reveal="price">
+        <div class="price-item-left">
+          <div class="price-item-label">DoorDash comparison</div>
+          <div class="price-item-note">What you're paying right now</div>
+        </div>
+        <div class="price-item-val" style="color:#EF4444; font-size:16px;">25–30%</div>
+      </div>
+    </div>
+    <div class="price-card-big" id="priceCardBig">
+      <div class="pcb-eyebrow">Restaurant Partner</div>
+      <div class="pcb-name">Wolfie Grid Partner</div>
+      <div class="pcb-price">$0</div>
+      <div class="pcb-price-note">Monthly fee. Commission only on orders you receive.</div>
+      <div class="pcb-features">
+        <div class="pcb-feat"><span class="ck">✓</span> Full restaurant dashboard &amp; analytics</div>
+        <div class="pcb-feat"><span class="ck">✓</span> AI loyalty system — automated, always on</div>
+        <div class="pcb-feat"><span class="ck">✓</span> 100% customer data ownership</div>
+        <div class="pcb-feat"><span class="ck">✓</span> Smart-matched driver network</div>
+        <div class="pcb-feat"><span class="ck">✓</span> Real-time GPS tracking for all orders</div>
+        <div class="pcb-feat"><span class="ck">✓</span> Group orders &amp; social dining features</div>
+        <div class="pcb-feat"><span class="ck">✓</span> SMS + push notifications (Twilio)</div>
+        <div class="pcb-feat"><span class="ck">✓</span> Daily payouts — not weekly</div>
+        <div class="pcb-feat"><span class="ck">✓</span> First 20 orders at zero commission</div>
+      </div>
+      <a href="#final-cta" class="pcb-cta">Start Your Free Trial</a>
+      <div class="pcb-trial">No credit card required. No commitment.</div>
+    </div>
+  </div>
+</section>
+
+<!-- FINAL CTA -->
+<section id="final-cta">
+  <h2 class="cta-title" id="ctaTitle">
+    STOP PAYING 30%<br>
+    <span style="color:var(--orange);">TO RENT YOUR OWN CUSTOMERS.</span>
+  </h2>
+  <p class="cta-sub" id="ctaSub">Book a 20-minute demo. We'll show you exactly how much you've been overpaying — and what your numbers look like on Wolfie.</p>
+  <div class="cta-btns" id="ctaBtns">
+    <a href="/restaurant/book-demo" class="btn-hero-primary" style="font-size:16px; padding:1rem 2.5rem;">Book a Demo</a>
+    <a href="#why" class="btn-hero-secondary" style="font-size:16px; padding:1rem 2.5rem;">Learn More</a>
+  </div>
+  <p class="cta-small" id="ctaSmall">Free 20-minute session. No pitch. Just your numbers.</p>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-brand">WOLFIE<span>.</span></div>
+  <div class="footer-links">
+    <a href="#">Restaurants</a>
+    <a href="#">Drivers</a>
+    <a href="#">Customers</a>
+    <a href="#">Privacy</a>
+    <a href="#">Terms</a>
+  </div>
+  <div class="footer-legal">© 2025 Wolfie Delivery LLC · Brooklyn, NYC</div>
+</footer>
+
+<script>
+/* ── HERO ENTRANCE ── */
+(function() {
+  const dur = 700;
+  function animate(el, delay, from) {
+    if (!el) return;
+    el.style.transition = `opacity ${dur}ms ease, transform ${dur}ms ease`;
+    el.style.transitionDelay = delay + 'ms';
+    requestAnimationFrame(() => {
+      el.style.opacity = '1';
+      el.style.transform = 'none';
+    });
+  }
+
+  window.addEventListener('load', () => {
+    animate(document.getElementById('heroEyebrow'), 100);
+    animate(document.getElementById('heroTitle'), 250);
+    animate(document.getElementById('heroSub'), 420);
+    animate(document.getElementById('heroCta'), 560);
+    animate(document.getElementById('heroTrust'), 700);
+    animate(document.getElementById('heroRight'), 300);
+    setTimeout(() => {
+      const fc1 = document.getElementById('floatCard1');
+      const fc2 = document.getElementById('floatCard2');
+      if(fc1) { fc1.style.transition='opacity 600ms ease, transform 600ms ease'; fc1.style.opacity='1'; fc1.style.transform='none'; }
+      if(fc2) { setTimeout(() => { fc2.style.transition='opacity 600ms ease, transform 600ms ease'; fc2.style.opacity='1'; fc2.style.transform='none'; }, 200); }
+    }, 900);
+  });
+})();
+
+/* ── DB COUNTER ANIMATION ── */
+function countUp(el, target, prefix, suffix, duration) {
+  const start = performance.now();
+  const step = (now) => {
+    const t = Math.min((now - start) / duration, 1);
+    const ease = 1 - Math.pow(1 - t, 3);
+    el.textContent = prefix + Math.round(target * ease).toLocaleString() + suffix;
+    if (t < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    const s = document.getElementById('db-sales');
+    const p = document.getElementById('db-profit');
+    const o = document.getElementById('db-orders');
+    if(s) countUp(s, 24530, '$', '', 1800);
+    if(p) countUp(p, 6341, '$', '', 2000);
+    if(o) countUp(o, 1248, '', '', 1600);
+  }, 600);
+});
+
+/* ── 3D DASHBOARD MOUSE TILT ── */
+const dashWrap = document.getElementById('dashWrap');
+const heroRight = document.getElementById('heroRight');
+if (heroRight && dashWrap) {
+  heroRight.addEventListener('mousemove', (e) => {
+    const r = heroRight.getBoundingClientRect();
+    const x = ((e.clientX - r.left) / r.width - 0.5) * 10;
+    const y = ((e.clientY - r.top) / r.height - 0.5) * -6;
+    dashWrap.style.transform = `rotateY(${-8 + x}deg) rotateX(${4 + y}deg)`;
+  });
+  heroRight.addEventListener('mouseleave', () => {
+    dashWrap.style.transform = 'rotateY(-8deg) rotateX(4deg)';
+  });
+}
+
+/* ── SCROLL REVEAL ── */
+const revealObs = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (!e.isIntersecting) return;
+    const el = e.target;
+    const type = el.dataset.reveal;
+    const siblings = [...document.querySelectorAll(`[data-reveal="${type}"]`)];
+    const idx = siblings.indexOf(el);
+
+    const delay = idx * 100;
+    el.style.transition = `opacity 700ms ease ${delay}ms, transform 700ms ease ${delay}ms`;
+    el.style.opacity = '1';
+    el.style.transform = 'none';
+
+    /* Number counting for why cards */
+    if (type === 'why') {
+      const numEl = el.querySelector('[data-count]');
+      if (numEl) {
+        const target = parseFloat(numEl.dataset.count);
+        const suffix = numEl.dataset.suffix || '';
+        setTimeout(() => countUp(numEl, target, '', suffix, 1200), delay);
+      }
+    }
+
+    revealObs.unobserve(el);
+  });
+}, { threshold: 0.12 });
+
+document.querySelectorAll('[data-reveal]').forEach(el => revealObs.observe(el));
+
+/* ── PRICE CARD REVEAL ── */
+const priceObs = new IntersectionObserver((entries) => {
+  if (!entries[0].isIntersecting) return;
+  const pc = document.getElementById('priceCardBig');
+  if (pc) {
+    pc.style.transition = 'opacity 800ms ease 200ms, transform 800ms ease 200ms';
+    pc.style.opacity = '1';
+    pc.style.transform = 'none';
+  }
+  priceObs.disconnect();
+}, { threshold: 0.1 });
+const pct = document.getElementById('priceCardBig');
+if (pct) priceObs.observe(pct);
+
+/* ── CTA REVEAL ── */
+const ctaObs = new IntersectionObserver((entries) => {
+  if (!entries[0].isIntersecting) return;
+  ['ctaTitle','ctaSub','ctaBtns','ctaSmall'].forEach((id, i) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.transition = `opacity 700ms ease ${i*150}ms, transform 700ms ease ${i*150}ms`;
+    el.style.opacity = '1';
+    el.style.transform = 'none';
+  });
+  ctaObs.disconnect();
+}, { threshold: 0.2 });
+const ctaEl = document.getElementById('final-cta');
+if (ctaEl) ctaObs.observe(ctaEl);
+
+/* ── NAV ACTIVE LINK ── */
+window.addEventListener('scroll', () => {
+  const sections = ['why','features','pricing-teaser','how','proof'];
+  const scrollY = window.scrollY + 100;
+  sections.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const top = el.offsetTop;
+    const bot = top + el.offsetHeight;
+    const link = document.querySelector(`.nav-links a[href="#${id}"]`);
+    if (!link) return;
+    if (scrollY >= top && scrollY < bot) {
+      link.style.color = 'var(--white)';
+      link.style.borderBottomColor = 'var(--orange)';
+    } else {
+      link.style.color = '';
+      link.style.borderBottomColor = '';
+    }
+  });
+});
+
+/* ── SMOOTH SCROLL ── */
+document.querySelectorAll('a[href^="#"]').forEach(a => {
+  a.addEventListener('click', e => {
+    const target = document.querySelector(a.getAttribute('href'));
+    if (!target) return;
+    e.preventDefault();
+    window.scrollTo({ top: target.offsetTop - 64, behavior: 'smooth' });
+  });
+});
+</script>
+</body>
+</html>
