@@ -214,13 +214,13 @@ def expire_driver_trials():
 def cancel_stale_orders():
     """
     Beat task — runs every 10 min.
-    Cancels pending orders older than 30 min with no driver assigned.
+    Cancels pending orders older than 3 min with no driver assigned.
     """
     from database import transaction
     from database.repositories import OrderRepository, UserRepository
     from order_state_manager import order_state_manager
 
-    cutoff   = datetime.now(UTC) - timedelta(minutes=30)
+    cutoff   = datetime.now(UTC) - timedelta(minutes=3)
     cancelled = 0
 
     try:
@@ -232,7 +232,7 @@ def cancel_stale_orders():
                 created = order.created_at.replace(tzinfo=UTC) if order.created_at.tzinfo is None else order.created_at
                 if created < cutoff and not order.driver_id:
                     repo.cancel(order, actor_role="system", actor_id="auto",
-                                reason="No driver available after 30 minutes")
+                                reason="No driver available after 3 minutes")
 
                     # Notify customer
                     user_repo = UserRepository(session)

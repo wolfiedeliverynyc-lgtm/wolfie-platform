@@ -37,6 +37,11 @@ const ZONES = [
 ];
 
 export default function DispatchEnginePage() {
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   const { 
     orders, 
     drivers, 
@@ -65,7 +70,7 @@ export default function DispatchEnginePage() {
 
   // Filter States
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterStatuses, setFilterStatuses] = useState<string[]>(["pending", "preparing", "delivering"]);
+  const [filterStatuses, setFilterStatuses] = useState<string[]>(["pending", "accepted", "preparing", "ready", "on_the_way", "delivered", "delivering"]);
   const [filterSlas, setFilterSlas] = useState<string[]>([]);
   const [filterDelayRisks, setFilterDelayRisks] = useState<string[]>([]);
   const [filterZone, setFilterZone] = useState<string>("all");
@@ -432,6 +437,10 @@ export default function DispatchEnginePage() {
     }
   };
 
+  if (!isMounted) {
+    return <div style={{ padding: "24px", color: "var(--text-muted)", fontSize: "14px", fontWeight: 500 }}>Loading Dashboard Data...</div>;
+  }
+
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 80px)" }}>
       {/* Toast Alert overlay */}
@@ -761,11 +770,11 @@ export default function DispatchEnginePage() {
                             />
                           </td>
                           <td className="mono" style={{ fontWeight: 700 }}>#{order.id}</td>
-                          <td style={{ fontWeight: 500 }}>{order.customer_name}</td>
-                          <td>{order.merchant_name}</td>
+                          <td style={{ fontWeight: 500 }}>{order.customer_name || `Customer (${order.customer_id?.substring(0, 8)})`}</td>
+                          <td>{order.merchant_name || merchants.find(m => m.id === (order as any).restaurant_id || m.id === order.merchant_id)?.name || `Restaurant (${((order as any).restaurant_id || order.merchant_id)?.substring(0, 8)})`}</td>
                           <td>
                             {order.driver_id ? (
-                              <span style={{ color: "var(--text-secondary)" }}>{order.driver_name}</span>
+                              <span style={{ color: "var(--text-secondary)" }}>{order.driver_name || drivers.find(d => d.id === order.driver_id)?.name || `Driver (${order.driver_id.substring(0,8)})`}</span>
                             ) : (
                               <span style={{ color: "var(--status-red)", fontWeight: 700 }}>🚨 Unassigned</span>
                             )}
@@ -784,7 +793,7 @@ export default function DispatchEnginePage() {
                             {order.status === 'completed' || order.status === 'cancelled' ? (
                               <span style={{ color: "var(--text-muted)" }}>—</span>
                             ) : (
-                              <span style={{ 
+                              <span suppressHydrationWarning style={{ 
                                 display: "inline-block",
                                 padding: "2px 6px",
                                 borderRadius: "4px",
@@ -796,7 +805,7 @@ export default function DispatchEnginePage() {
                               </span>
                             )}
                           </td>
-                          <td>{order.zone}</td>
+                          <td>{order.zone || merchants.find(m => m.id === (order as any).restaurant_id || m.id === order.merchant_id)?.zone || "Algiers Centre"}</td>
                           <td style={{ textAlign: "center" }} onClick={(e) => e.stopPropagation()}>
                             <button 
                               className="btn btn-ghost btn-xs" 
@@ -829,7 +838,7 @@ export default function DispatchEnginePage() {
                               {paymentText}
                             </div>
                           </td>
-                          <td className="mono" style={{ textAlign: "right", color: "var(--text-muted)" }}>
+                          <td suppressHydrationWarning className="mono" style={{ textAlign: "right", color: "var(--text-muted)" }}>
                             {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                           </td>
                         </tr>
@@ -1008,6 +1017,19 @@ export default function DispatchEnginePage() {
                 </div>
               </div>
 
+              {/* Route & Placement Details */}
+              <div style={{ borderTop: "1px solid var(--border)", paddingTop: "12px", display: "flex", flexDirection: "column", gap: "6px" }}>
+                <span style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase" }}>Addresses & Route Details</span>
+                <div style={{ fontSize: "11.5px", display: "flex", flexDirection: "column", gap: "6px", background: "var(--bg-sunken)", padding: "10px", borderRadius: "6px" }}>
+                  <div>
+                    <span style={{ color: "var(--text-muted)", fontWeight: 500 }}>🏪 Pickup:</span> <span style={{ fontWeight: 600 }}>{selectedOrder.pickup_address || "Restaurant Address"}</span>
+                  </div>
+                  <div>
+                    <span style={{ color: "var(--text-muted)", fontWeight: 500 }}>📍 Delivery:</span> <span style={{ fontWeight: 600 }}>{selectedOrder.delivery_address || "Customer Address"}</span>
+                  </div>
+                </div>
+              </div>
+
               {/* Merchant Status & Buffer Offsets */}
               {(() => {
                 const merchant = merchants.find(m => m.id === selectedOrder.merchant_id);
@@ -1020,6 +1042,11 @@ export default function DispatchEnginePage() {
                       <div>
                         <div style={{ fontWeight: 600, fontSize: "13px" }}>{selectedOrder.merchant_name}</div>
                         <div style={{ fontSize: "11.5px", color: "var(--text-secondary)" }}>★ {merchant.rating} · Category: {merchant.category}</div>
+                        {selectedOrder.merchant_address && (
+                          <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>
+                            📍 {selectedOrder.merchant_address}
+                          </div>
+                        )}
                       </div>
                       <div style={{ display: "flex", gap: "4px" }}>
                         {(['open', 'paused', 'busy', 'delayed'] as const).map(st => (
@@ -1057,6 +1084,59 @@ export default function DispatchEnginePage() {
                   </div>
                 );
               })()}
+
+              {/* Cart Ticket Details */}
+              <div style={{ borderTop: "1px solid var(--border)", paddingTop: "12px" }}>
+                <span style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", display: "block", marginBottom: "8px" }}>
+                  Cart Items Ticket
+                </span>
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px", background: "var(--bg-sunken)", padding: "10px", borderRadius: "6px" }}>
+                  {selectedOrder.items && Array.isArray(selectedOrder.items) && selectedOrder.items.length > 0 ? (
+                    selectedOrder.items.map((item: any, idx: number) => (
+                      <div key={idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px" }}>
+                        <div>
+                          <span style={{ fontWeight: 600, color: "var(--accent)", marginRight: "6px" }}>{item.quantity}x</span>
+                          <span>{item.name}</span>
+                        </div>
+                        <span className="mono" style={{ color: "var(--text-secondary)" }}>
+                          {((item.price || 0) * (item.quantity || 1)).toFixed(2)} {selectedOrder.currency || 'DA'}
+                        </span>
+                      </div>
+                    ))
+                  ) : (
+                    <div style={{ fontSize: "11px", color: "var(--text-muted)", textAlign: "center" }}>No items in cart</div>
+                  )}
+                </div>
+              </div>
+
+              {/* Invoice Details (Facture) */}
+              <div style={{ borderTop: "1px solid var(--border)", paddingTop: "12px" }}>
+                <span style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", display: "block", marginBottom: "8px" }}>
+                  Invoice Details (Facture)
+                </span>
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "12px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ color: "var(--text-muted)" }}>Subtotal</span>
+                    <span className="mono">{(selectedOrder.subtotal || selectedOrder.amount || 0).toFixed(2)} {selectedOrder.currency || 'DA'}</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ color: "var(--text-muted)" }}>Delivery Fee</span>
+                    <span className="mono">{(selectedOrder.delivery_fee || 0).toFixed(2)} {selectedOrder.currency || 'DA'}</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ color: "var(--text-muted)" }}>Service Fee</span>
+                    <span className="mono">{(selectedOrder.service_fee || 0).toFixed(2)} {selectedOrder.currency || 'DA'}</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px dashed var(--border)", paddingTop: "6px", marginTop: "4px", fontWeight: 700, fontSize: "13px" }}>
+                    <span>Total Amount</span>
+                    <span className="mono" style={{ color: "var(--accent)" }}>{(selectedOrder.total || selectedOrder.amount || 0).toFixed(2)} {selectedOrder.currency || 'DA'}</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "var(--text-muted)", marginTop: "4px" }}>
+                    <span>Payment Method</span>
+                    <span style={{ textTransform: "uppercase" }}>{selectedOrder.payment_method || 'CASH'}</span>
+                  </div>
+                </div>
+              </div>
 
               {/* Driver Details / Assign Panel */}
               <div style={{ borderTop: "1px solid var(--border)", paddingTop: "12px", display: "flex", flexDirection: "column", gap: "8px" }}>

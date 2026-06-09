@@ -12,6 +12,12 @@ export const socket: Socket = io(SOCKET_URL, {
 // Optional helper to manually connect/disconnect.
 export const connectSocket = () => {
   if (!socket.connected) {
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('access_token');
+      if (token) {
+        socket.auth = { token };
+      }
+    }
     socket.connect();
   }
 };

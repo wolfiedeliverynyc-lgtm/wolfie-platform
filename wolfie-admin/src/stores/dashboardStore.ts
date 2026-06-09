@@ -215,9 +215,14 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
     try {
       const res = await api.get('/admin/orders');
       const data = res.data;
-      const ordersList: Order[] = Array.isArray(data) 
+      const rawList = Array.isArray(data) 
         ? data 
         : (data.orders || data.data || MOCK_ORDERS);
+      const ordersList: Order[] = rawList.map((o: any) => ({
+        ...o,
+        amount: o.amount !== undefined ? o.amount : (o.total || 0),
+        currency: o.currency || "DA"
+      }));
       set({ orders: ordersList });
     } catch (err) {
       console.warn("API fallback to mock orders:", err);
@@ -256,7 +261,9 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
         status: d.is_available ? (d.status || "available") : "offline",
         rating: d.rating || 5.0,
         completed_trips: d.total_deliveries || d.completed_trips || 0,
-        current_order_id: d.current_order_id || undefined
+        current_order_id: d.current_order_id || undefined,
+        lat: d.lat,
+        lng: d.lng
       }));
       set({ drivers: normalizedDrivers });
     } catch (err) {

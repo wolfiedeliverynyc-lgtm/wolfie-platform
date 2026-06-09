@@ -30,67 +30,57 @@ class SmartMatchingEngine:
         Finds closest available driver to pickup_coords.
         Returns driver dict or None if no driver available.
         """
-        db = getattr(current_app, "db", None)
-        if not db:
-            return None
-
+        from database.session import get_session
+        from database.repositories import UserRepository
+        from database.repositories.rating import DriverLocationRepository
+        
         try:
-            # Get all available drivers with their locations
-            drivers_res = (
-                db.table("users")
-                .select("id, full_name, rating, phone")
-                .eq("role", "driver")
-                .eq("is_available", True)
-                .execute()
-            )
-            drivers = drivers_res.data or []
-
-            if not drivers:
-                logger.info("SmartMatching: no available drivers")
-                return None
-
-            # Get their locations
-            driver_ids  = [d["id"] for d in drivers]
-            loc_res     = (
-                db.table("driver_locations")
-                .select("driver_id, lat, lng")
-                .in_("driver_id", driver_ids)
-                .execute()
-            )
-            locations   = {l["driver_id"]: l for l in (loc_res.data or [])}
-
-            if not locations or not pickup_coords:
-                # No location data → pick highest rated driver
-                best = max(drivers, key=lambda d: d.get("rating", 0))
-                return best
-
-            # Score: distance (km) weighted by rating
-            best_driver = None
-            best_score  = float("inf")
-
-            for driver in drivers:
-                loc = locations.get(driver["id"])
-                if not loc:
-                    continue
-
-                dist_km = self._haversine(
-                    pickup_coords.get("lat", 40.7128),
-                    pickup_coords.get("lng", -73.9866),
-                    loc["lat"],
-                    loc["lng"]
-                )
-                # Lower score = better (penalize distance, reward rating)
-                score = dist_km - (driver.get("rating", 4.0) * 0.3)
-
-                if score < best_score:
-                    best_score  = score
-                    best_driver = {**driver, "distance_km": round(dist_km, 2)}
-
-            if best_driver:
-                logger.info(f"Matched driver {best_driver['id']} for order {order_id} (dist={best_driver['distance_km']}km)")
-
-            return best_driver
-
+            with get_session() as session:
+                user_repo = UserRepository(session)
+                loc_repo = DriverLocationRepository(session)
+                
+                # 1. Get all available drivers
+                drivers = user_repo.find_available_drivers()
+                if not drivers:
+                    logger.info("SmartMatching: no available drivers")
+                    return None
+                
+                # 2. Score drivers
+                best_driver = None
+                best_score = float("inf")
+                
+                p_lat = float(pickup_coords.get("lat", 36.7525)) if pickup_coords else 36.7525
+                p_lng = float(pickup_coords.get("lng", 3.0588)) if pickup_coords else 3.0588
+                
+                for driver in drivers:
+                    loc = loc_repo.get_for_driver(driver.id)
+                    
+                    dist_km = 999.0
+                    if loc:
+                        dist_km = self._haversine(p_lat, p_lng, float(loc.lat), float(loc.lng))
+                    else:
+                        redis = getattr(current_app, "redis", None)
+                        if redis:
+                            last_loc = redis.locations.get(driver.id)
+                            if last_loc and last_loc.get("lat") and last_loc.get("lng"):
+                                dist_km = self._haversine(p_lat, p_lng, float(last_loc["lat"]), float(last_loc["lng"]))
+                    
+                    score = dist_km - (float(driver.rating or 5.0) * 0.3)
+                    
+                    if score < best_score:
+                        best_score = score
+                        best_driver = {
+                            "id": driver.id,
+                            "name": driver.full_name,
+                            "phone": driver.phone,
+                            "rating": driver.rating,
+                            "distance_km": round(dist_km, 2)
+                        }
+                
+                if best_driver:
+                    logger.info(f"Matched driver {best_driver['id']} for order {order_id} (dist={best_driver['distance_km']}km)")
+                return best_driver
+                
         except Exception as e:
             logger.error(f"SmartMatching error: {e}")
             return None

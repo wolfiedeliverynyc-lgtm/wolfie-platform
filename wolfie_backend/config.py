@@ -13,6 +13,12 @@ class BaseConfig:
     # ── App ───────────────────────────────────
     SECRET_KEY          = os.getenv("SECRET_KEY", "wolfie-change-in-prod")
     JWT_SECRET_KEY      = os.getenv("JWT_SECRET_KEY", "wolfie-jwt-change-in-prod")
+
+    if os.getenv("FLASK_ENV") == "production":
+        if SECRET_KEY == "wolfie-change-in-prod":
+            raise ValueError("FATAL: SECRET_KEY must be changed in production")
+        if JWT_SECRET_KEY == "wolfie-jwt-change-in-prod":
+            raise ValueError("FATAL: JWT_SECRET_KEY must be changed in production")
     JWT_ACCESS_TOKEN_EXPIRES  = timedelta(hours=24)
     JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=30)
 

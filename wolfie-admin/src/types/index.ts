@@ -48,6 +48,15 @@ export interface Order {
   timeline?: Array<{ status: string; timestamp: string }>;
   created_at: string;
   updated_at: string;
+  items?: Array<{ name: string; price: number; quantity: number }>;
+  subtotal?: number;
+  delivery_fee?: number;
+  service_fee?: number;
+  total?: number;
+  pickup_address?: string;
+  delivery_address?: string;
+  merchant_address?: string;
+  payment_method?: string;
 }
 
 export interface Driver {

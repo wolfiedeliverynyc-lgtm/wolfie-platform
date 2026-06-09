@@ -1,5 +1,8 @@
 """Shared pytest fixtures for all Wolfie tests."""
 
+import os
+os.environ["FLASK_ENV"] = "testing"
+
 import pytest
 from unittest.mock import MagicMock, patch
 

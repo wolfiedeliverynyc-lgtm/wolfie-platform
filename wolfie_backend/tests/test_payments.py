@@ -211,8 +211,8 @@ class TestStripeWebhook:
                 pay_repo.mark_completed.assert_called_once()
                 
                 # Verify WebSocket emissions are called
-                mock_socket_emit.assert_any_call("order_status_update", {"order_id": "ord_1", "status": "assigned"}, room="order_ord_1")
-                mock_socket_emit.assert_any_call("incoming_order", {"id": "ord_1", "status": "assigned", "restaurant_id": "rest_001"}, room="restaurant_rest_001")
+                mock_socket_emit.assert_any_call("order_status_update", {"order_id": "ord_1", "status": "assigned"}, room="order_ord_1", namespace="/")
+                mock_socket_emit.assert_any_call("incoming_order", {"id": "ord_1", "status": "assigned", "restaurant_id": "rest_001"}, room="restaurant_rest_001", namespace="/")
 
 
 # ══════════════════════════════════════════════════════════════════════════════

@@ -4,10 +4,13 @@ import axios, { InternalAxiosRequestConfig, AxiosResponse } from 'axios';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
 export const api = axios.create({
-  baseURL: API_URL,
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1',
   headers: {
     'Content-Type': 'application/json',
-  },
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    'Pragma': 'no-cache',
+    'Expires': '0'
+  }
 });
 
 // Interceptor to attach the token
@@ -73,7 +76,7 @@ api.interceptors.response.use(
         if (typeof window !== 'undefined') {
           localStorage.removeItem('access_token');
           localStorage.removeItem('refresh_token');
-          window.dispatchEvent(new Event('auth_session_expired'));
+          // window.dispatchEvent(new Event('auth_session_expired'));
         }
         return Promise.reject(error);
       }

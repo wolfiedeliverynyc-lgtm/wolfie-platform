@@ -128,7 +128,7 @@ class WolfiePricingEngine:
         total = max(total, 1.00)   # never negative
 
         # ── 11. Platform profit check ─────────
-        platform_profit = round(service_fee - driver_payout + restaurant_commission, 2)
+        platform_profit = round(delivery_fee + service_fee - driver_payout + restaurant_commission, 2)
         if platform_profit < self.profit_floor:
             # Adjust service fee up slightly to meet floor
             gap          = self.profit_floor - platform_profit

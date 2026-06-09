@@ -1,9 +1,15 @@
 """
-╔══════════════════════════════════════════════════════════════╗
-║          WOLFIE DELIVERY — app.py (FULLY INTEGRATED)         ║
-║          All services bolted together. Production ready.     ║
-╚══════════════════════════════════════════════════════════════╝
+ aquarium: eventlet/gevent monkey patching must be done before other imports
 """
+try:
+    import eventlet
+    eventlet.monkey_patch()
+except ImportError:
+    try:
+        import gevent.monkey
+        gevent.monkey.patch_all()
+    except ImportError:
+        pass
 
 import os
 import logging
@@ -31,11 +37,16 @@ try:
 except Exception:
     pass
 
+_async_mode = None
 try:
     import gevent
     _async_mode = "gevent"
 except ImportError:
-    _async_mode = "threading"
+    try:
+        import eventlet
+        _async_mode = "eventlet"
+    except ImportError:
+        _async_mode = "threading"
 
 socketio = SocketIO(
     cors_allowed_origins  = "*",
@@ -278,6 +289,10 @@ def _register_socket_events():
                 join_room(f"user_{user_id}")
                 logger.info(f"WS user {user_id} joined room user_{user_id}")
                 
+                if role == "admin":
+                    join_room("admin")
+                    logger.info(f"WS admin {user_id} joined room admin")
+                
                 with get_db_session() as session:
                     comp_mgr = ComplianceManager(session)
                     state = comp_mgr.evaluate_user_compliance(user_id, role)
@@ -289,6 +304,12 @@ def _register_socket_events():
                         logger.warning(f"WS compliance error for user {user_id}: {state}")
             except Exception as e:
                 logger.error(f"WS Auth/Compliance error: {e}")
+        else:
+            # In DEBUG mode, auto-join admin room for unauthenticated dashboard connections
+            if current_app.config.get("DEBUG") or os.environ.get("FLASK_DEBUG") or os.environ.get("DEBUG"):
+                join_room("admin")
+                logger.info(f"WS {request.sid} auto-joined admin room (DEBUG mode, no token)")
+
 
     @socketio.on("disconnect")
     def on_disconnect():
@@ -314,6 +335,12 @@ def _register_socket_events():
             join_room(f"restaurant_{restaurant_id}")
             emit("joined", {"room": f"restaurant_{restaurant_id}"})
 
+    @socketio.on("test_ping")
+    def on_test_ping(data):
+        logging.getLogger("wolfie").info(f"[SocketIO] Received test_ping: {data}")
+        emit("driver_location", {"driver_id": "test_sender", "lat": 1.1, "lng": 2.2})
+        socketio.emit("driver_location", {"driver_id": "test_admin", "lat": 3.3, "lng": 4.4}, room="admin")
+
     @socketio.on("driver_location_update")
     def on_driver_location(data):
         """Driver pushes GPS → broadcast to customer's order room."""
@@ -337,6 +364,13 @@ def _register_socket_events():
             "driver_location",
             {"lat": lat, "lng": lng, "driver_id": driver_id},
             room=f"order_{order_id}"
+        )
+
+        # Also broadcast to admin room for fleet tracking
+        socketio.emit(
+            "driver_location",
+            {"lat": lat, "lng": lng, "driver_id": driver_id},
+            room="admin"
         )
 
     @socketio.on("order_chat")

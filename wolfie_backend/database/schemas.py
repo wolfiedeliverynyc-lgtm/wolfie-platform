@@ -662,8 +662,26 @@ from models.audit_log import RestaurantAuditLog  # noqa: F401
 
 
 # ══════════════════════════════════════════════════════════════
-# ADDRESSES, CHAT, & FAVORITES
+# NOTIFICATIONS, ADDRESSES, CHAT, & FAVORITES
 # ══════════════════════════════════════════════════════════════
+
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id          = Column(String(36), primary_key=True, default=_uuid)
+    user_id     = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    type        = Column(String(50), nullable=False)
+    title       = Column(String(255), nullable=False)
+    body        = Column(Text, nullable=False)
+    icon        = Column(String(50), default="bell")
+    order_id    = Column(String(36), ForeignKey("orders.id", ondelete="SET NULL"))
+    link        = Column(String(500))
+    is_read     = Column(Boolean, default=False, nullable=False)
+    created_at  = Column(DateTime(timezone=True), default=_now, nullable=False)
+
+    user = relationship("User", foreign_keys=[user_id])
+    order = relationship("Order", foreign_keys=[order_id])
+
 
 class Address(Base):
     __tablename__ = "addresses"
