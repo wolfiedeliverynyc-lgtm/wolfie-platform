@@ -274,7 +274,7 @@ Celery Worker ── tasks/
 
 | Task | Schedule |
 |------|----------|
-| Cancel stale orders (>30 min, no driver) | Every 10 min |
+| Cancel stale orders (>3 min, no driver) | Every 1 min |
 | Expire driver trials | Daily midnight |
 | Process pending payouts | Every hour |
 | Analytics snapshot | Every 15 min |
