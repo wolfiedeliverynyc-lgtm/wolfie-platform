@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from routes.auth import require_auth
 from database import transaction, get_db_session
 from database.schemas import User
+from datetime import datetime, timezone
 
 driver_kyc_bp = Blueprint("driver_kyc", __name__)
 
@@ -40,7 +41,7 @@ def upload_kyc_document():
         docs[doc_type] = {
             "file_name": file_name,
             "status": "pending_review",
-            "uploaded_at": getattr(user, "_now", lambda: None)() or "" # standard UTC time
+            "uploaded_at": datetime.now(timezone.utc).isoformat()
         }
         
         user.kyc_documents = docs

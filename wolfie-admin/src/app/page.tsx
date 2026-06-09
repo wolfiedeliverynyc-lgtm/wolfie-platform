@@ -48,8 +48,8 @@ export default function DashboardPage() {
 
   const revenueTodayFormatted = useMemo(() => {
     const total = orders
-      .filter(o => o.status === 'completed')
-      .reduce((sum, o) => sum + o.amount, 0);
+      .filter(o => o.status === 'completed' || o.status === 'delivered')
+      .reduce((sum, o) => sum + ((o as any).total || o.amount || 0), 0);
     
     if (total >= 1000) {
       return `${(total / 1000).toFixed(0)}K DA`;
@@ -106,8 +106,9 @@ export default function DashboardPage() {
         header: "Amount",
         accessorKey: "amount",
         cell: (info) => {
-          const amount = info.getValue() as number;
-          const currency = info.row.original.currency || "DA";
+          const row = info.row.original as any;
+          const amount = row.total ?? row.amount ?? 0;
+          const currency = row.currency || "DA";
           return (
             <span className="mono" style={{ fontWeight: 600 }}>
               {amount.toLocaleString()} {currency}

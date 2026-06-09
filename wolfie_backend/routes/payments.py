@@ -201,7 +201,7 @@ def stripe_webhook():
                             try:
                                 from tasks.matching import assign_driver
                                 route_info = order.route_info or {}
-                                assign_driver(
+                                assign_driver.delay(
                                     order_id      = order.id,
                                     restaurant_id = order.restaurant_id,
                                     pickup_lat    = route_info.get("pickup_coords", {}).get("lat") if route_info.get("pickup_coords") else None,
@@ -217,16 +217,18 @@ def stripe_webhook():
                 # Now emit socket events outside transaction to avoid blocking DB
                 if order_data_to_emit:
                     try:
-                        from app import socketio
+                        socketio = current_app.extensions.get("socketio")
+                        if not socketio:
+                            from app import socketio
                         # Notify customer
                         socketio.emit("order_status_update", {
                             "order_id": order_id,
                             "status": order_data_to_emit["status"]
-                        }, room=f"order_{order_id}")
+                        }, room=f"order_{order_id}", namespace="/")
 
                         # Notify restaurant
                         if restaurant_id:
-                            socketio.emit("incoming_order", order_data_to_emit, room=f"restaurant_{restaurant_id}")
+                            socketio.emit("incoming_order", order_data_to_emit, room=f"restaurant_{restaurant_id}", namespace="/")
                     except Exception as e:
                         logger.warning(f"Webhook WS emit failed: {e}")
 
@@ -248,8 +250,10 @@ def stripe_webhook():
                     order = order_repo.get(order_id)
                     if order and order.status not in ["cancelled", "delivered"]:
                         order_repo.cancel(order, actor_role="admin", actor_id="system", reason="Payment failed")
-                        from app import socketio
-                        socketio.emit("order_status_update", {"id": order_id, "status": "cancelled", "reason": "Payment failed"}, room=f"customer_{order.customer_id}")
+                        socketio = current_app.extensions.get("socketio")
+                        if not socketio:
+                            from app import socketio
+                        socketio.emit("order_status_update", {"id": order_id, "status": "cancelled", "reason": "Payment failed"}, room=f"customer_{order.customer_id}", namespace="/")
             except Exception as e:
                 logger.error(f"Webhook failed event: {e}")
 

@@ -76,8 +76,10 @@ export default function MapComponent({
   }, []);
 
   // Helpers for coordinates
-  const getMerchantCoords = (merchantId: string, zone: string): [number, number] => {
-    const base = ZONE_COORDS[zone] || ZONE_COORDS["Algiers Centre"];
+  const getMerchantCoords = (merchantId: string | undefined, zone: string | undefined): [number, number] => {
+    const safeZone = zone || "Algiers Centre";
+    const base = ZONE_COORDS[safeZone] || ZONE_COORDS["Algiers Centre"];
+    if (!merchantId) return base;
     const seed = merchantId.charCodeAt(0) + (merchantId.charCodeAt(merchantId.length - 1) || 0);
     return [
       base[0] + (Math.sin(seed) * 0.006),
@@ -85,8 +87,10 @@ export default function MapComponent({
     ];
   };
 
-  const getCustomerCoords = (customerId: string, zone: string): [number, number] => {
-    const base = ZONE_COORDS[zone] || ZONE_COORDS["Algiers Centre"];
+  const getCustomerCoords = (customerId: string | undefined, zone: string | undefined): [number, number] => {
+    const safeZone = zone || "Algiers Centre";
+    const base = ZONE_COORDS[safeZone] || ZONE_COORDS["Algiers Centre"];
+    if (!customerId) return base;
     const seed = customerId.charCodeAt(0) + (customerId.charCodeAt(customerId.length - 1) || 0);
     return [
       base[0] + (Math.sin(seed) * 0.016),
@@ -206,7 +210,7 @@ export default function MapComponent({
         });
 
         if (isSelected) {
-          map.setView(coords, 14, { animate: true });
+          map.setView(coords, 14, { animate: false });
         }
       });
     }
@@ -285,7 +289,7 @@ export default function MapComponent({
         });
 
         if (isSelected) {
-          map.setView(coords, 14, { animate: true });
+          map.setView(coords, 14, { animate: false });
         }
       });
     }
@@ -294,7 +298,8 @@ export default function MapComponent({
     orders.forEach((order) => {
       if (order.status === 'completed' || order.status === 'cancelled') return;
 
-      const restCoords = getMerchantCoords(order.merchant_id, order.zone);
+      const merchantIdToUse = (order as any).restaurant_id || order.merchant_id || "unknown";
+      const restCoords = getMerchantCoords(merchantIdToUse, order.zone);
       const custCoords = getCustomerCoords(order.customer_id, order.zone);
       const isSelected = selectedOrderId === order.id;
 
@@ -383,7 +388,7 @@ export default function MapComponent({
       }
 
       if (isSelected) {
-        map.fitBounds([restCoords, custCoords], { padding: [50, 50] });
+        map.fitBounds([restCoords, custCoords], { padding: [50, 50], animate: false });
       }
     });
 

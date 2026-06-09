@@ -46,8 +46,24 @@ from kombu import Queue, Exchange
 
 # ── Redis URLs ────────────────────────────────────────────────────────────────
 REDIS_URL    = os.getenv("REDIS_URL",    "redis://localhost:6379")
-BROKER_URL   = "memory://"
-BACKEND_URL  = "cache+memory://"
+IS_TESTING   = os.getenv("FLASK_ENV") == "testing"
+
+# Check if Redis is reachable in dev mode, otherwise use eager local memory broker
+redis_available = False
+if not IS_TESTING:
+    try:
+        import redis
+        r = redis.Redis.from_url(REDIS_URL, socket_timeout=1.0, socket_connect_timeout=1.0)
+        redis_available = r.ping()
+    except Exception:
+        redis_available = False
+else:
+    redis_available = False
+
+USE_EAGER = not redis_available
+
+BROKER_URL   = "memory://" if (IS_TESTING or USE_EAGER) else REDIS_URL
+BACKEND_URL  = "cache+memory://" if (IS_TESTING or USE_EAGER) else REDIS_URL
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -78,8 +94,8 @@ class _CeleryConfig:
     broker_url                  = BROKER_URL
     result_backend              = None
     broker_connection_retry_on_startup = True
-    task_always_eager           = True
-    task_eager_propagates       = True
+    task_always_eager           = IS_TESTING or USE_EAGER
+    task_eager_propagates       = IS_TESTING or USE_EAGER
 
     # ── Serialization ─────────────────────────
     task_serializer             = "json"
@@ -142,10 +158,10 @@ class _CeleryConfig:
             "task":     "tasks.analytics.snapshot_metrics",
             "schedule": crontab(minute="*/15"),
         },
-        # Clean up stale pending orders (>30 min old)
+        # Clean up stale pending orders (>3 min old)
         "cancel-stale-orders": {
             "task":     "tasks.notify.cancel_stale_orders",
-            "schedule": crontab(minute="*/10"),
+            "schedule": crontab(minute="*/1"),
         },
         # Weekly driver earnings report (Monday 6am)
         "weekly-driver-report": {

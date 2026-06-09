@@ -18,10 +18,24 @@ logger     = logging.getLogger("wolfie")
 
 def _emit(event, data, room=None):
     try:
-        from app import socketio
-        socketio.emit(event, data, room=room)
-    except Exception:
-        pass
+        from flask import current_app
+        socketio = current_app.extensions.get("socketio")
+        if not socketio:
+            from app import socketio
+        
+        logger.info(f"[_emit] Emitting event: {event} with data: {data} to room: {room}")
+        socketio.emit(event, data, room=room, namespace="/")
+        socketio.emit(event, data, namespace="/")  # Broadcast to everyone without room restriction
+        
+        try:
+            import eventlet
+            eventlet.sleep(0)
+        except ImportError:
+            pass
+            
+        logger.info(f"[_emit] Emit completed.")
+    except Exception as e:
+        logger.exception(f"Error in _emit: {e}")
 
 
 @drivers_bp.route("/status", methods=["PATCH"])
@@ -136,6 +150,11 @@ def update_location():
         _emit("driver_location", {
             "driver_id": request.user_id, "lat": lat, "lng": lng
         }, room=f"order_{order_id}")
+
+    # Also broadcast to admin room for fleet tracking
+    _emit("driver_location", {
+        "driver_id": request.user_id, "lat": lat, "lng": lng
+    }, room="admin")
 
     return jsonify({"status": "ok"}), 200
 

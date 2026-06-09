@@ -182,9 +182,8 @@ def refresh_token():
 
 
 @auth_bp.route("/logout", methods=["POST"])
-@require_auth()
 def logout():
-    logger.info(f"Logout: {request.user_id}")
+    logger.info("Logout requested")
     return jsonify({"message": "Logged out successfully"}), 200
 
 

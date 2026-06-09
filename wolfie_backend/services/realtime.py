@@ -48,6 +48,13 @@ class RealTimeService:
                 room=f"order_{order_id}"
             )
 
+        # Also broadcast to admin room for fleet tracking
+        self.sio.emit(
+            "driver_location",
+            {"driver_id": driver_id, "lat": lat, "lng": lng, "ts": now},
+            room="admin"
+        )
+
     # ── Order status broadcast ─────────────────
 
     def broadcast_order_status(self, order_id: str, status: str, extra: dict = None):
@@ -55,6 +62,8 @@ class RealTimeService:
         if extra:
             payload.update(extra)
         self.sio.emit("order_status_update", payload, room=f"order_{order_id}")
+        # Also broadcast to admin room for dashboard
+        self.sio.emit("order_status_update", payload, room="admin")
         logger.debug(f"broadcast_order_status: {order_id} → {status}")
 
     # ── Payment events ────────────────────────

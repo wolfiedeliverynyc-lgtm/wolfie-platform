@@ -15,7 +15,7 @@ UTC    = timezone.utc
 
 # How long to keep trying before cancelling the order
 MAX_MATCHING_ATTEMPTS = 5
-RETRY_DELAY_SECONDS   = 60   # try again every 1 min
+RETRY_DELAY_SECONDS   = 20   # try again every 20 sec
 
 
 # ══════════════════════════════════════════════════════════════════════════════

@@ -54,8 +54,11 @@ def _svc():
 
 def _emit(order_id, event, data):
     try:
-        from app import socketio
-        socketio.emit(event, data, room=f"order_{order_id}")
+        from flask import current_app
+        socketio = current_app.extensions.get("socketio")
+        if not socketio:
+            from app import socketio
+        socketio.emit(event, data, room=f"order_{order_id}", namespace="/")
     except Exception as e:
         logger.warning(f"WS emit failed: {e}")
 
@@ -177,7 +180,7 @@ def create_order():
                     try:
                         from tasks.matching import assign_driver
                         # Start async Celery assignment task
-                        assign_driver(
+                        assign_driver.delay(
                             order_id      = order.id,
                             restaurant_id = data["restaurant_id"],
                             pickup_lat    = route_info.get("pickup_coords", {}).get("lat") if route_info.get("pickup_coords") else None,
@@ -203,10 +206,13 @@ def create_order():
 
     if data["payment_method"] == "cash":
         try:
-            from app import socketio
+            from flask import current_app
+            socketio = current_app.extensions.get("socketio")
+            if not socketio:
+                from app import socketio
             restaurant_id = data["restaurant_id"]
             order_data = repo.to_dict(order)
-            socketio.emit("incoming_order", order_data, room=f"restaurant_{restaurant_id}")
+            socketio.emit("incoming_order", order_data, room=f"restaurant_{restaurant_id}", namespace="/")
         except Exception as e:
             logger.warning(f"Restaurant WS emit failed: {e}")
 
@@ -276,7 +282,10 @@ def update_order_status(order_id: str):
                     if pickup_coords:
                         dist = haversine_distance(float(lat), float(lng), float(pickup_coords["lat"]), float(pickup_coords["lng"]))
                         if dist > 50000:  # Increased tolerance for local testing
-                            raise ValueError(f"You are too far ({int(dist)}m) from the restaurant. You must be within 50m to pick up.")
+                            if current_app.config.get("DEBUG") or current_app.config.get("TESTING"):
+                                logger.warning(f"Geofence bypass: Driver is too far ({int(dist)}m) from restaurant, but allowing in development/testing mode.")
+                            else:
+                                raise ValueError(f"You are too far ({int(dist)}m) from the restaurant. You must be within 50m to pick up.")
                 
                 elif status == "delivered":
                     if not data.get("proof_photo_url"):
@@ -295,7 +304,10 @@ def update_order_status(order_id: str):
                     if delivery_coords:
                         dist = haversine_distance(float(lat), float(lng), float(delivery_coords["lat"]), float(delivery_coords["lng"]))
                         if dist > 50000:  # Increased tolerance for local testing
-                            raise ValueError(f"You are too far ({int(dist)}m) from the customer. You must be within 50m to deliver.")
+                            if current_app.config.get("DEBUG") or current_app.config.get("TESTING"):
+                                logger.warning(f"Geofence bypass: Driver is too far ({int(dist)}m) from customer, but allowing in development/testing mode.")
+                            else:
+                                raise ValueError(f"You are too far ({int(dist)}m) from the customer. You must be within 50m to deliver.")
             
             try:
                 updated_order, side_effects = repo.transition(
@@ -327,7 +339,7 @@ def update_order_status(order_id: str):
                 if not updated_order.driver_id:
                     try:
                         from tasks.matching import assign_driver
-                        assign_driver(
+                        assign_driver.delay(
                             order_id      = updated_order.id,
                             restaurant_id = updated_order.restaurant_id,
                             pickup_lat    = None,
@@ -357,9 +369,12 @@ def update_order_status(order_id: str):
     _emit(order_id, "order_status_update", {"order_id": order_id, "status": result_status})
     
     try:
-        from app import socketio
+        from flask import current_app
+        socketio = current_app.extensions.get("socketio")
+        if not socketio:
+            from app import socketio
         restaurant_id = updated_order.restaurant_id
-        socketio.emit("order_status_update", {"id": order_id, "status": result_status}, room=f"restaurant_{restaurant_id}")
+        socketio.emit("order_status_update", {"id": order_id, "status": result_status}, room=f"restaurant_{restaurant_id}", namespace="/")
     except Exception as e:
         logger.warning(f"Restaurant WS emit failed: {e}")
 

@@ -19,8 +19,11 @@ UTC            = timezone.utc
 
 def _emit(order_id, event, data):
     try:
-        from app import socketio
-        socketio.emit(event, data, room=f"order_{order_id}")
+        from flask import current_app
+        socketio = current_app.extensions.get("socketio")
+        if not socketio:
+            from app import socketio
+        socketio.emit(event, data, room=f"order_{order_id}", namespace="/")
     except Exception:
         pass
 
