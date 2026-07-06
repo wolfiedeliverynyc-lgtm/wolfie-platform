@@ -246,6 +246,8 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
         completed_trips?: number;
         total_deliveries?: number;
         current_order_id?: string;
+        lat?: number;
+        lng?: number;
       }
 
       const driversList = (Array.isArray(data) 
