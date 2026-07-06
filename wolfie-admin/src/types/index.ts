@@ -40,7 +40,7 @@ export interface Order {
   driver_name?: string;
   amount: number;
   currency: string;
-  status: 'pending' | 'preparing' | 'delivering' | 'completed' | 'cancelled';
+  status: 'pending' | 'preparing' | 'delivering' | 'completed' | 'delivered' | 'cancelled';
   zone: string;
   eta_minutes?: number;
   fraud_score?: number;
