@@ -34,10 +34,15 @@ redis==5.0.3
 celery==5.4.0
 flower==2.0.1
 kombu==5.3.4
-redbeat==2.2.0
+
 
 # Migrations
 alembic==1.13.2
 
 # Utils
 python-dateutil==2.9.0
+
+# Machine Learning (WAP Service)
+scikit-learn==1.5.0
+numpy==1.26.4
+scipy==1.13.1
