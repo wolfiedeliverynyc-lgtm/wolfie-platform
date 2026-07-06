@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { DollarSign, ShieldAlert, Navigation, Star, Award, LogOut, ArrowUpRight, CheckCircle2, Volume2, VolumeX, Flame, BellRing, Settings, Menu, Bell, ArrowLeft, Heart, Clock, User, Check, ChevronRight, MapPin, Sliders, Home, ClipboardList, RotateCcw, HelpCircle, Phone, MessageSquare, Shield, Smile, Send, Headphones } from 'lucide-react';
+import { DollarSign, ShieldAlert, Navigation, Star, Award, LogOut, ArrowUpRight, CheckCircle2, Volume2, VolumeX, Flame, BellRing, Settings, Menu, Bell, ArrowLeft, Heart, Clock, User, Check, ChevronRight, MapPin, Sliders, Home, ClipboardList, RotateCcw, HelpCircle, Phone, MessageSquare, Shield, Smile, Send, Headphones, Sun, Moon } from 'lucide-react';
 import { Order, OrderStatus, DriverStats, EarningSummary, LatLng } from './types';
+import { API_BASE_URL } from './utils/api';
 import WolfieMap from './components/WolfieMap';
 import { useDriverStore } from './store/useDriverStore';
 import { useSocket } from './hooks/useSocket';
@@ -90,12 +91,13 @@ export default function App() {
   // Hooks
   useSocket();
   const store = useDriverStore();
+  const theme = store.theme;
   
   useGPS({
     onLocation: async (lat, lng, heading) => {
       if (store.token) {
         try {
-          await fetch('http://localhost:5000/api/v1/drivers/location', {
+          await fetch(`${API_BASE_URL}/drivers/location`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -232,7 +234,7 @@ export default function App() {
 
     try {
       if (store.token) {
-        await fetch('http://localhost:5000/api/v1/drivers/status', {
+        await fetch(`${API_BASE_URL}/drivers/status`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
@@ -255,7 +257,7 @@ export default function App() {
     // Make backend call to decline
     try {
       if (store.token) {
-        await fetch(`http://localhost:5000/api/v1/orders/${orderId}/status`, {
+        await fetch(`${API_BASE_URL}/orders/${orderId}/status`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
@@ -337,14 +339,14 @@ export default function App() {
           const loc = store.currentLocation || [0,0];
           
           // Send picked_up
-          await fetch(`http://localhost:5000/api/v1/orders/${activeOrder.id}/status`, {
+          await fetch(`${API_BASE_URL}/orders/${activeOrder.id}/status`, {
             method: 'PATCH',
             headers,
             body: JSON.stringify({ status: 'picked_up', lat: loc[0], lng: loc[1] })
           });
           
           // Send on_the_way
-          await fetch(`http://localhost:5000/api/v1/orders/${activeOrder.id}/status`, {
+          await fetch(`${API_BASE_URL}/orders/${activeOrder.id}/status`, {
             method: 'PATCH',
             headers,
             body: JSON.stringify({ status: 'on_the_way', lat: loc[0], lng: loc[1] })
@@ -387,7 +389,7 @@ export default function App() {
     try {
       if (store.token) {
         const loc = store.currentLocation || [0,0];
-        await fetch(`http://localhost:5000/api/v1/orders/${activeOrder.id}/status`, {
+        await fetch(`${API_BASE_URL}/orders/${activeOrder.id}/status`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
@@ -491,69 +493,63 @@ export default function App() {
   })();
 
   const ScooterIllustration = () => (
-    <div className="relative w-full h-44 flex items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-b from-[#11132c] to-[#040614] border border-slate-850">
+    <div className="relative w-full h-44 flex items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-b from-bg-card to-bg-app border border-slate-850">
       {/* Skyline back silhouette */}
-      <svg className="absolute bottom-0 w-full h-24 text-slate-900/45 pointer-events-none" viewBox="0 0 400 100" preserveAspectRatio="none">
+      <svg className="absolute bottom-0 w-full h-24 text-text-secondary/15 pointer-events-none" viewBox="0 0 400 100" preserveAspectRatio="none">
         <path d="M0,80 L20,80 L20,40 L40,40 L40,60 L60,60 L60,30 L80,30 L80,70 L100,70 L100,20 L120,20 L120,80 L140,80 L140,50 L160,50 L160,70 L180,70 L180,10 L200,10 L200,80 L220,80 L220,40 L240,40 L240,60 L260,60 L260,30 L280,30 L280,70 L300,70 L300,20 L320,20 L320,80 L340,80 L340,50 L360,50 L360,75 L380,75 L380,15 L400,15 L400,100 L0,100 Z" fill="currentColor" />
       </svg>
 
       {/* Glowing road line */}
-      <div className="absolute bottom-4 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-orange-500/20 to-transparent"></div>
-      <div className="absolute bottom-2 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-orange-500/50 to-transparent"></div>
+      <div className="absolute bottom-4 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-primary/20 to-transparent"></div>
+      <div className="absolute bottom-2 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-primary/50 to-transparent"></div>
 
       {/* Moving city lights/stars */}
-      <div className="absolute top-12 left-1/4 w-1.5 h-1.5 rounded-full bg-yellow-400/50 blur-[1px] animate-pulse"></div>
-      <div className="absolute top-16 right-1/3 w-1 h-1 rounded-full bg-orange-400/40 blur-[1px] animate-pulse" style={{ animationDelay: '1s' }}></div>
+      <div className="absolute top-12 left-1/4 w-1.5 h-1.5 rounded-full bg-primary/50 blur-[1px] animate-pulse"></div>
+      <div className="absolute top-16 right-1/3 w-1 h-1 rounded-full bg-accent/45 blur-[1px] animate-pulse" style={{ animationDelay: '1s' }}></div>
 
       {/* Styled delivery rider riding scooter */}
       <div className="relative animate-float flex flex-col items-center">
-        <svg className="w-40 h-28 text-orange-500" viewBox="0 0 200 150" fill="none">
-          <circle cx="100" cy="75" r="45" fill="#ff5500" fillOpacity="0.08" className="animate-pulse" />
+        <svg className="w-40 h-28 text-primary" viewBox="0 0 200 150" fill="none">
+          <circle cx="100" cy="75" r="45" fill="var(--primary)" fillOpacity="0.08" className="animate-pulse" />
 
           {/* Wheels */}
-          <circle cx="55" cy="110" r="16" fill="#111" stroke="#ff5500" strokeWidth="3" />
+          <circle cx="55" cy="110" r="16" fill="#111" stroke="var(--primary)" strokeWidth="3" />
           <circle cx="55" cy="110" r="6" fill="#666" />
-          <circle cx="145" cy="110" r="16" fill="#111" stroke="#ff5500" strokeWidth="3" />
+          <circle cx="145" cy="110" r="16" fill="#111" stroke="var(--primary)" strokeWidth="3" />
           <circle cx="145" cy="110" r="6" fill="#666" />
 
           {/* Chassis */}
-          <path d="M40,100 Q55,80 75,98 L115,102 L145,100 Q155,90 160,110 Z" fill="#ff5500" />
-          <path d="M110,100 L140,50 Q145,40 135,40 L120,40" stroke="#ff5500" strokeWidth="5" strokeLinecap="round" />
+          <path d="M40,100 Q55,80 75,98 L115,102 L145,100 Q155,90 160,110 Z" fill="var(--primary)" />
+          <path d="M110,100 L140,50 Q145,40 135,40 L120,40" stroke="var(--primary)" strokeWidth="5" strokeLinecap="round" />
 
           {/* Wolfie Insulated Box */}
-          <rect x="65" y="66" width="40" height="34" rx="4" fill="#0c0e1e" stroke="#ff5500" strokeWidth="2" />
-          <rect x="70" y="72" width="30" height="22" rx="2" fill="#ff5500" />
+          <rect x="65" y="66" width="40" height="34" rx="4" fill="var(--bg-app)" stroke="var(--primary)" strokeWidth="2" />
+          <rect x="70" y="72" width="30" height="22" rx="2" fill="var(--accent)" />
           <path d="M78,83 L83,88 L92,79" stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
 
           {/* Handle bar column */}
           <line x1="130" y1="75" x2="135" y2="45" stroke="#475569" strokeWidth="4" />
-          <circle cx="135" cy="45" r="4" fill="#ff5500" />
+          <circle cx="135" cy="45" r="4" fill="var(--primary)" />
 
           {/* Rider body & orange jacket */}
-          <path d="M96,66 L118,52 L128,76 L110,85 Z" fill="#ff5500" stroke="#000" strokeWidth="2" />
+          <path d="M96,66 L118,52 L128,76 L110,85 Z" fill="var(--primary)" stroke="#000" strokeWidth="2" />
           <path d="M98,64 C100,50 115,50 115,64" stroke="#000" strokeWidth="2" />
           <path d="M112,56 Q128,58 133,48" stroke="#0f172a" strokeWidth="4.5" strokeLinecap="round" />
 
           {/* Rider Helmet */}
-          <circle cx="110" cy="38" r="15" fill="#0f172a" stroke="#ff5500" strokeWidth="2" />
+          <circle cx="110" cy="38" r="15" fill="#0f172a" stroke="var(--primary)" strokeWidth="2" />
           <path d="M112,30 Q126,34 122,46 Z" fill="#38bdf8" />
-          <path d="M100,48 Q110,48 116,52" stroke="#ff5500" strokeWidth="3" />
+          <path d="M100,48 Q110,48 116,52" stroke="var(--primary)" strokeWidth="3" />
         </svg>
       </div>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-[#050611] text-slate-100 font-sans antialiased flex flex-col items-center justify-center bg-[radial-gradient(ellipse_85%_85%_at_50%_-20%,rgba(255,85,0,0.12),rgba(255,255,255,0))] select-none">
-      
-      {/* MAIN CONTAINER PLATFORM SHELL */}
-      <div className="w-full flex flex-col items-center justify-center h-screen max-h-screen">
-        
-        {/* CENTER COLUMN: FULL SCREEN APP FRAME */}
-        <div className="w-full h-full bg-[#050714] shadow-[0_0_100px_rgba(255,85,0,0.08),0_30px_60px_-15px_rgba(0,0,0,0.9)] relative overflow-hidden flex flex-col justify-between" style={{ contentVisibility: 'auto' }}>
+    <div className={`w-full h-full relative overflow-hidden flex flex-col justify-between bg-bg-app text-text-primary font-sans antialiased select-none transition-all duration-300 ${theme === 'light' ? 'light-theme' : ''}`}>
 
-          {/* VIEWPANEL CORE SCREEN */}
-          <div className="flex-1 overflow-y-auto relative p-4 custom-scrollbar pb-24 h-full bg-[#050611] flex flex-col justify-start space-y-5">
+      {/* VIEWPANEL CORE SCREEN */}
+      <div className="flex-1 overflow-y-auto relative p-4 custom-scrollbar pb-24 bg-bg-app flex flex-col justify-start space-y-5">
             
             {/* 1. TABS CONTENT INTERFACES RENDER SECTORS */}
             {activeTab === 'HOME' && (
@@ -565,39 +561,51 @@ export default function App() {
                     <div className="flex items-center justify-between">
                       <button 
                         onClick={() => { if (soundEnabled) playBeep('CLICK'); }} 
-                        className="w-10 h-10 rounded-2xl bg-slate-900/60 border border-slate-850 flex items-center justify-center text-slate-300 hover:text-slate-100 transition-colors cursor-pointer"
+                        className="w-10 h-10 rounded-2xl bg-bg-card border border-slate-850 flex items-center justify-center text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
                       >
                         <Menu className="w-5 h-5" />
                       </button>
-                      <div className="w-2.5 h-2.5 rounded-full bg-slate-705 bg-slate-700 animate-pulse"></div>
+                      
+                      {/* Theme Toggle Button */}
+                      <button
+                        onClick={() => {
+                          if (soundEnabled) playBeep('CLICK');
+                          store.setTheme(theme === 'dark' ? 'light' : 'dark');
+                        }}
+                        className="w-10 h-10 rounded-2xl bg-bg-card border border-slate-850 flex items-center justify-center text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
+                        title="Toggle Light/Dark Theme"
+                      >
+                        {theme === 'light' ? <Moon className="w-4.5 h-4.5" /> : <Sun className="w-4.5 h-4.5" />}
+                      </button>
+
                       <button 
                         onClick={() => { 
                           if (soundEnabled) playBeep('CLICK');
                           setShowNotifications(true);
                         }} 
-                        className="w-10 h-10 rounded-2xl bg-slate-900/60 border border-slate-850 flex items-center justify-center text-slate-300 hover:text-slate-100 transition-colors cursor-pointer relative"
+                        className="w-10 h-10 rounded-2xl bg-bg-card border border-slate-850 flex items-center justify-center text-text-secondary hover:text-text-primary transition-colors cursor-pointer relative"
                       >
                         <Bell className="w-4 h-4" />
                         {store.intelligenceAlerts.length > 0 && (
-                          <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-orange-500"></span>
+                          <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-primary"></span>
                         )}
                       </button>
                     </div>
 
                     {/* Central Brand Mascot Header */}
                     <div className="flex flex-col items-center text-center space-y-3">
-                      <div className="w-24 h-24 rounded-3xl bg-slate-950 border border-slate-850 flex items-center justify-center shadow-lg shadow-orange-500/5 overflow-hidden animate-float">
+                      <div className="w-24 h-24 rounded-3xl bg-bg-card border border-slate-850 flex items-center justify-center shadow-lg shadow-primary/5 overflow-hidden animate-float">
                         <WolfSvg className="w-20 h-20 transform scale-110" />
                       </div>
                       
                       <div className="space-y-1">
-                        <h1 className="text-3xl font-black tracking-tight text-white font-sans uppercase">WOLFIE</h1>
-                        <p className="text-[10px] font-black tracking-widest text-[#ff5500] uppercase">Alpha Driver Dashboard</p>
+                        <h1 className="text-3xl font-extrabold tracking-tight text-text-primary font-serif uppercase">WOLFIE</h1>
+                        <p className="text-[10px] font-black tracking-widest text-primary uppercase">Alpha Courier Dashboard</p>
                       </div>
 
                       <div className="space-y-1">
-                        <p className="text-base font-bold text-slate-200">Deliver fast. Earn more.</p>
-                        <p className="text-xs text-slate-500 font-semibold font-sans">Let's go!</p>
+                        <p className="text-base font-bold text-text-primary">Deliver fast. Earn more.</p>
+                        <p className="text-xs text-text-secondary font-semibold font-sans">Let's go!</p>
                       </div>
                     </div>
 
@@ -608,9 +616,9 @@ export default function App() {
                     <button
                       id="btn-go-online-central"
                       onClick={() => handleToggleOnline(true)}
-                      className="w-full py-4.5 bg-[#ff5500] hover:bg-[#ff6611] text-white rounded-3xl text-sm font-black tracking-wider shadow-xl shadow-orange-500/20 border border-orange-400/25 flex items-center justify-center gap-3 transition-all cursor-pointer transform hover:scale-[1.01] active:scale-[0.99]"
+                      className="w-full py-4.5 bg-primary hover:bg-primary-hover text-black rounded-3xl text-sm font-black tracking-wider shadow-xl border-none flex items-center justify-center gap-3 transition-all cursor-pointer transform hover:scale-[1.01] active:scale-[0.99]"
                     >
-                      <span className="w-2.5 h-2.5 rounded-full bg-white block animate-ping"></span>
+                      <span className="w-2.5 h-2.5 rounded-full bg-black block animate-ping"></span>
                       <span>GO ONLINE NOW</span>
                     </button>
                   </div>
@@ -622,7 +630,7 @@ export default function App() {
                     <div className="flex justify-between items-center py-1">
                       <button
                         onClick={() => handleToggleOnline(false)}
-                        className="w-9 h-9 rounded-xl bg-slate-900 border border-slate-850 flex items-center justify-center text-slate-300 hover:text-slate-100 transition-all cursor-pointer"
+                        className="w-9 h-9 rounded-xl bg-bg-card border border-slate-850 flex items-center justify-center text-text-secondary hover:text-text-primary transition-all cursor-pointer"
                         title="Back to Offline page"
                       >
                         <ArrowLeft className="w-4 h-4" />
@@ -630,23 +638,37 @@ export default function App() {
 
                       <div className="flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/20 py-1 px-3.5 rounded-full">
                         <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-[ping_1.5s_infinite]"></span>
-                        <span className="text-[10px] font-extrabold text-[#f8fafc] tracking-wide">● You're Online</span>
+                        <span className="text-[10px] font-extrabold text-text-primary tracking-wide">● You're Online</span>
                       </div>
 
-                      <button 
-                        onClick={() => { 
-                          if (soundEnabled) playBeep('CLICK');
-                          setShowNotifications(true);
-                        }} 
-                        className="w-9 h-9 rounded-xl bg-slate-900 border border-slate-850 flex items-center justify-center text-slate-305 text-slate-300 hover:text-slate-105 transition-colors cursor-pointer relative"
-                      >
-                        <Bell className="w-4 h-4" />
-                        {store.intelligenceAlerts.length > 0 && (
-                          <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-orange-600 text-[8px] font-black text-white flex items-center justify-center">
-                            {store.intelligenceAlerts.length}
-                          </span>
-                        )}
-                      </button>
+                      <div className="flex items-center gap-1.5">
+                        {/* Theme Toggle Button */}
+                        <button
+                          onClick={() => {
+                            if (soundEnabled) playBeep('CLICK');
+                            store.setTheme(theme === 'dark' ? 'light' : 'dark');
+                          }}
+                          className="w-9 h-9 rounded-xl bg-bg-card border border-slate-850 flex items-center justify-center text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
+                          title="Toggle Light/Dark Theme"
+                        >
+                          {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+                        </button>
+
+                        <button 
+                          onClick={() => { 
+                            if (soundEnabled) playBeep('CLICK');
+                            setShowNotifications(true);
+                          }} 
+                          className="w-9 h-9 rounded-xl bg-bg-card border border-slate-850 flex items-center justify-center text-text-secondary hover:text-text-primary transition-colors cursor-pointer relative"
+                        >
+                          <Bell className="w-4 h-4" />
+                          {store.intelligenceAlerts.length > 0 && (
+                            <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-primary text-[8px] font-black text-black flex items-center justify-center">
+                              {store.intelligenceAlerts.length}
+                            </span>
+                          )}
+                        </button>
+                      </div>
                     </div>
 
                     {/* TODAY'S EARNINGS BLOCK CONTAINER WITH GLOWING GREEN LINE SPARKLINE */}
@@ -655,28 +677,28 @@ export default function App() {
                         if (soundEnabled) playBeep('CLICK');
                         setActiveTab('WALLET');
                       }}
-                      className="bg-[#0b0c1e] border border-slate-850 hover:border-orange-550 hover:border-orange-500/30 p-5 rounded-[28px] relative overflow-hidden flex justify-between items-center group h-32 cursor-pointer transition-all hover:bg-[#0d0e26]"
+                      className="bg-bg-card border border-slate-850 hover:border-primary/30 p-5 rounded-[28px] relative overflow-hidden flex justify-between items-center group h-32 cursor-pointer transition-all hover:bg-bg-card-hover"
                     >
-                      <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 rounded-full blur-3xl pointer-events-none"></div>
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl pointer-events-none"></div>
 
                       <div className="space-y-1 z-10">
-                        <span className="text-xs font-bold text-slate-400 tracking-wide flex items-center gap-0.5">
+                        <span className="text-xs font-bold text-text-secondary tracking-wide flex items-center gap-0.5">
                           Today's Earnings
-                          <ChevronRight className="w-3.5 h-3.5 text-slate-500 group-hover:translate-x-0.5 group-hover:text-orange-500 transition-all" />
+                          <ChevronRight className="w-3.5 h-3.5 text-text-secondary group-hover:translate-x-0.5 group-hover:text-primary transition-all" />
                         </span>
-                        <h2 className="text-3xl font-black tracking-tight text-white font-mono">${earningsSummary.todayEarnings.toFixed(2)}</h2>
-                        <span className="text-[10px] text-slate-500 font-bold tracking-wide mt-1 block">
+                        <h2 className="text-3xl font-black tracking-tight text-text-primary font-mono">${earningsSummary.todayEarnings.toFixed(2)}</h2>
+                        <span className="text-[10px] text-text-secondary font-bold tracking-wide mt-1 block">
                           {earningsSummary.todayDeliveries} Orders Completed
                         </span>
                       </div>
 
-                      <div className="z-10 bg-slate-950/20 p-2 rounded-2xl border border-slate-900/40">
+                      <div className="z-10 bg-bg-card-hover/20 p-2 rounded-2xl border border-slate-900/40">
                         {/* Wavy emerald glow statistics path representing earnings upward metrics */}
-                        <svg className="w-28 h-12 text-emerald-500 overflow-visible" viewBox="0 0 100 40">
+                        <svg className="w-28 h-12 text-primary overflow-visible" viewBox="0 0 100 40">
                           <defs>
                             <linearGradient id="glow-emerald" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="0%" stopColor="#22c55e" stopOpacity="0.4" />
-                              <stop offset="100%" stopColor="#22c55e" stopOpacity="0.0" />
+                              <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.4" />
+                              <stop offset="100%" stopColor="var(--primary)" stopOpacity="0.0" />
                             </linearGradient>
                           </defs>
                           <path
@@ -687,11 +709,11 @@ export default function App() {
                           <path
                             d="M 0,32 Q 20,28 40,15 T 80,18 T 100,5"
                             fill="none"
-                            stroke="#22c55e"
+                            stroke="var(--primary)"
                             strokeWidth="3.5"
                             strokeLinecap="round"
                           />
-                          <circle cx="100" cy="5" r="3.5" fill="#22c55e" className="animate-ping" style={{ animationDuration: '2.5s' }} />
+                          <circle cx="100" cy="5" r="3.5" fill="var(--primary)" className="animate-ping" style={{ animationDuration: '2.5s' }} />
                           <circle cx="100" cy="5" r="3" fill="#ffffff" />
                         </svg>
                       </div>
@@ -700,62 +722,62 @@ export default function App() {
                     {/* THREE-COLUMN STAT MATRIX DEPICTION */}
                     <div className="grid grid-cols-3 gap-3">
                       {/* Online Time Card */}
-                      <div className="bg-[#0b0c1e] border border-slate-850 p-3.5 rounded-2xl flex flex-col justify-between space-y-2 group hover:border-slate-800 transition-colors">
-                        <div className="w-7 h-7 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-400">
+                      <div className="bg-bg-card border border-slate-850 p-3.5 rounded-2xl flex flex-col justify-between space-y-2 group hover:border-slate-800 transition-colors">
+                        <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
                           <Clock className="w-4 h-4" />
                         </div>
                         <div>
-                          <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wider leading-none">Online Time</p>
-                          <h4 className="font-extrabold text-[13px] text-slate-100 mt-1 font-mono">{store.performance?.activeHoursToday || 0}h</h4>
+                          <p className="text-[9px] font-bold text-text-secondary uppercase tracking-wider leading-none">Online Time</p>
+                          <h4 className="font-extrabold text-[13px] text-text-primary mt-1 font-mono">{store.performance?.activeHoursToday || 0}h</h4>
                         </div>
                       </div>
 
                       {/* Active Time Card */}
-                      <div className="bg-[#0b0c1e] border border-slate-850 p-3.5 rounded-2xl flex flex-col justify-between space-y-2 group hover:border-slate-800 transition-colors">
-                        <div className="w-7 h-7 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-400">
+                      <div className="bg-bg-card border border-slate-850 p-3.5 rounded-2xl flex flex-col justify-between space-y-2 group hover:border-slate-800 transition-colors">
+                        <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
                           <Sliders className="w-4 h-4 rotate-90" />
                         </div>
                         <div>
-                          <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wider leading-none">Active Time</p>
-                          <h4 className="font-extrabold text-[13px] text-slate-100 mt-1 font-mono">{store.performance?.totalActiveHours || 0}h</h4>
+                          <p className="text-[9px] font-bold text-text-secondary uppercase tracking-wider leading-none">Active Time</p>
+                          <h4 className="font-extrabold text-[13px] text-text-primary mt-1 font-mono">{store.performance?.totalActiveHours || 0}h</h4>
                         </div>
                       </div>
 
                       {/* Acceptance Card */}
-                      <div className="bg-[#0b0c1e] border border-slate-850 p-3.5 rounded-2xl flex flex-col justify-between space-y-2 group hover:border-slate-800 transition-colors">
-                        <div className="w-7 h-7 rounded-lg bg-rose-500/10 flex items-center justify-center text-rose-400">
-                          <Heart className="w-4 h-4 fill-rose-500/20 text-rose-500" />
+                      <div className="bg-bg-card border border-slate-850 p-3.5 rounded-2xl flex flex-col justify-between space-y-2 group hover:border-slate-800 transition-colors">
+                        <div className="w-7 h-7 rounded-lg bg-accent/10 flex items-center justify-center text-accent">
+                          <Heart className="w-4 h-4 fill-accent/20 text-accent" />
                         </div>
                         <div>
-                          <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wider leading-none">Acceptance</p>
-                          <h4 className="font-extrabold text-[13px] text-slate-100 mt-1 font-mono">{driverStats.acceptanceRate}%</h4>
+                          <p className="text-[9px] font-bold text-text-secondary uppercase tracking-wider leading-none">Acceptance</p>
+                          <h4 className="font-extrabold text-[13px] text-text-primary mt-1 font-mono">{driverStats.acceptanceRate}%</h4>
                         </div>
                       </div>
                     </div>
 
                     {/* TODAY'S PROGRESS BAR GRAPH SECTOR */}
-                    <div className="bg-[#0b0c1e] border border-slate-850 p-5 rounded-[28px] space-y-3">
+                    <div className="bg-bg-card border border-slate-850 p-5 rounded-[28px] space-y-3">
                       <div className="flex justify-between items-baseline">
                         <div>
-                          <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none">Today's Progress</h3>
-                          <p className="text-sm font-extrabold text-slate-200 mt-1.5 leading-none">
-                            ${earningsSummary.todayEarnings.toFixed(2)} <span className="text-xs text-slate-500 font-medium">/ $200</span>
+                          <h3 className="text-[10px] font-black text-text-secondary uppercase tracking-widest leading-none">Today's Progress</h3>
+                          <p className="text-sm font-extrabold text-text-primary mt-1.5 leading-none">
+                            ${earningsSummary.todayEarnings.toFixed(2)} <span className="text-xs text-text-secondary font-medium">/ $200</span>
                           </p>
                         </div>
-                        <span className="text-[14px] font-black text-slate-300 font-mono">
+                        <span className="text-[14px] font-black text-text-primary font-mono">
                           {Math.min(100, Math.round((earningsSummary.todayEarnings / 200) * 100))}%
                         </span>
                       </div>
 
                       {/* Dynamic Rounded Background gradient filler bar */}
-                      <div className="w-full h-3 bg-slate-950 rounded-full overflow-hidden p-[1px] border border-slate-900">
+                      <div className="w-full h-3 bg-bg-app rounded-full overflow-hidden p-[1px] border border-bg-card-hover/40">
                         <div
-                          className="h-full bg-gradient-to-r from-orange-500 via-yellow-400 to-emerald-500 rounded-full transition-all duration-700 ease-out"
+                          className="h-full bg-gradient-to-r from-accent via-primary to-emerald-500 rounded-full transition-all duration-700 ease-out"
                           style={{ width: `${Math.min(100, (earningsSummary.todayEarnings / 200) * 100)}%` }}
                         ></div>
                       </div>
 
-                      <p className="text-[10px] text-slate-400 font-sans tracking-wide">
+                      <p className="text-[10px] text-text-secondary font-sans tracking-wide">
                         {earningsSummary.todayEarnings >= 200
                           ? "Daily revenue goal achieved! Driving maximum profit!"
                           : `Complete $${(200 - earningsSummary.todayEarnings).toFixed(2)} more to reach your goal!`}
@@ -765,49 +787,49 @@ export default function App() {
                     {/* RATINGS / PERFORMANCE SHORTCUT LIST */}
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
-                        <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider">Performance</h3>
+                        <h3 className="text-xs font-black text-text-secondary uppercase tracking-wider">Performance</h3>
                         <button
                           onClick={() => {
                             if (soundEnabled) playBeep('CLICK');
                             setActiveTab('PROFILE');
                           }}
-                          className="text-xs font-bold text-[#ff5500] hover:underline uppercase tracking-wider"
+                          className="text-xs font-bold text-primary hover:underline uppercase tracking-wider"
                         >
                           View all
                         </button>
                       </div>
 
-                      <div className="bg-[#0b0c1e] border border-slate-850 rounded-[28px] divide-y divide-slate-850/60 overflow-hidden">
+                      <div className="bg-bg-card border border-slate-850 rounded-[28px] divide-y divide-slate-850/60 overflow-hidden">
                         
                         {/* Customer Rating */}
-                        <div className="px-5 py-4 flex items-center justify-between hover:bg-slate-900/40 transition-colors">
+                        <div className="px-5 py-4 flex items-center justify-between hover:bg-bg-card-hover/40 transition-colors">
                           <div className="flex items-center gap-3">
-                            <span className="w-7 h-7 rounded-lg bg-yellow-500/10 flex items-center justify-center text-xs">⭐</span>
-                            <span className="text-xs font-bold text-slate-300">Rating</span>
+                            <span className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center text-xs">⭐</span>
+                            <span className="text-xs font-bold text-text-primary">Rating</span>
                           </div>
-                          <span className="text-xs font-extrabold text-slate-100 font-mono flex items-center gap-1">
-                            {driverStats.rating.toFixed(2)} <span className="text-yellow-500">★</span>
+                          <span className="text-xs font-extrabold text-text-primary font-mono flex items-center gap-1">
+                            {driverStats.rating.toFixed(2)} <span className="text-primary">★</span>
                           </span>
                         </div>
 
                         {/* Completion Rate */}
-                        <div className="px-5 py-4 flex items-center justify-between hover:bg-slate-900/40 transition-colors">
+                        <div className="px-5 py-4 flex items-center justify-between hover:bg-bg-card-hover/40 transition-colors">
                           <div className="flex items-center gap-3">
                             <span className="w-7 h-7 rounded-lg bg-emerald-500/10 flex items-center justify-center text-xs">🛡️</span>
-                            <span className="text-xs font-bold text-slate-300">Completion Rate</span>
+                            <span className="text-xs font-bold text-text-primary">Completion Rate</span>
                           </div>
-                          <span className="text-xs font-extrabold text-slate-100 font-mono">
+                          <span className="text-xs font-extrabold text-text-primary font-mono">
                             {driverStats.completionRate}%
                           </span>
                         </div>
 
                         {/* On-Time Speed */}
-                        <div className="px-5 py-4 flex items-center justify-between hover:bg-slate-900/40 transition-colors">
+                        <div className="px-5 py-4 flex items-center justify-between hover:bg-bg-card-hover/40 transition-colors">
                           <div className="flex items-center gap-3">
-                            <span className="w-7 h-7 rounded-lg bg-orange-500/10 flex items-center justify-center text-xs">⚡</span>
-                            <span className="text-xs font-bold text-slate-300">On-time Delivery</span>
+                            <span className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center text-xs">⚡</span>
+                            <span className="text-xs font-bold text-text-primary">On-time Delivery</span>
                           </div>
-                          <span className="text-xs font-extrabold text-slate-100 font-mono">
+                          <span className="text-xs font-extrabold text-text-primary font-mono">
                             {driverStats.onTimeRate}%
                           </span>
                         </div>
@@ -829,13 +851,13 @@ export default function App() {
             {activeTab === 'ORDERS' && (
               <div id="orders-panel" className="animate-[fadeIn_0.3s_ease-out] flex flex-col flex-1 h-full min-h-[480px]">
                 {!online ? (
-                  <div className="flex flex-col items-center justify-center text-center p-6 bg-[#0b0c1e] border border-slate-850 rounded-[32px] h-full flex-1 space-y-5">
+                  <div className="flex flex-col items-center justify-center text-center p-6 bg-bg-card border border-slate-850 rounded-[32px] h-full flex-1 space-y-5">
                     <span className="text-4xl animate-bounce">🛵</span>
-                    <h3 className="text-sm font-black text-slate-200 uppercase tracking-wider">Device is Offline</h3>
-                    <p className="text-xs text-slate-500 leading-relaxed max-w-xs">To explore orders and drive on roads, switch your status tool to "Go Online" first.</p>
+                    <h3 className="text-sm font-black text-text-primary uppercase tracking-wider">Device is Offline</h3>
+                    <p className="text-xs text-text-secondary leading-relaxed max-w-xs">To explore orders and drive on roads, switch your status tool to "Go Online" first.</p>
                     <button
                       onClick={() => handleToggleOnline(true)}
-                      className="w-full py-3 bg-[#ff5500] hover:bg-[#ff6611] rounded-2xl text-xs font-extrabold text-white transition-all cursor-pointer shadow-lg shadow-orange-500/10"
+                      className="w-full py-3 bg-primary hover:bg-primary-hover rounded-2xl text-xs font-extrabold text-black transition-all cursor-pointer shadow-lg border-none"
                     >
                       Go Online Now
                     </button>
@@ -863,34 +885,34 @@ export default function App() {
                   /* EMPTY STATE WHEN ONLINE BUT NO OFFERS */
                   <div className="flex flex-col flex-1 space-y-4 h-full">
                     {/* Background static tracking layout */}
-                    <div className="h-32 rounded-3xl overflow-hidden border border-slate-850 opacity-45 select-none relative pb-1">
+                    <div className="flex-1 min-h-[50vh] rounded-3xl overflow-hidden border border-slate-850 select-none relative pb-1">
                       <WolfieMap
                         showHotspots={true}
                         showETA={false}
-                        compact={true}
+                        compact={false}
                       />
                     </div>
 
                     {/* Sonar Radar Card in search of match */}
-                    <div id="searching-orders-card" className="bg-[#0b0c1e] border border-slate-850 rounded-[32px] p-6 text-center h-full flex-1 flex flex-col justify-center items-center space-y-5">
-                      <div className="relative flex items-center justify-center w-20 h-20">
-                        <span className="absolute inset-0 rounded-full bg-[#ff5500]/5 border border-[#ff5500]/10 animate-[ping_2.5s_infinite]"></span>
-                        <span className="absolute inset-3 rounded-full bg-[#ff5500]/15 border border-[#ff5500]/25 animate-[ping_1.8s_infinite]"></span>
-                        <div className="w-10 h-10 rounded-full bg-[#ff5500] flex items-center justify-center font-bold animate-pulse text-lg text-white">
-                          📡
+                    <div id="searching-orders-card" className="bg-bg-card border border-slate-850 rounded-[28px] p-4.5 text-center flex flex-col justify-center items-center space-y-3 shrink-0">
+                      <div className="flex items-center gap-3">
+                        <div className="relative flex items-center justify-center w-10 h-10 shrink-0">
+                          <span className="absolute inset-0 rounded-full bg-primary/20 border border-primary/30 animate-ping"></span>
+                          <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center font-bold text-xs text-black">
+                            📡
+                          </div>
+                        </div>
+                        <div className="text-left">
+                          <h3 className="text-xs font-black text-text-primary uppercase tracking-wider">Searching Offers...</h3>
+                          <p className="text-[10px] text-text-secondary leading-tight">
+                            Priority Matching is Active • NY Fleet dispatches
+                          </p>
                         </div>
                       </div>
-
-                      <div className="space-y-1">
-                        <h3 className="text-sm font-black text-slate-100 uppercase tracking-wider">Searching Offers...</h3>
-                        <p className="text-[11px] text-slate-550 text-slate-500 leading-relaxed max-w-xs">
-                          Priority Matching is Active due to Alpha Driver Status. Food dispatches will arrive shortly.
-                        </p>
-                      </div>
-
-                      <div className="bg-slate-950/80 border border-slate-900 py-2 px-4 rounded-2xl text-[10px] text-slate-500 flex items-center gap-1.5 justify-center max-w-[190px] mx-auto font-semibold">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#ff5500] inline-block animate-ping"></span>
-                        <span className="text-[#ff5500]">High Demand Area</span>
+                      
+                      <div className="bg-bg-card-hover border border-slate-900/60 py-1.5 px-3 rounded-xl text-[9px] text-text-secondary flex items-center gap-1.5 justify-center max-w-[170px] mx-auto font-semibold">
+                        <span className="w-1 h-1 rounded-full bg-primary inline-block animate-ping"></span>
+                        <span className="text-primary uppercase tracking-wider text-[8px]">High Demand Area</span>
                       </div>
                     </div>
                   </div>
@@ -933,7 +955,7 @@ export default function App() {
           </div>
 
           {/* PERSISTENT MOBILE BOTTOM NAVIGATION BAR */}
-          <div className="absolute bottom-0 inset-x-0 h-16 bg-[#080a1c] border-t border-slate-850/80 px-4 flex items-center justify-between z-45 pb-3">
+          <div className="absolute bottom-0 inset-x-0 h-16 bg-bg-card border-t border-slate-850/85 px-4 flex items-center justify-between z-45 pb-3">
             
             {/* 1. Home tab */}
             <button
@@ -942,7 +964,7 @@ export default function App() {
                 if (soundEnabled) playBeep('CLICK');
                 setActiveTab('HOME');
               }}
-              className={`flex-1 flex flex-col items-center justify-center pt-2 transition-all cursor-pointer ${activeTab === 'HOME' ? 'text-orange-500 border-t-2 border-orange-500 pt-1.5 scale-105' : 'text-slate-500 hover:text-slate-350'}`}
+              className={`flex-1 flex flex-col items-center justify-center pt-2 transition-all cursor-pointer ${activeTab === 'HOME' ? 'text-primary border-t-2 border-primary pt-1.5 scale-105' : 'text-text-secondary hover:text-text-primary'}`}
             >
               <Home className="w-5 h-5" />
               <span className="text-[10px] font-black mt-1 font-sans">Home</span>
@@ -955,7 +977,7 @@ export default function App() {
                 if (soundEnabled) playBeep('CLICK');
                 setActiveTab('EARNINGS');
               }}
-              className={`flex-1 flex flex-col items-center justify-center pt-2 transition-all cursor-pointer ${activeTab === 'EARNINGS' ? 'text-orange-500 border-t-2 border-orange-500 pt-1.5 scale-105' : 'text-slate-500 hover:text-slate-350'}`}
+              className={`flex-1 flex flex-col items-center justify-center pt-2 transition-all cursor-pointer ${activeTab === 'EARNINGS' ? 'text-primary border-t-2 border-primary pt-1.5 scale-105' : 'text-text-secondary hover:text-text-primary'}`}
             >
               <DollarSign className="w-5 h-5" />
               <span className="text-[10px] font-black mt-1 font-sans">Earnings</span>
@@ -968,7 +990,7 @@ export default function App() {
                 if (soundEnabled) playBeep('CLICK');
                 setActiveTab('ORDERS');
               }}
-              className={`flex-1 flex flex-col items-center justify-center pt-2 transition-all cursor-pointer ${activeTab === 'ORDERS' ? 'text-orange-500 border-t-2 border-orange-500 pt-1.5 scale-105' : 'text-slate-500 hover:text-slate-350'}`}
+              className={`flex-1 flex flex-col items-center justify-center pt-2 transition-all cursor-pointer ${activeTab === 'ORDERS' ? 'text-primary border-t-2 border-primary pt-1.5 scale-105' : 'text-text-secondary hover:text-text-primary'}`}
             >
               <Navigation className="w-5 h-5 rotate-45" />
               <span className="text-[10px] font-black mt-1 font-sans">Orders</span>
@@ -981,7 +1003,7 @@ export default function App() {
                 if (soundEnabled) playBeep('CLICK');
                 setActiveTab('PROFILE');
               }}
-              className={`flex-1 flex flex-col items-center justify-center pt-2 transition-all cursor-pointer ${activeTab === 'PROFILE' ? 'text-orange-500 border-t-2 border-orange-500 pt-1.5 scale-105' : 'text-slate-500 hover:text-slate-350'}`}
+              className={`flex-1 flex flex-col items-center justify-center pt-2 transition-all cursor-pointer ${activeTab === 'PROFILE' ? 'text-primary border-t-2 border-primary pt-1.5 scale-105' : 'text-text-secondary hover:text-text-primary'}`}
             >
               <User className="w-5 h-5" />
               <span className="text-[10px] font-black mt-1 font-sans">Profile</span>
@@ -996,12 +1018,12 @@ export default function App() {
                 if (soundEnabled) playBeep('CLICK');
                 setActiveTab('SUPPORT');
               }}
-              className="absolute bottom-20 right-5 z-50 flex items-center justify-center w-12 h-12 rounded-full bg-[#f05523] text-white shadow-[0_4px_22px_rgba(240,85,35,0.45)] cursor-pointer hover:bg-[#d04417] active:scale-95 transition-all group animate-[bounce_3.5s_infinite_ease-in-out]"
+              className="absolute bottom-20 right-5 z-50 flex items-center justify-center w-12 h-12 rounded-full bg-accent text-white shadow-[0_4px_22px_rgba(239,42,57,0.3)] cursor-pointer hover:brightness-110 active:scale-95 transition-all group animate-[bounce_3.5s_infinite_ease-in-out] border-none"
               style={{ touchAction: 'manipulation' }}
               title="Open Live Chat Support"
             >
               {/* Outer pulsing ring */}
-              <div className="absolute inset-0 rounded-full bg-[#f05523]/40 animate-ping pointer-events-none"></div>
+              <div className="absolute inset-0 rounded-full bg-accent/40 animate-ping pointer-events-none"></div>
 
               {/* Icon symbol */}
               <Headphones className="w-5.5 h-5.5 stroke-[2.2px] relative z-10 text-white group-hover:rotate-12 transition-transform" />
@@ -1009,21 +1031,17 @@ export default function App() {
               {/* Status active pulsing dot indicator */}
               <span className="absolute top-0.5 right-0.5 flex h-3.5 w-3.5 z-20">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-80"></span>
-                <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-500 border-2 border-[#f05523]"></span>
+                <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-500 border-2 border-accent"></span>
               </span>
 
               {/* Help tooltip display on hover */}
-              <span className="absolute right-14 bg-slate-950/95 text-[10px] font-extrabold text-[#f05523] uppercase tracking-wider px-2.5 py-1 rounded-lg border border-slate-900 shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap">
+              <span className="absolute right-14 bg-bg-card text-[10px] font-extrabold text-accent uppercase tracking-wider px-2.5 py-1 rounded-lg border border-slate-900 shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap">
                 Help Online
               </span>
             </button>
           )}
 
-        </div>
 
-
-
-      </div>
 
       {/* MATCHING PENDING OFFER OVERLAY CARD MODAL - SLIDES UP OVER CURRENT VIEW */}
       {pendingOffer && (

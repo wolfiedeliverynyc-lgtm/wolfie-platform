@@ -3,17 +3,19 @@
    Wraps all restaurant backend endpoints with JWT auth
 ═══════════════════════════════════════════════ */
 
-const BASE = '/api/v1'
+const BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api/v1` : '/api/v1'
 
 function getToken() {
-  return localStorage.getItem('wolfie_restaurant_token')
+  return localStorage.getItem('restaurant_token') || localStorage.getItem('wolfie_restaurant_token')
 }
 
 export function setToken(token) {
+  localStorage.setItem('restaurant_token', token)
   localStorage.setItem('wolfie_restaurant_token', token)
 }
 
 export function clearToken() {
+  localStorage.removeItem('restaurant_token')
   localStorage.removeItem('wolfie_restaurant_token')
 }
 
@@ -32,15 +34,15 @@ async function request(path, options = {}) {
 
 // ── Auth (Restaurant) ─────────────────────────
 export const restaurantAuth = {
-  login:    (body) => request('/restaurants/auth/login',    { method: 'POST', body: JSON.stringify(body) }),
-  register: (body) => request('/restaurants/auth/register', { method: 'POST', body: JSON.stringify(body) }),
-  me:       ()     => request('/restaurants/auth/me'),
+  login:    (body) => request('/auth/login',    { method: 'POST', body: JSON.stringify(body) }),
+  register: (body) => request('/auth/register', { method: 'POST', body: JSON.stringify(body) }),
+  me:       ()     => request('/auth/me'),
   logout:   ()     => { clearToken(); return Promise.resolve() },
 }
 
 // ── Restaurant Management ─────────────────────
 export const restaurantApi = {
-  getProfile:   ()     => request('/restaurants/profile'),
+  getProfile:   ()     => request('/auth/me'),
   updateProfile:(body) => request('/restaurants/profile', { method: 'PATCH', body: JSON.stringify(body) }),
   getDashboard: ()     => request('/restaurants/dashboard'),
   getStats:     (range) => request(`/restaurants/stats?range=${range || 'week'}`),
@@ -57,9 +59,14 @@ export const menuApi = {
 
 // ── Orders ────────────────────────────────────
 export const ordersApi = {
-  getActive:    ()     => request('/restaurants/orders/active'),
+  getActive:    ()     => request('/restaurants/orders'),
   getHistory:   (page) => request(`/restaurants/orders/history?page=${page || 1}`),
-  updateStatus: (id, status) => request(`/restaurants/orders/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+  updateStatus: (id, status) => {
+    if (status === 'ready' || status === 'ready_for_pickup') {
+      return request(`/restaurants/orders/${id}/ready`, { method: 'POST' });
+    }
+    return request(`/orders/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
+  },
   acceptOrder:  (id)   => request(`/restaurants/orders/${id}/accept`, { method: 'POST' }),
   rejectOrder:  (id)   => request(`/restaurants/orders/${id}/reject`, { method: 'POST' }),
 }
