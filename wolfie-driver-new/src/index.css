@@ -1,59 +1,16 @@
-@import url('https://fonts.googleapis.com/css2?family=Lustria&family=Poppins:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&family=Inter:wght@300;400;500;600;700;800&display=swap');
-@import 'mapbox-gl/dist/mapbox-gl.css';
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600;750;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
 @import "tailwindcss";
 
-:root {
-  --bg-app: #000000;
-  --bg-card: #080808;
-  --bg-card-hover: #121212;
-  --text-primary: #ffffff;
-  --text-secondary: #94a3b8;
-  --border-color: transparent;
-  --primary: #FFE100;
-  --primary-hover: #d9bf00;
-  --accent: #EF2A39;
-  --input-bg: #121212;
-}
-
-.light-theme {
-  --bg-app: #ffffff;
-  --bg-card: #f8fafc;
-  --bg-card-hover: #f1f5f9;
-  --text-primary: #000000;
-  --text-secondary: #475569;
-  --border-color: transparent;
-  --primary: #FFE100;
-  --primary-hover: #d9bf00;
-  --accent: #EF2A39;
-  --input-bg: #f1f5f9;
-}
-
 @theme {
-  --font-sans: "Poppins", "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-serif: "Lustria", Georgia, Cambria, "Times New Roman", Times, serif;
-  --font-display: "Poppins", sans-serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
   
-  --color-bg-app: var(--bg-app);
-  --color-bg-card: var(--bg-card);
-  --color-bg-card-hover: var(--bg-card-hover);
-  --color-text-primary: var(--text-primary);
-  --color-text-secondary: var(--text-secondary);
-  --color-primary: var(--primary);
-  --color-primary-hover: var(--primary-hover);
-  --color-accent: var(--accent);
-  --color-input-bg: var(--input-bg);
-
-  /* Overrides for backwards compatibility to hide borders */
-  --color-slate-800: var(--border-color);
-  --color-slate-850: var(--border-color);
-  --color-slate-900: var(--border-color);
-  --color-slate-950: var(--bg-app);
-
-  /* Keep brand colors mapped to primary/accent */
-  --color-orange-brand: var(--primary);
-  --color-orange-dark: var(--primary-hover);
-  --color-orange-light: var(--primary);
+  --color-orange-brand: #ff5500;
+  --color-orange-dark: #cc4400;
+  --color-orange-light: #ff7733;
+  --color-slate-850: #161e2e;
+  --color-slate-950: #030712;
 }
 
 @keyframes float {
@@ -157,5 +114,47 @@
 
 .animate-text-fade-in {
   animation: textFadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.4s both;
+}
+
+/* Light Theme Global Overrides */
+.light-theme {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+.light-theme [class*="bg-[#050611]"],
+.light-theme [class*="bg-[#0a0f1d]"],
+.light-theme [class*="bg-slate-950"],
+.light-theme [class*="bg-slate-900"] {
+  background-color: #ffffff !important;
+}
+
+.light-theme [class*="bg-[#080a1c]"],
+.light-theme [class*="bg-[#090a1c]"],
+.light-theme [class*="bg-[#0c0d1c]"],
+.light-theme [class*="bg-[#0d0e1b]"],
+.light-theme [class*="bg-[#0b0c1e]"],
+.light-theme [class*="bg-[#0b0c20]/90"],
+.light-theme [class*="bg-slate-900/60"] {
+  background-color: #f1f5f9 !important;
+}
+
+.light-theme [class*="text-white"],
+.light-theme [class*="text-slate-100"],
+.light-theme [class*="text-slate-200"],
+.light-theme [class*="text-slate-300"],
+.light-theme [class*="text-slate-350"] {
+  color: #0f172a !important;
+}
+
+.light-theme [class*="text-slate-400"],
+.light-theme [class*="text-slate-500"] {
+  color: #64748b !important;
+}
+
+.light-theme [class*="border-slate-800"],
+.light-theme [class*="border-slate-850"],
+.light-theme [class*="border-slate-900"] {
+  border-color: #cbd5e1 !important;
 }
 
