@@ -44,34 +44,34 @@ export default function RiderSvg({ className = 'w-64 h-64' }: RiderSvgProps) {
       </g>
 
       {/* Ground Line / Speed streaks */}
-      <line x1="10" y1="200" x2="310" y2="200" stroke="var(--primary)" strokeWidth="2.5" strokeOpacity="0.3" strokeDasharray="12 6" />
+      <line x1="10" y1="200" x2="310" y2="200" stroke="#ff5500" strokeWidth="2.5" strokeOpacity="0.3" strokeDasharray="12 6" />
       <line x1="40" y1="206" x2="280" y2="206" stroke="#475569" strokeWidth="1.5" strokeOpacity="0.2" strokeDasharray="6 12" />
 
       {/* Speed lines behind the bike */}
-      <path d="M10 120 L50 120" stroke="var(--primary)" strokeWidth="2" strokeLinecap="round" strokeOpacity="0.6" strokeDasharray="30 15" />
-      <path d="M5 145 L45 145" stroke="var(--primary)" strokeWidth="1.5" strokeLinecap="round" strokeOpacity="0.4" strokeDasharray="15 30" />
+      <path d="M10 120 L50 120" stroke="#ff5500" strokeWidth="2" strokeLinecap="round" strokeOpacity="0.6" strokeDasharray="30 15" />
+      <path d="M5 145 L45 145" stroke="#ff5500" strokeWidth="1.5" strokeLinecap="round" strokeOpacity="0.4" strokeDasharray="15 30" />
       <path d="M20 165 L60 165" stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" strokeOpacity="0.3" strokeDasharray="20 20" />
 
       {/* --- RIDER SCOOTER --- */}
       {/* Front Wheel */}
       <circle cx="245" cy="180" r="20" fill="#0f172a" stroke="#475569" strokeWidth="5" />
-      <circle cx="245" cy="180" r="11" fill="#1e293b" stroke="var(--primary)" strokeWidth="2.5" />
+      <circle cx="245" cy="180" r="11" fill="#1e293b" stroke="#ff5500" strokeWidth="2.5" />
       <circle cx="245" cy="180" r="4" fill="#f8fafc" />
 
       {/* Rear Wheel */}
       <circle cx="115" cy="180" r="20" fill="#0f172a" stroke="#475569" strokeWidth="5" />
-      <circle cx="115" cy="180" r="11" fill="#1e293b" stroke="var(--primary)" strokeWidth="2.5" />
+      <circle cx="115" cy="180" r="11" fill="#1e293b" stroke="#ff5500" strokeWidth="2.5" />
       <circle cx="115" cy="180" r="4" fill="#f8fafc" />
 
       {/* Scooter Frame & Chassis (Vibrant orange parts and dark carbon panels) */}
       <path d="M115 180 L160 165 L210 165 L240 120 L245 110" stroke="#0f172a" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
       {/* Orange main body shield */}
-      <path d="M185 165 L235 155 L245 115 L225 118 L200 135 H165 Z" fill="var(--primary)" stroke="#0f172a" strokeWidth="2.5" strokeLinejoin="round" />
+      <path d="M185 165 L235 155 L245 115 L225 118 L200 135 H165 Z" fill="#ff5500" stroke="#0f172a" strokeWidth="2.5" strokeLinejoin="round" />
       {/* Scooter Seat */}
       <path d="M140 135 C145 125 170 125 195 135 L190 148 H135 Z" fill="#111827" stroke="#0f172a" strokeWidth="1.5" />
       
       {/* Front Mudguard */}
-      <path d="M230 155 C230 148 256 148 261 165" stroke="var(--primary)" strokeWidth="4.5" strokeLinecap="round" />
+      <path d="M230 155 C230 148 256 148 261 165" stroke="#ff5500" strokeWidth="4.5" strokeLinecap="round" />
 
       {/* Front Handlebars & Fork */}
       <line x1="245" x2="238" y1="110" y2="78" stroke="#1e293b" strokeWidth="6" strokeLinecap="round" />
@@ -84,25 +84,25 @@ export default function RiderSvg({ className = 'w-64 h-64' }: RiderSvgProps) {
       {/* --- TIMMY THE RIDER --- */}
       {/* Legs & Torso bending forward */}
       <path d="M185 135 L215 115 L228 145 H210" fill="none" stroke="#020617" strokeWidth="12" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M185 135 L215 115 L228 145 H210" fill="none" stroke="var(--primary)" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M185 135 L215 115 L228 145 H210" fill="none" stroke="#ff5500" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" />
       
       {/* Rider Torso jacket */}
       <path d="M165 125 C162 105 185 85 205 85 C215 85 220 95 218 105 L200 135 Z" fill="#1e293b" stroke="#020617" strokeWidth="2.5" />
       {/* Orange shoulder strip */}
-      <path d="M185 85 C195 85 202 88 208 95 L198 115 Z" fill="var(--primary)" />
+      <path d="M185 85 C195 85 202 88 208 95 L198 115 Z" fill="#ff5500" />
 
       {/* Arms reaching for handlebar */}
       <path d="M195 95 L222 82 H228" fill="none" stroke="#020617" strokeWidth="7.5" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M195 95 L222 82 H228" fill="none" stroke="var(--primary)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M195 95 L222 82 H228" fill="none" stroke="#ff5500" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
 
       {/* Helmet (Orange and black motorcycle helmet with dark screen visor) */}
-      <circle cx="205" cy="65" r="16" fill="var(--primary)" stroke="#020617" strokeWidth="3" />
+      <circle cx="205" cy="65" r="16" fill="#ff5500" stroke="#020617" strokeWidth="3" />
       {/* Helmet black decals */}
       <path d="M192 65 C192 58 200 52 208 52 V62 Z" fill="#1e293b" />
       {/* Visor */}
       <path d="M205 58 C215 58 221 66 219 75 C210 75 205 72 203 67 Z" fill="#020617" stroke="#ffffff" strokeWidth="1" />
       {/* Visor orange glare reflection */}
-      <path d="M211 62 Q216 66 217 71" stroke="var(--primary)" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+      <path d="M211 62 Q216 66 217 71" stroke="#ff5500" strokeWidth="1.5" fill="none" strokeLinecap="round" />
 
       {/* --- WOLFIE INSULATED FOOD BOX --- */}
       {/* Mounting rack */}
@@ -110,15 +110,15 @@ export default function RiderSvg({ className = 'w-64 h-64' }: RiderSvgProps) {
       {/* Insulated Box (Black back box with vertical orange stripe) */}
       <rect x="105" y="100" width="45" height="50" rx="4" fill="#111827" stroke="#020617" strokeWidth="3.5" />
       {/* Highlight/Side pockets */}
-      <rect x="101" y="110" width="4" height="30" rx="1" fill="var(--primary)" />
+      <rect x="101" y="110" width="4" height="30" rx="1" fill="#ff5500" />
       {/* Big Vertical Orange stripe on side */}
-      <rect x="122" y="100" width="10" height="50" fill="var(--primary)" />
+      <rect x="122" y="100" width="10" height="50" fill="#ff5500" />
       
       {/* Little white Wolfie branding insignia on back of insulated bag */}
-      <g transform="translate(112, 115) scale(0.1)" fill="#ffffff" stroke="var(--primary)" strokeWidth="1">
-        <path d="M100 10 L170 60 L145 150 L100 190 L55 150 L30 60 Z" fill="#ffffff" stroke="var(--primary)" strokeWidth="2" />
-        <path d="M75 50 L40 10 L55 60 Z" fill="var(--primary)" />
-        <path d="M125 50 L160 10 L145 60 Z" fill="var(--primary)" />
+      <g transform="translate(112, 115) scale(0.1)" fill="#ffffff" stroke="#ff5500" strokeWidth="1">
+        <path d="M100 10 L170 60 L145 150 L100 190 L55 150 L30 60 Z" fill="#ffffff" stroke="#ff5500" strokeWidth="2" />
+        <path d="M75 50 L40 10 L55 60 Z" fill="#ff5500" />
+        <path d="M125 50 L160 10 L145 60 Z" fill="#ff5500" />
         <path d="M50 70 L100 40 L150 70 L170 110 L100 135 L30 110 Z" fill="#020617" />
       </g>
 
