@@ -1,6 +1,6 @@
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 # Add backend directory to path
 sys.path.insert(0, os.path.dirname(__file__))
@@ -16,24 +16,38 @@ def seed():
         session = get_db_session()
         user_repo = UserRepository(session)
 
+        # 0. Clean all existing tables
+        tables = [
+            "reviews", "payments", "driver_locations", "driver_payouts",
+            "driver_decline_logs", "restaurant_order_payouts", "wap_predictions",
+            "wap_feedback", "wap_model_metrics", "sync_agents", "kitchen_metrics",
+            "restaurant_scores", "score_history", "support_tickets", "refund_requests",
+            "fraud_flags", "support_logs", "notifications", "addresses",
+            "chat_messages", "favorites", "orders", "menu_items", "users"
+        ]
+        print("Cleaning existing database tables...")
+        for table in tables:
+            try:
+                session.execute(f"DELETE FROM {table}")
+            except Exception as e:
+                # Table might not exist or be empty, ignore
+                pass
+        session.commit()
+        print("Database tables cleaned successfully.")
+
         # 1. Seed Customer
-        customer = user_repo.find_by_email("customer_demo@wolfie.delivery")
-        if not customer:
-            customer = user_repo.create(
-                email="customer_demo@wolfie.delivery",
-                password="password123",
-                full_name="M. Takahashi",
-                phone="+1 (555) 019-2831",
-                role="customer"
-            )
-            print("Customer Takahashi seeded successfully!")
-        else:
-            print("Customer Takahashi already exists.")
+        customer = User(
+            email="customer_demo@wolfie.delivery",
+            password_hash=UserRepository.hash_password("password123"),
+            full_name="M. Takahashi",
+            phone="+1 (555) 019-2831",
+            role="customer",
+            is_active=True
+        )
+        session.add(customer)
+        print("Customer customer_demo@wolfie.delivery seeded successfully!")
 
         # 2. Seed Restaurants
-        # We want to match restaurantsList from the frontend:
-        # rest_wendys, rest_mcdonalds, rest_shakeshack
-        
         restaurants_data = [
             {
                 "email": "wendys@wolfie.delivery",
@@ -111,27 +125,34 @@ def seed():
 
         restaurants = {}
         for rdata in restaurants_data:
-            r = user_repo.find_by_email(rdata["email"])
-            if not r:
-                r = user_repo.create(
-                    email=rdata["email"],
-                    password=rdata["password"],
-                    full_name=rdata["full_name"],
-                    phone=rdata["phone"],
-                    role=rdata["role"],
-                    extra=rdata["extra"]
-                )
-                # Ensure is_open is True
-                r.is_open = True
-                session.commit()
-                print(f"Restaurant {rdata['extra']['restaurant_name']} seeded successfully!")
-            else:
-                # Update properties just in case
-                r.is_open = True
-                for k, v in rdata["extra"].items():
-                    setattr(r, k, v)
-                session.commit()
-                print(f"Restaurant {rdata['extra']['restaurant_name']} already exists, updated properties.")
+            r = User(
+                email=rdata["email"],
+                password_hash=UserRepository.hash_password(rdata["password"]),
+                full_name=rdata["full_name"],
+                phone=rdata["phone"],
+                role=rdata["role"],
+                is_active=True,
+                is_open=True,
+                restaurant_name=rdata["extra"]["restaurant_name"],
+                commission_rate=0.18,
+                chef_name=rdata["extra"]["chef_name"],
+                chef_bio=rdata["extra"]["chef_bio"],
+                chef_image=rdata["extra"]["chef_image"],
+                story=rdata["extra"]["story"],
+                bio=rdata["extra"]["bio"],
+                hero_image=rdata["extra"]["hero_image"],
+                logo_image=rdata["extra"]["logo_image"],
+                address=rdata["extra"]["address"],
+                latitude=rdata["extra"]["latitude"],
+                longitude=rdata["extra"]["longitude"],
+                category=rdata["extra"]["category"],
+                price_level=rdata["extra"]["price_level"],
+                delivery_time_min=rdata["extra"]["delivery_time_min"],
+                delivery_fee=rdata["extra"]["delivery_fee"]
+            )
+            session.add(r)
+            session.commit()
+            print(f"Restaurant {rdata['extra']['restaurant_name']} seeded successfully!")
             restaurants[r.restaurant_name] = r
 
         # 3. Seed Menu Items
@@ -166,43 +187,50 @@ def seed():
             ("Shake Shack", shack_items)
         ]
 
-        with transaction() as tx_session:
-            for rest_name, items in menu_mappings:
-                rest_user = restaurants[rest_name]
-                # Clear existing menu items for the restaurant to avoid duplicates on re-run
-                tx_session.query(MenuItem).filter_by(restaurant_id=rest_user.id).delete()
-                
-                for item_data in items:
-                    menu_item = MenuItem(
-                        restaurant_id=rest_user.id,
-                        name=item_data["name"],
-                        price=item_data["price"],
-                        category=item_data["category"],
-                        description=item_data["description"],
-                        image_url=item_data["image_url"],
-                        is_available=True
-                    )
-                    tx_session.add(menu_item)
-                print(f"Seeded {len(items)} menu items for {rest_name}!")
+        for rest_name, items in menu_mappings:
+            rest_user = restaurants[rest_name]
+            for item_data in items:
+                menu_item = MenuItem(
+                    restaurant_id=rest_user.id,
+                    name=item_data["name"],
+                    price=item_data["price"],
+                    category=item_data["category"],
+                    description=item_data["description"],
+                    image_url=item_data["image_url"],
+                    is_available=True
+                )
+                session.add(menu_item)
+            print(f"Seeded {len(items)} menu items for {rest_name}!")
+        session.commit()
 
         # 4. Seed Driver
-        driver = user_repo.find_by_email("driver_demo@wolfie.delivery")
-        if not driver:
-            driver = user_repo.create(
-                email="driver_demo@wolfie.delivery",
-                password="password123",
-                full_name="Kenji Sato",
-                phone="+1 (555) 019-4444",
-                role="driver",
-                extra={
-                    "is_available": True,
-                    "kyc_status": "approved"
-                }
-            )
-            print("Driver Kenji Sato seeded successfully!")
-        else:
-            print("Driver Kenji Sato already exists.")
+        driver = User(
+            email="driver_demo@wolfie.delivery",
+            password_hash=UserRepository.hash_password("password123"),
+            full_name="Kenji Sato",
+            phone="+1 (555) 019-4444",
+            role="driver",
+            is_active=True,
+            is_available=True,
+            kyc_status="approved"
+        )
+        session.add(driver)
+        print("Driver driver_demo@wolfie.delivery seeded successfully!")
 
+        # 5. Seed Admin
+        admin = User(
+            email="admin@wolfie.com",
+            password_hash=UserRepository.hash_password("Wolfie@Admin2024!"),
+            full_name="Wolfie Admin",
+            phone="+1 (555) 019-9999",
+            role="admin",
+            is_active=True,
+            admin_type="super_admin"
+        )
+        session.add(admin)
+        print("Admin admin@wolfie.com seeded successfully!")
+
+        session.commit()
         print("Seeding process completed!")
 
 if __name__ == "__main__":

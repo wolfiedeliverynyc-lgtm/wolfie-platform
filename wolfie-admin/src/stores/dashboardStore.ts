@@ -98,80 +98,22 @@ interface DashboardState {
 }
 
 // ── Initial Mock Data Fallbacks ──────────────────────────────────
-const MOCK_ORDERS: Order[] = [
-  { id: "WLF-2941", customer_id: "c1", customer_name: "Amira Benali", merchant_id: "m1", merchant_name: "Pizza Bleu", driver_id: "d1", driver_name: "Karim Dris", amount: 2450, currency: "DA", status: "delivering", zone: "Algiers Centre", eta_minutes: 8, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: "WLF-2940", customer_id: "c2", customer_name: "Youssef Ait", merchant_id: "m2", merchant_name: "Burgers Co", driver_id: "d2", driver_name: "Samir Meziane", amount: 1200, currency: "DA", status: "preparing", zone: "El Biar", eta_minutes: 14, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: "WLF-2939", customer_id: "c3", customer_name: "Fatima Zahra", merchant_id: "m3", merchant_name: "Sushi House", driver_id: undefined, driver_name: "Unassigned", amount: 3800, currency: "DA", status: "pending", zone: "Hussein Dey", eta_minutes: 2, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: "WLF-2938", customer_id: "c4", customer_name: "Mehdi Oussama", merchant_id: "m4", merchant_name: "Tacos Grill", driver_id: "d3", driver_name: "Riad Khelil", amount: 980, currency: "DA", status: "completed", zone: "Bab Ezzouar", eta_minutes: undefined, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: "WLF-2937", customer_id: "c5", customer_name: "Nadia Cherif", merchant_id: "m5", merchant_name: "Crepe Box", driver_id: "d4", driver_name: "Amine Tahir", amount: 4100, currency: "DA", status: "completed", zone: "Kouba", eta_minutes: undefined, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: "WLF-2936", customer_id: "c6", customer_name: "Idir Hamid", merchant_id: "m6", merchant_name: "Salad Bar", driver_id: undefined, driver_name: "Unassigned", amount: 560, currency: "DA", status: "cancelled", zone: "Ain Taya", eta_minutes: undefined, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-];
-
-const MOCK_DRIVERS: Driver[] = [
-  { id: "d1", name: "Karim Dris", phone: "+213550123456", zone: "Algiers Centre", status: "delivering", rating: 4.9, completed_trips: 154, current_order_id: "WLF-2941" },
-  { id: "d2", name: "Samir Meziane", phone: "+213550123457", zone: "El Biar", status: "preparing", rating: 4.7, completed_trips: 98, current_order_id: "WLF-2940" },
-  { id: "d3", name: "Riad Khelil", phone: "+213550123458", zone: "Bab Ezzouar", status: "available", rating: 4.8, completed_trips: 212, current_order_id: undefined },
-  { id: "d4", name: "Amine Tahir", phone: "+213550123459", zone: "Kouba", status: "available", rating: 4.6, completed_trips: 84, current_order_id: undefined },
-  { id: "d5", name: "Omar Belaib", phone: "+213550123460", zone: "Ain Taya", status: "offline", rating: 4.5, completed_trips: 120, current_order_id: undefined },
-];
-
-const MOCK_MERCHANTS: Merchant[] = [
-  { id: "m1", name: "Pizza Bleu", category: "Italian", rating: 4.8, commissionPct: 18, status: "active", zone: "Algiers Centre", operational_status: "open", prep_delay_minutes: 0, kitchen_delay: false },
-  { id: "m2", name: "Burgers Co", category: "Fast Food", rating: 4.5, commissionPct: 15, status: "active", zone: "El Biar", operational_status: "open", prep_delay_minutes: 5, kitchen_delay: false },
-  { id: "m3", name: "Sushi House", category: "Japanese", rating: 4.9, commissionPct: 20, status: "active", zone: "Hussein Dey", operational_status: "busy", prep_delay_minutes: 12, kitchen_delay: true },
-  { id: "m4", name: "Tacos Grill", category: "Mexican", rating: 4.2, commissionPct: 12, status: "active", zone: "Bab Ezzouar", operational_status: "open", prep_delay_minutes: 0, kitchen_delay: false },
-  { id: "m5", name: "Crepe Box", category: "Dessert", rating: 4.6, commissionPct: 15, status: "paused", zone: "Kouba", operational_status: "paused", prep_delay_minutes: 0, kitchen_delay: false },
-  { id: "m6", name: "Salad Bar", category: "Healthy", rating: 4.4, commissionPct: 15, status: "suspended", zone: "Ain Taya", operational_status: "delayed", prep_delay_minutes: 20, kitchen_delay: true },
-];
-
-const MOCK_TICKETS: SupportTicket[] = [
-  { id: "t1", user_id: "c1", customer_name: "Amira Benali", order_id: "WLF-2941", category: "Late Delivery", priority: "medium", status: "open", created_at: new Date().toISOString(), updated_at: new Date().toISOString(), ai_summary: "Customer complains about delayed delivery of Pizza Bleu order." },
-  { id: "t2", user_id: "c3", customer_name: "Fatima Zahra", order_id: "WLF-2939", category: "Missing Items", priority: "high", status: "open", created_at: new Date().toISOString(), updated_at: new Date().toISOString(), ai_summary: "Sushi box is missing ginger and chopsticks." },
-  { id: "t3", user_id: "c4", customer_name: "Mehdi Oussama", order_id: "WLF-2938", category: "Payment Issue", priority: "low", status: "resolved", resolution: "Stripe transaction verified.", created_at: new Date().toISOString(), updated_at: new Date().toISOString() }
-];
-
-const MOCK_REFUNDS: RefundRequest[] = [
-  { id: "r1", order_id: "WLF-2936", user_id: "c6", customer_name: "Idir Hamid", refund_type: "full", amount_requested: 560, recommended_amount: 560, fraud_score: 0.12, status: "pending", created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: "r2", order_id: "WLF-2937", user_id: "c5", customer_name: "Nadia Cherif", refund_type: "partial", amount_requested: 1500, recommended_amount: 1000, fraud_score: 0.45, status: "pending", created_at: new Date().toISOString(), updated_at: new Date().toISOString() }
-];
-
-const MOCK_FLAGS: FraudFlag[] = [
-  { id: "f1", user_id: "c2", customer_name: "Youssef Ait", risk_type: "Card Velocity", severity: "high", notes: "Multiple failed payment attempts in 5 minutes.", status: "open", created_at: new Date().toISOString() },
-  { id: "f2", user_id: "d5", customer_name: "Omar Belaib", risk_type: "GPS Spoofing", severity: "medium", notes: "Driver location pinged outside of operational range.", status: "open", created_at: new Date().toISOString() }
-];
-
-const MOCK_AI_METRICS: WAPModelMetrics[] = [
-  { id: "m1", restaurant_id: "m1", restaurant_name: "Pizza Bleu", mae: 2.4, rmse: 3.1, mape: 9.8, r2_score: 0.88, training_samples: 1200, model_version: "wap-v2.1", trained_at: new Date().toISOString() },
-  { id: "m2", restaurant_id: "m2", restaurant_name: "Burgers Co", mae: 3.2, rmse: 4.0, mape: 12.1, r2_score: 0.81, training_samples: 850, model_version: "wap-v2.1", trained_at: new Date().toISOString() }
-];
-
-const MOCK_ALERTS: OperationalAlert[] = [
-  { id: "a1", type: "driver_shortage", severity: "high", message: "High demand in El Biar, only 1 driver available.", acknowledged: false, created_at: new Date().toISOString() },
-  { id: "a2", type: "wap_prediction_drift", severity: "medium", message: "WAP Model drift detected for Pizza Bleu (MAE > 4.5)", acknowledged: false, created_at: new Date().toISOString() }
-];
-
-const MOCK_ZONE_STATS = [
-  { zone: "Algiers Centre", orders: 38, pct: 90 },
-  { zone: "El Biar",        orders: 24, pct: 57 },
-  { zone: "Bab Ezzouar",    orders: 19, pct: 45 },
-  { zone: "Hussein Dey",    orders: 15, pct: 36 },
-  { zone: "Kouba",          orders: 11, pct: 26 },
-];
-
-const MOCK_ACTIVITY: ActivityItem[] = [
-  { id: "a1", text: "Order #WLF-2941 picked up by Karim D.",   time: "1 min ago",  color: "var(--accent)" },
-  { id: "a2", text: "New order in Hussein Dey — unassigned",    time: "2 min ago",  color: "var(--status-amber)" },
-  { id: "a3", text: "Karim D. delivered #WLF-2935 ✓",          time: "6 min ago",  color: "var(--status-green)" },
-  { id: "a4", text: "Merchant 'Pizza Bleu' paused menu",        time: "11 min ago", color: "var(--status-red)" },
-  { id: "a5", text: "Riad K. went online in Bab Ezzouar",       time: "14 min ago", color: "var(--status-green)" },
-  { id: "a6", text: "Order #WLF-2936 cancelled by customer",    time: "18 min ago", color: "var(--status-red)" },
-];
+const MOCK_ORDERS: Order[] = [];
+const MOCK_DRIVERS: Driver[] = [];
+const MOCK_MERCHANTS: Merchant[] = [];
+const MOCK_TICKETS: SupportTicket[] = [];
+const MOCK_REFUNDS: RefundRequest[] = [];
+const MOCK_FLAGS: FraudFlag[] = [];
+const MOCK_AI_METRICS: WAPModelMetrics[] = [];
+const MOCK_ALERTS: OperationalAlert[] = [];
+const MOCK_ZONE_STATS: Array<{ zone: string; orders: number; pct: number }> = [];
+const MOCK_ACTIVITY: ActivityItem[] = [];
 
 const MOCK_SYSTEM_STATUS: SystemStatusItem[] = [
   { label: "Order Service",       value: "Healthy",  up: true  },
   { label: "Driver Tracking",      value: "Healthy",  up: true  },
   { label: "Payment Gateway",      value: "Healthy",  up: true  },
-  { label: "Notification Service", value: "Degraded", up: false },
+  { label: "Notification Service", value: "Healthy",  up: true  },
   { label: "Merchant API",         value: "Healthy",  up: true  },
   { label: "Analytics Pipeline",   value: "Healthy",  up: true  },
 ];
