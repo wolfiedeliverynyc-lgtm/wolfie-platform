@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { DollarSign, ShieldAlert, Navigation, Star, Award, LogOut, ArrowUpRight, CheckCircle2, Volume2, VolumeX, Flame, BellRing, Settings, Menu, Bell, ArrowLeft, Heart, Clock, User, Check, ChevronRight, MapPin, Sliders, Home, ClipboardList, RotateCcw, HelpCircle, Phone, MessageSquare, Shield, Smile, Send, Headphones } from 'lucide-react';
+import { DollarSign, ShieldAlert, Navigation, Star, Award, LogOut, ArrowUpRight, CheckCircle2, Volume2, VolumeX, Flame, BellRing, Settings, Menu, Bell, ArrowLeft, Heart, Clock, User, Check, ChevronRight, MapPin, Sliders, Home, ClipboardList, RotateCcw, HelpCircle, Phone, MessageSquare, Shield, Smile, Send, Headphones, Sun, Moon } from 'lucide-react';
 import { io, Socket } from 'socket.io-client';
 import { Order, OrderStatus, DriverStats, EarningSummary, LatLng } from './types';
 import {
