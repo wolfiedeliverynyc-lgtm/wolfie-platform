@@ -19,12 +19,8 @@ class PaymentService:
 
     def __init__(self, stripe_key: str, webhook_secret: str):
         self.webhook_secret = webhook_secret
-        if stripe_key:
-            stripe.api_key = stripe_key
-            logger.info("PaymentService: Stripe configured")
-        else:
-            logger.warning("PaymentService: No Stripe key — running in mock mode")
-        self._mock = not bool(stripe_key)
+        self._mock = True
+        logger.warning("PaymentService: Force mock mode (Stripe deactivated)")
 
     # ── Create PaymentIntent ───────────────────
 

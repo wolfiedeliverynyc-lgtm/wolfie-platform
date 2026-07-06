@@ -16,15 +16,9 @@ class PushNotificationEngine:
 
     def __init__(self, twilio_sid: str = None, twilio_token: str = None,
                  twilio_from: str = None):
-        self._mock = not all([twilio_sid, twilio_token, twilio_from])
+        self._mock = True
         self._from = twilio_from
-
-        if not self._mock:
-            from twilio.rest import Client
-            self._client = Client(twilio_sid, twilio_token)
-            logger.info("PushNotificationEngine: Twilio ready")
-        else:
-            logger.warning("PushNotificationEngine: mock mode (no Twilio keys)")
+        logger.warning("PushNotificationEngine: Force mock mode (Twilio deactivated)")
 
     def send_sms(self, to: str, body: str) -> bool:
         if self._mock:

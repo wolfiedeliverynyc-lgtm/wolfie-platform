@@ -5,6 +5,8 @@
 ╚══════════════════════════════════════════════════════════════╝
 """
 
+from __future__ import annotations
+
 from typing import TypeVar, Generic, Type, Any
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session
