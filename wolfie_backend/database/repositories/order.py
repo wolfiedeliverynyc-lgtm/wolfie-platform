@@ -66,6 +66,8 @@ class OrderRepository(BaseRepository[Order]):
             raise ValueError("Order must have at least one item")
 
         route = route_info or {}
+        delivery_coords = route.get("delivery_coords") or {}
+        pickup_coords = route.get("pickup_coords") or {}
         now   = datetime.now(UTC)
 
         order = Order(
@@ -87,6 +89,10 @@ class OrderRepository(BaseRepository[Order]):
             surge_applied    = pricing.get("surge_applied", False),
             distance_km      = route.get("distance_km"),
             eta_minutes      = route.get("duration_min"),
+            delivery_lat     = delivery_coords.get("lat"),
+            delivery_lng     = delivery_coords.get("lng"),
+            pickup_lat       = pickup_coords.get("lat"),
+            pickup_lng       = pickup_coords.get("lng"),
             promo_code       = promo_code,
             created_at       = now,
             updated_at       = now,
@@ -186,3 +192,18 @@ class OrderRepository(BaseRepository[Order]):
             "conversion_rate":  round(len(delivered) / len(all_orders) * 100, 1)
                                 if all_orders else 0,
         }
+
+    def to_dict(self, obj: Order, exclude: set = None) -> dict:
+        d = super().to_dict(obj, exclude)
+        d["customer"] = {
+            "full_name": obj.customer.full_name if obj.customer else "Guest",
+            "phone": obj.customer.phone if obj.customer else ""
+        }
+        if obj.driver:
+            d["driver"] = {
+                "full_name": obj.driver.full_name,
+                "phone": obj.driver.phone
+            }
+        else:
+            d["driver"] = None
+        return d

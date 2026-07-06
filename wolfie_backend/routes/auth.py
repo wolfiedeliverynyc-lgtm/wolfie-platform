@@ -209,6 +209,8 @@ def update_profile():
             updates = {}
             if data.get("full_name"): updates["full_name"] = data["full_name"].strip()
             if data.get("phone"):     updates["phone"]     = data["phone"].strip()
+            if "dietary_preferences" in data: updates["dietary_preferences"] = data["dietary_preferences"]
+            if "allergy_preferences" in data: updates["allergy_preferences"] = data["allergy_preferences"]
             if data.get("password"):
                 if len(data["password"]) < 8:
                     return jsonify({"error": "Password must be at least 8 characters"}), 400

@@ -162,8 +162,10 @@ interface DriverStore {
   routeGeoJSON: any
   soundEnabled: boolean
   token: string | null
+  theme: 'dark' | 'light'
 
   setToken: (token: string | null) => void
+  setTheme: (theme: 'dark' | 'light') => void
 
   setLifecycleState: (state: DriverLifecycleState) => void
   setOnline: (online: boolean) => void
@@ -243,13 +245,13 @@ const defaultState = {
   activeTab: 'HOME',
   activeOrders: [],
   pendingOffer: null,
-  currentLocation: [40.7180, -73.9570] as [number, number],
+  currentLocation: [36.8990, 8.4410] as [number, number],
   driverHeading: 0,
   hotspots: [
-    { id: 'h1', coords: [40.7160, -73.9590], intensity: 0.8, label: 'Williamsburg North', surgeMultiplier: 1.5 },
-    { id: 'h2', coords: [40.7140, -73.9610], intensity: 0.6, label: 'Domino Park Area', surgeMultiplier: 1.2 },
-    { id: 'h3', coords: [40.7200, -73.9530], intensity: 0.9, label: 'McCarren Park', surgeMultiplier: 1.8 },
-    { id: 'h4', coords: [40.7120, -73.9550], intensity: 0.5, label: 'South Williamsburg', surgeMultiplier: 1.1 }
+    { id: 'h1', coords: [36.8970, 8.4450], intensity: 0.8, label: 'El Kala Port East', surgeMultiplier: 1.5 },
+    { id: 'h2', coords: [36.8950, 8.4430], intensity: 0.6, label: 'El Kala Center', surgeMultiplier: 1.2 },
+    { id: 'h3', coords: [36.8960, 8.4400], intensity: 0.9, label: 'Port Area West', surgeMultiplier: 1.8 },
+    { id: 'h4', coords: [36.8980, 8.4420], intensity: 0.5, label: 'El Kala Beach Side', surgeMultiplier: 1.1 }
   ] as Hotspot[],
   intelligenceAlerts: [],
   token: null,
@@ -271,6 +273,7 @@ const defaultState = {
   driverProfile: null,
   routeGeoJSON: null,
   soundEnabled: true,
+  theme: 'dark' as const,
 }
 
 export const useDriverStore = create<DriverStore>()(
@@ -315,6 +318,7 @@ export const useDriverStore = create<DriverStore>()(
       setDriverProfile: (profile) => set({ driverProfile: profile }),
       setRouteGeoJSON: (geoJSON) => set({ routeGeoJSON: geoJSON }),
       setSoundEnabled: (enabled) => set({ soundEnabled: enabled }),
+      setTheme: (theme) => set({ theme }),
       updateWallet: (partial) => set((state) => ({ wallet: { ...state.wallet, ...partial } })),
       addCashoutRequest: (amount, method) => set((state) => ({
         wallet: {
@@ -348,6 +352,7 @@ export const useDriverStore = create<DriverStore>()(
         supportTickets: state.supportTickets,
         soundEnabled: state.soundEnabled,
         token: state.token,
+        theme: state.theme,
       })
     }
   )

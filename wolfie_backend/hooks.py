@@ -44,6 +44,43 @@ def register_hooks():
                     from tasks.notify import notify_driver
                     notify_driver(order_id, driver.phone, "assigned")
 
+                    # Emit new_order socket event to the driver
+                    try:
+                        from flask import current_app
+                        socketio = current_app.extensions.get("socketio")
+                        if not socketio:
+                            from app import socketio
+
+                        order_data = {
+                            "id": order.id,
+                            "orderNumber": order.id[:8].upper(),
+                            "restaurantId": order.restaurant_id,
+                            "restaurantName": rest.full_name if rest else "Wendy's",
+                            "restaurantCoords": [float(order.pickup_lat) if order.pickup_lat is not None else 36.8990, float(order.pickup_lng) if order.pickup_lng is not None else 8.4410],
+                            "restaurantAddress": order.pickup_address or "El Kala Port, Algeria",
+                            "customerId": order.customer_id,
+                            "customerName": order.customer.full_name if order.customer else "Customer",
+                            "customerCoords": [float(order.delivery_lat) if order.delivery_lat is not None else 36.8990, float(order.delivery_lng) if order.delivery_lng is not None else 8.4410],
+                            "customerAddress": order.delivery_address or "El Kala Port, Algeria",
+                            "customerInstructions": order.notes or "Please leave at door.",
+                            "payout": float(order.driver_payout or 0.0),
+                            "tip": float(order.tip or 0.0),
+                            "promoPay": 0.0,
+                            "distanceKm": float(order.distance_km or 1.2),
+                            "estimatedMinutes": int(order.eta_minutes or 15),
+                            "items": order.items or [],
+                            "status": order.status,
+                            "etaMinutes": int(order.eta_minutes or 15),
+                            "acceptedAt": order.accepted_at.isoformat() if order.accepted_at else None,
+                            "priority": "normal",
+                            "surgeMultiplier": 1.0,
+                            "slaDeadline": None,
+                        }
+                        socketio.emit("new_order", order_data, room=f"user_{driver.id}", namespace="/")
+                        logger.info(f"WS new_order emitted to driver user_{driver.id}")
+                    except Exception as ws_err:
+                        logger.warning(f"WS new_order emit failed: {ws_err}")
+
                 if rest:
                     from tasks.notify import notify_restaurant
                     notify_restaurant(order_id, rest.phone, "new_order")

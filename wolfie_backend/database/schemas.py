@@ -91,6 +91,8 @@ class User(Base):
 
     # ── Customer fields ──
     total_orders       = Column(Integer, default=0)
+    dietary_preferences = Column(JSON, default=list)
+    allergy_preferences = Column(JSON, default=list)
 
     # ── Admin fields ──
     admin_type         = Column(String(50))
@@ -160,6 +162,10 @@ class Order(Base):
     # Route
     distance_km     = Column(Float)
     eta_minutes     = Column(Integer)
+    delivery_lat    = Column(Float, nullable=True)
+    delivery_lng    = Column(Float, nullable=True)
+    pickup_lat      = Column(Float, nullable=True)
+    pickup_lng      = Column(Float, nullable=True)
 
     # Payment
     payment_method  = Column(String(20), nullable=False)
@@ -270,6 +276,7 @@ class MenuItem(Base):
     category      = Column(String(100), nullable=False, index=True)
     image_url     = Column(Text)
     is_available  = Column(Boolean, default=True, nullable=False)
+    sizes         = Column(JSON, default=list)
     created_at    = Column(DateTime(timezone=True), default=_now, nullable=False)
     updated_at    = Column(DateTime(timezone=True), default=_now, onupdate=_now, nullable=False)
 

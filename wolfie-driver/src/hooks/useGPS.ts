@@ -35,9 +35,11 @@ export function useGPS({ onLocation, batteryAware = true }: GPSOptions = {}) {
   }
 
   const startSimulation = useCallback(() => {
-    if (import.meta.env.VITE_ENABLE_DEV_SIMULATION !== 'true') return;
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const enableSim = import.meta.env.VITE_ENABLE_DEV_SIMULATION === 'true' || isLocal;
+    if (!enableSim) return;
     const interval = setInterval(() => {
-      const current = lastPosition.current || [40.718, -73.957]
+      const current = lastPosition.current || [36.8990, 8.4410]
       const dLat = (Math.random() - 0.5) * 0.0004
       const dLng = (Math.random() - 0.5) * 0.0004
       const newPos: [number, number] = [current[0] + dLat, current[1] + dLng]
@@ -50,8 +52,11 @@ export function useGPS({ onLocation, batteryAware = true }: GPSOptions = {}) {
   }, [setCurrentLocation, setDriverHeading])
 
   const startTracking = useCallback(() => {
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const enableSim = import.meta.env.VITE_ENABLE_DEV_SIMULATION === 'true' || isLocal;
+
     if (!navigator.geolocation) {
-      if (import.meta.env.VITE_ENABLE_DEV_SIMULATION === 'true') {
+      if (enableSim) {
         console.warn('GPS: geolocation not available, using simulation')
         startSimulation()
       } else {
@@ -76,7 +81,7 @@ export function useGPS({ onLocation, batteryAware = true }: GPSOptions = {}) {
         onLocation?.(smoothLat, smoothLng, heading)
       },
       (error) => {
-        if (import.meta.env.VITE_ENABLE_DEV_SIMULATION === 'true') {
+        if (enableSim) {
           console.warn('GPS error:', error.message, '- using simulation fallback')
           startSimulation()
         } else {

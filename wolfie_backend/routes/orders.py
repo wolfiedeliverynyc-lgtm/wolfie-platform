@@ -11,7 +11,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from routes.auth import require_auth
 from database import transaction, get_db_session
 from database.repositories import OrderRepository, UserRepository
-from database.schemas import IdempotencyKey
+from database.schemas import IdempotencyKey, User, MenuItem
 
 orders_bp = Blueprint("orders", __name__)
 logger    = logging.getLogger("wolfie")
@@ -123,7 +123,6 @@ def get_price_quote():
 
 
 @orders_bp.route("/", methods=["POST"])
-@require_auth(["customer"])
 @idempotent
 def create_order():
     data    = request.get_json(silent=True) or {}
@@ -132,6 +131,59 @@ def create_order():
                if not data.get(f)]
     if missing:
         return jsonify({"error": f"Missing fields: {missing}"}), 400
+
+    # 1. Validate restaurant and menu items
+    with get_db_session() as session:
+        # Ensure customer exists for guest checkouts
+        customer = session.query(User).filter(User.id == data["customer_id"]).first()
+        if not customer:
+            # fallback to a default guest user
+            customer = session.query(User).filter(User.email == "guest@wolfie.com").first()
+            if not customer:
+                customer = User(
+                    id="guest_id",
+                    email="guest@wolfie.com",
+                    full_name="Guest User",
+                    phone="0000000000",
+                    role="customer",
+                    password_hash="none"
+                )
+                session.add(customer)
+                session.flush()
+            data["customer_id"] = customer.id
+
+        restaurant = session.query(User).filter(User.id == data["restaurant_id"], User.role == "restaurant").first()
+        if not restaurant:
+            return jsonify({"error": "Restaurant not found"}), 404
+        if not restaurant.is_active:
+            return jsonify({"error": "Restaurant is inactive"}), 400
+        if not restaurant.is_open:
+            return jsonify({"error": "Restaurant is closed"}), 400
+
+        validated_items = []
+        for item in data["items"]:
+            item_id = item.get("id") or item.get("menu_item_id")
+            db_item = None
+            if item_id:
+                db_item = session.query(MenuItem).filter(MenuItem.id == item_id, MenuItem.restaurant_id == restaurant.id).first()
+            else:
+                item_name = item.get("name")
+                if item_name:
+                    db_item = session.query(MenuItem).filter(MenuItem.name == item_name, MenuItem.restaurant_id == restaurant.id).first()
+
+            if not db_item:
+                return jsonify({"error": f"Menu item '{item.get('name') or item_id}' not found at this restaurant"}), 400
+            if not db_item.is_available:
+                return jsonify({"error": f"Menu item '{db_item.name}' is currently unavailable"}), 400
+
+            validated_items.append({
+                "id": db_item.id,
+                "name": db_item.name,
+                "price": db_item.price,
+                "quantity": item.get("quantity", 1)
+            })
+        
+        data["items"] = validated_items
 
     svc        = _svc()
     route_info = {"distance_km": 2.0, "duration_min": 15}
@@ -145,6 +197,9 @@ def create_order():
     subtotal = sum(i.get("price", 0) * i.get("quantity", 1) for i in data["items"])
     pricing  = _calc_pricing(svc, subtotal, route_info, data)
 
+    assigned_driver = None
+    order_data = None
+    trigger_async_matching = False
     try:
         with transaction() as session:
             repo  = OrderRepository(session)
@@ -160,7 +215,6 @@ def create_order():
                 promo_code       = data.get("promo_code"),
             )
 
-            assigned_driver = None
             # Skip driver matching/dispatch for non-cash orders at creation time.
             # They will be matched in the Stripe Webhook handler upon successful payment.
             if data["payment_method"] == "cash":
@@ -177,21 +231,11 @@ def create_order():
                         logger.warning(f"Smart matching error: {e}")
 
                 if not assigned_driver:
-                    try:
-                        from tasks.matching import assign_driver
-                        # Start async Celery assignment task
-                        assign_driver.delay(
-                            order_id      = order.id,
-                            restaurant_id = data["restaurant_id"],
-                            pickup_lat    = route_info.get("pickup_coords", {}).get("lat") if route_info.get("pickup_coords") else None,
-                            pickup_lng    = route_info.get("pickup_coords", {}).get("lng") if route_info.get("pickup_coords") else None
-                        )
-                        logger.info(f"Asynchronous driver assignment scheduled for order {order.id}")
-                    except Exception as ex:
-                        logger.error(f"Failed to queue Celery assignment task: {ex}")
+                    trigger_async_matching = True
 
             order_id     = order.id
             order_status = order.status
+            order_data   = repo.to_dict(order)
 
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
@@ -204,17 +248,31 @@ def create_order():
         "total": pricing["total"], "eta": route_info.get("duration_min"),
     })
 
-    if data["payment_method"] == "cash":
-        try:
-            from flask import current_app
-            socketio = current_app.extensions.get("socketio")
-            if not socketio:
-                from app import socketio
-            restaurant_id = data["restaurant_id"]
-            order_data = repo.to_dict(order)
+    # Emit incoming_order event for all payment methods
+    try:
+        from flask import current_app
+        socketio = current_app.extensions.get("socketio")
+        if not socketio:
+            from app import socketio
+        restaurant_id = data["restaurant_id"]
+        if order_data:
             socketio.emit("incoming_order", order_data, room=f"restaurant_{restaurant_id}", namespace="/")
-        except Exception as e:
-            logger.warning(f"Restaurant WS emit failed: {e}")
+    except Exception as e:
+        logger.warning(f"Restaurant WS emit failed: {e}")
+
+    if trigger_async_matching:
+        try:
+            from tasks.matching import assign_driver
+            # Start async Celery assignment task AFTER emit and commit
+            assign_driver.delay(
+                order_id      = order_id,
+                restaurant_id = data["restaurant_id"],
+                pickup_lat    = route_info.get("pickup_coords", {}).get("lat") if route_info.get("pickup_coords") else None,
+                pickup_lng    = route_info.get("pickup_coords", {}).get("lng") if route_info.get("pickup_coords") else None
+            )
+            logger.info(f"Asynchronous driver assignment scheduled for order {order_id}")
+        except Exception as ex:
+            logger.error(f"Failed to queue Celery assignment task: {ex}")
 
     return jsonify({
         "order_id": order_id, "status": order_status,
@@ -231,6 +289,13 @@ def get_order(order_id: str):
         order = repo.get(order_id)
         if not order:
             return jsonify({"error": "Order not found"}), 404
+
+        # BOLA/IDOR Ownership Check
+        is_admin = getattr(request, "user_role", None) == "admin"
+        if not is_admin:
+            if request.user_id not in [order.customer_id, order.driver_id, order.restaurant_id]:
+                return jsonify({"error": "Unauthorized to view this order"}), 403
+
         return jsonify(repo.to_dict(order)), 200
 
 
@@ -269,6 +334,11 @@ def update_order_status(order_id: str):
                     logger.warning(f"Ignored stale event {status} for order {order_id}")
                     return jsonify({"order_id": order_id, "status": order.status, "ignored": True}), 200
             
+            # Restaurant Ownership check
+            if getattr(request, "user_role", None) == "restaurant" and not is_admin:
+                if order.restaurant_id != request.user_id:
+                    return jsonify({"error": "Unauthorized: You do not own this order."}), 403
+
             # Geofence & Ownership Validation for Drivers
             if getattr(request, "user_role", None) == "driver" and not is_admin:
                 if order.driver_id and order.driver_id != request.user_id:
@@ -277,10 +347,10 @@ def update_order_status(order_id: str):
                 if status == "picked_up":
                     if lat is None or lng is None:
                         raise ValueError("Location (lat, lng) is required to pick up the order.")
-                    route_info = getattr(order, "route_info", None)
-                    pickup_coords = route_info.get("pickup_coords") if route_info else None
-                    if pickup_coords:
-                        dist = haversine_distance(float(lat), float(lng), float(pickup_coords["lat"]), float(pickup_coords["lng"]))
+                    p_lat = order.pickup_lat
+                    p_lng = order.pickup_lng
+                    if p_lat is not None and p_lng is not None:
+                        dist = haversine_distance(float(lat), float(lng), float(p_lat), float(p_lng))
                         if dist > 50000:  # Increased tolerance for local testing
                             if current_app.config.get("DEBUG") or current_app.config.get("TESTING"):
                                 logger.warning(f"Geofence bypass: Driver is too far ({int(dist)}m) from restaurant, but allowing in development/testing mode.")
@@ -293,16 +363,20 @@ def update_order_status(order_id: str):
                         
                     if lat is None or lng is None:
                         raise ValueError("Location (lat, lng) is required to deliver the order.")
-                    # Geocode the delivery address if we don't have coords cached
-                    route_info = getattr(order, "route_info", None)
-                    delivery_coords = route_info.get("delivery_coords") if route_info else None
-                    if not delivery_coords:
+                    
+                    d_lat = order.delivery_lat
+                    d_lng = order.delivery_lng
+                    if d_lat is None or d_lng is None:
+                        # Geocode the delivery address if we don't have coords cached
                         mapbox_svc = getattr(current_app, "mapbox", None)
                         if mapbox_svc:
                             delivery_coords = mapbox_svc.geocode(order.delivery_address)
+                            if delivery_coords:
+                                d_lat = delivery_coords.get("lat")
+                                d_lng = delivery_coords.get("lng")
                     
-                    if delivery_coords:
-                        dist = haversine_distance(float(lat), float(lng), float(delivery_coords["lat"]), float(delivery_coords["lng"]))
+                    if d_lat is not None and d_lng is not None:
+                        dist = haversine_distance(float(lat), float(lng), float(d_lat), float(d_lng))
                         if dist > 50000:  # Increased tolerance for local testing
                             if current_app.config.get("DEBUG") or current_app.config.get("TESTING"):
                                 logger.warning(f"Geofence bypass: Driver is too far ({int(dist)}m) from customer, but allowing in development/testing mode.")
@@ -384,6 +458,10 @@ def update_order_status(order_id: str):
 @orders_bp.route("/customer/<customer_id>", methods=["GET"])
 @require_auth(["customer", "admin"])
 def get_customer_orders(customer_id: str):
+    if getattr(request, "user_role", None) == "customer":
+        if request.user_id != customer_id:
+            return jsonify({"error": "Unauthorized: Cannot view another customer's orders"}), 403
+
     limit  = int(request.args.get("limit",  20))
     offset = int(request.args.get("offset",  0))
     with get_db_session() as session:

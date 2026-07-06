@@ -24,6 +24,12 @@ def get_order_tracking(order_id):
         if not order:
             return jsonify({"error": "Order not found"}), 404
 
+        # BOLA/IDOR Ownership Check
+        is_admin = getattr(request, "user_role", None) == "admin"
+        if not is_admin:
+            if request.user_id not in [order.customer_id, order.driver_id]:
+                return jsonify({"error": "Unauthorized to track this order"}), 403
+
         driver_loc = None
         if order.driver_id:
             # 1. Try Redis cache first (freshest data, sub-ms)

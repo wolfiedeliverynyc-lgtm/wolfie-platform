@@ -21,7 +21,8 @@ export default function DriversFleetPage() {
     setLoadingReviews(true);
     setDriverReviews([]);
     try {
-      const res = await fetch(`http://localhost:5000/api/ratings/driver/${driverId}`);
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+      const res = await fetch(`${apiBase}/ratings/driver/${driverId}`);
       if (res.ok) {
         const data = await res.json();
         setDriverReviews(data.reviews || []);

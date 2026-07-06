@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useRestaurantStore } from '../store/useRestaurantStore';
+import { useRestaurantStore, mapBackendOrderToClient } from '../store/useRestaurantStore';
 import { useRestaurantSocket } from '../hooks/useRestaurantSocket';
 import { Monitor, AlertTriangle, Fingerprint } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -16,6 +16,17 @@ function formatElapsedTime(seconds) {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
+function getFoodImage(name) {
+  const n = name.toLowerCase();
+  if (n.includes('alpha') || n.includes('wolf')) return '/assets/hamburger_1.png';
+  if (n.includes('ramen') || n.includes('bowl')) return '/assets/hamburger_4.png';
+  if (n.includes('pizza') || n.includes('margherita')) return '/assets/hamburger_3.png';
+  if (n.includes('fries') || n.includes('loaded')) return '/assets/hamburger_2.png';
+  if (n.includes('combo') || n.includes('meal')) return '/assets/hamburger_details.png';
+  if (n.includes('coke') || n.includes('cola') || n.includes('drink') || n.includes('lemonade')) return '/assets/hamburger_2.png';
+  return '/assets/hamburger_1.png';
+}
+
 const STATION_MAPPING = {
   Burgers: 'Grill', Pizza: 'Grill', Tacos: 'Grill',
   Bowls: 'Packing', Sushi: 'Packing', Salads: 'Packing', Sides: 'Packing',
@@ -27,14 +38,7 @@ export default function KitchenDisplay() {
   const restaurant = useRestaurantStore((s) => s.restaurant);
   const restaurantId = restaurant?.id || 'r-001';
 
-  const { emitOrderAccept, emitOrderReady, emitOrderDelay } = useRestaurantSocket(restaurantId, {
-    onNewOrder: (data) => {
-      useRestaurantStore.setState(s => ({ orders: [data, ...s.orders] }));
-    },
-    onOrderUpdate: (data) => {
-      useRestaurantStore.setState(s => ({ orders: s.orders.map(o => o.id === data.id ? { ...o, ...data } : o) }));
-    }
-  });
+  const { emitOrderAccept, emitOrderReady, emitOrderDelay } = useRestaurantSocket(restaurantId);
 
   const handleUpdateStatus = (orderId, status) => {
     if (status === 'accepted') emitOrderAccept(orderId);
@@ -74,26 +78,23 @@ export default function KitchenDisplay() {
   }, [orders, stationFilter]);
 
   return (
-    <div className="h-full w-full flex flex-col overflow-hidden select-none bg-[#050505] text-[#e8dcc8] font-sans relative">
+    <div className="h-full w-full flex flex-col overflow-hidden select-none bg-transparent text-[var(--text-primary)] font-sans relative">
       
-      {/* Background Grid */}
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none" />
-
       {/* Floating Header */}
       <motion.div 
         initial={{ y: -50, opacity: 0 }} 
         animate={{ y: 0, opacity: 1 }}
         className="px-8 pt-8 pb-4 flex justify-between items-center relative z-10"
       >
-        <div className="flex items-center gap-4 bg-[#0a0a0a] p-2 rounded-full border border-white/5 shadow-[0_0_20px_rgba(0,0,0,0.5)]">
+        <div className="flex items-center gap-4 bg-[var(--bg-card)] p-2 rounded-full border-none">
           {['All', 'Grill', 'Drinks', 'Packing'].map((st) => (
             <button
               key={st}
               onClick={() => setStationFilter(st)}
-              className={`px-6 py-2 rounded-full text-[9px] uppercase tracking-[0.3em] font-bold transition-all duration-300 ${
+              className={`px-6 py-2 rounded-full text-[13px] uppercase tracking-[0.2em] font-bold transition-all duration-300 border-none cursor-pointer ${
                 stationFilter === st 
-                  ? 'bg-[#FF6129] text-[#050505] shadow-[0_0_15px_rgba(255,97,41,0.4)]' 
-                  : 'text-[rgba(232,220,200,0.4)] hover:text-white'
+                  ? 'bg-[var(--accent-yellow)] text-black font-extrabold shadow-sm' 
+                  : 'text-[var(--text-secondary)] hover:text-white bg-transparent'
               }`}
             >
               {st}
@@ -102,8 +103,8 @@ export default function KitchenDisplay() {
         </div>
         
         <div className="flex items-center gap-6">
-          <div className="text-[12px] tracking-[0.4em] text-[#38bdf8] flex items-center gap-3">
-            <span className="w-2 h-2 rounded-full bg-[#38bdf8] animate-pulse shadow-[0_0_10px_#38bdf8]" />
+          <div className="text-[14px] tracking-[0.25em] text-[var(--accent-yellow)] flex items-center gap-3 font-semibold">
+            <span className="w-2 h-2 rounded-full bg-[var(--accent-yellow)] animate-pulse" />
             SYS.ONLINE
           </div>
           <div className="text-2xl font-light tracking-tighter text-white">
@@ -113,12 +114,12 @@ export default function KitchenDisplay() {
       </motion.div>
 
       {/* Futuristic Ticket Board */}
-      <div className="flex-1 overflow-x-auto p-8 flex gap-8 items-start relative z-10">
+      <div className="flex-1 overflow-x-auto p-8 flex gap-8 items-start relative z-10 no-scrollbar">
         <AnimatePresence mode="popLayout">
           {kdsTickets.length === 0 ? (
             <motion.div 
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="flex-1 flex flex-col items-center justify-center h-full text-[rgba(232,220,200,0.1)]"
+              className="flex-1 flex flex-col items-center justify-center h-full text-[var(--text-secondary)] opacity-30"
             >
               <Monitor size={100} strokeWidth={0.5} className="mb-8" />
               <h2 className="text-3xl font-thin tracking-[0.5em] uppercase">Queue Empty</h2>
@@ -129,89 +130,87 @@ export default function KitchenDisplay() {
               const isUrgent = order.priority === 'urgent';
               const mins = elapsedSecs / 60;
               
-              let glowColor = 'rgba(255,97,41,0.1)';
-              let activeColor = '#FF6129';
+              let activeColor = 'var(--accent-yellow)';
               let statusText = 'AWAITING PREP';
               
               if (isUrgent || mins > 15) {
-                glowColor = 'rgba(239,68,68,0.15)';
-                activeColor = '#ef4444';
+                activeColor = 'var(--accent-red)';
                 statusText = 'CRITICAL DELAY';
               } else if (order.status === 'preparing') {
-                glowColor = 'rgba(56,189,248,0.15)';
-                activeColor = '#38bdf8';
+                activeColor = 'var(--accent-yellow)';
                 statusText = 'IN PROGRESS';
               } else if (order.status === 'almost_ready') {
-                glowColor = 'rgba(34,197,94,0.15)';
                 activeColor = '#22c55e';
                 statusText = 'FINALIZING';
               }
 
               return (
                 <motion.div
-                  layout
-                  initial={{ opacity: 0, scale: 0.9, x: 50 }}
-                  animate={{ opacity: 1, scale: 1, x: 0 }}
-                  exit={{ opacity: 0, scale: 0.9, y: 50 }}
-                  transition={{ type: 'spring', stiffness: 200, damping: 20 }}
-                  key={order.id}
-                  className="w-[380px] bg-[#0a0a0a] flex flex-col h-[calc(100%-2rem)] shrink-0 relative"
+                   layout
+                   initial={{ opacity: 0, scale: 0.9, x: 50 }}
+                   animate={{ opacity: 1, scale: 1, x: 0 }}
+                   exit={{ opacity: 0, scale: 0.9, y: 50 }}
+                   transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+                   key={order.id}
+                   className="w-[380px] bg-[var(--bg-card)] flex flex-col h-[calc(100%-2rem)] shrink-0 relative rounded-2xl overflow-hidden border-none"
                 >
-                  {/* Glowing Status Edge */}
-                  <div className="absolute top-0 left-0 bottom-0 w-1 shadow-lg" style={{ backgroundColor: activeColor, boxShadow: `0 0 20px ${activeColor}` }} />
+                  {/* Status Indicator Bar */}
+                  <div className="absolute top-0 left-0 bottom-0 w-1.5" style={{ backgroundColor: activeColor }} />
 
                   {/* Header */}
-                  <div className="p-6 pb-4 border-b border-white/5 pl-8">
+                  <div className="p-6 pb-4 border-b border-transparent pl-8">
                     <div className="flex justify-between items-start mb-4">
                       <div>
-                        <p className="text-[10px] uppercase tracking-[0.3em] font-bold" style={{ color: activeColor }}>{statusText}</p>
+                        <p className="text-[13px] uppercase tracking-[0.2em] font-bold" style={{ color: activeColor }}>{statusText}</p>
                         <h3 className="text-5xl font-light tracking-tighter text-white mt-1">#{order.orderNumber}</h3>
                       </div>
                       <div className="text-right">
-                        <p className="text-[10px] uppercase tracking-widest text-[rgba(232,220,200,0.4)] mb-2">Timer</p>
+                        <p className="text-[13px] uppercase tracking-wider text-[var(--text-secondary)] mb-2">Timer</p>
                         <span className="text-3xl font-light tracking-widest" style={{ color: activeColor }}>
                           {formatElapsedTime(elapsedSecs)}
                         </span>
                       </div>
                     </div>
                     {isUrgent && (
-                      <div className="mt-2 text-[#ef4444] text-[10px] font-bold uppercase tracking-[0.2em] flex items-center gap-2 bg-[#ef4444]/10 py-1.5 px-3 w-fit border border-[#ef4444]/20 rounded-md">
+                      <div className="mt-2 text-[var(--accent-red)] text-[13px] font-bold uppercase tracking-[0.2em] flex items-center gap-2 bg-[rgba(239,42,57,0.1)] py-1.5 px-3 w-fit rounded-md border-none">
                         <AlertTriangle size={12} /> Urgent Priority
                       </div>
                     )}
                   </div>
 
-                  {/* Items List */}
-                  <div className="flex-1 overflow-y-auto p-6 pl-8 space-y-6">
+                  {/* Items List (Customer Cart Style Layout) */}
+                  <div className="flex-1 overflow-y-auto p-6 pl-8 space-y-3 no-scrollbar">
                     {order.items.map((item, idx) => (
-                      <div key={idx} className="group">
-                        <div className="text-lg font-light tracking-wide text-white flex items-start">
-                          <span className="text-[rgba(232,220,200,0.3)] mr-4 font-thin">{item.quantity}×</span>
-                          <span>{item.name}</span>
+                      <div key={idx} className="flex items-center gap-3 bg-[var(--glass-bg)] p-3 rounded-2xl">
+                        {/* Left: circular Figma food illustration */}
+                        <div className="w-12 h-12 rounded-xl bg-[var(--bg-card-hover)] flex items-center justify-center p-1.5 shrink-0">
+                          <img src={getFoodImage(item.name)} alt={item.name} className="w-full h-full object-contain" />
                         </div>
-                        
-                        {item.modifiers?.length > 0 && (
-                          <div className="mt-2 ml-9 space-y-1">
-                            {item.modifiers.map((mod, mi) => (
-                              <p key={mi} className="text-[11px] uppercase tracking-widest text-[#38bdf8]">
-                                <span className="opacity-50 mr-2">↳</span>{mod.name}
-                              </p>
-                            ))}
-                          </div>
-                        )}
-
-                        {item.specialInstructions && (
-                          <div className="mt-3 ml-9 text-[#ef4444] text-[11px] uppercase tracking-widest leading-relaxed border-l border-[#ef4444]/30 pl-3">
-                            "{item.specialInstructions}"
-                          </div>
-                        )}
+                        {/* Center: Details */}
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-sm font-semibold text-white truncate">{item.name}</h4>
+                          {item.modifiers?.length > 0 && (
+                            <p className="text-[13px] text-[var(--accent-yellow)] truncate">
+                              {item.modifiers.map(m => m.name).join(', ')}
+                            </p>
+                          )}
+                          {item.specialInstructions && (
+                            <div className="mt-1 text-[var(--accent-red)] text-[13px] uppercase tracking-wider leading-relaxed">
+                              "{item.specialInstructions}"
+                            </div>
+                          )}
+                        </div>
+                        {/* Right: Quantity */}
+                        <div className="text-right shrink-0">
+                          <span className="text-sm font-bold text-[var(--accent-yellow)]">{item.quantity}×</span>
+                        </div>
                       </div>
                     ))}
                   </div>
 
                   {/* Footer Action */}
-                  <div className="p-6 pl-8 border-t border-white/5 bg-[#080808]">
-                    <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.2em] text-[rgba(232,220,200,0.3)] mb-4">
+                  <div className="p-6 pl-8 border-t border-transparent bg-[var(--bg-card)]">
+                    <div className="flex items-center justify-between text-[13px] uppercase tracking-[0.15em] text-[var(--text-secondary)] mb-4">
                       <span>Auth: {order.customerName}</span>
                       <span>ID: {order.id.slice(0,8)}</span>
                     </div>
@@ -219,8 +218,8 @@ export default function KitchenDisplay() {
                     {order.status === 'accepted' && (
                       <button
                         onClick={() => handleUpdateStatus(order.id, 'preparing')}
-                        className="w-full py-4 text-[11px] font-bold uppercase tracking-[0.4em] flex items-center justify-center gap-3 transition-all
-                          bg-[#38bdf8]/10 text-[#38bdf8] border border-[#38bdf8]/30 hover:bg-[#38bdf8] hover:text-[#050505] hover:shadow-[0_0_20px_rgba(56,189,248,0.4)]"
+                        className="w-full py-4 text-[13px] font-bold uppercase tracking-[0.2em] flex items-center justify-center gap-3 transition-all border-none rounded-xl cursor-pointer
+                          bg-[var(--accent-yellow)] text-black hover:bg-yellow-400 font-bold"
                       >
                         <Fingerprint size={16} /> Init Prep
                       </button>
@@ -228,8 +227,8 @@ export default function KitchenDisplay() {
                     {(order.status === 'preparing' || order.status === 'almost_ready') && (
                       <button
                         onClick={() => handleUpdateStatus(order.id, 'ready_for_pickup')}
-                        className="w-full py-4 text-[11px] font-bold uppercase tracking-[0.4em] flex items-center justify-center gap-3 transition-all
-                          bg-[#22c55e]/10 text-[#22c55e] border border-[#22c55e]/30 hover:bg-[#22c55e] hover:text-[#050505] hover:shadow-[0_0_20px_rgba(34,197,94,0.4)]"
+                        className="w-full py-4 text-[13px] font-bold uppercase tracking-[0.2em] flex items-center justify-center gap-3 transition-all border-none rounded-xl cursor-pointer
+                          bg-[var(--accent-yellow)] text-black hover:bg-yellow-400 font-bold"
                       >
                         <Fingerprint size={16} /> Mark Ready
                       </button>

@@ -9,7 +9,8 @@ import {
   Settings,
   Circle,
   HelpCircle,
-  Wallet
+  Wallet,
+  Star
 } from 'lucide-react';
 
 export default function Sidebar() {
@@ -26,6 +27,7 @@ export default function Sidebar() {
     { id: 'kds', label: 'Kitchen Display', icon: Monitor },
     { id: 'menu', label: 'Menu', icon: UtensilsCrossed },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+    { id: 'reviews', label: 'Reviews', icon: Star },
     { id: 'finance', label: 'Finance', icon: Wallet },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
@@ -49,16 +51,26 @@ export default function Sidebar() {
             Wolfie <span style={{ color: 'var(--primary)' }}>Merchant</span>
           </span>
         </div>
-        <div className="flex items-center gap-1.5">
+        <button 
+          onClick={(e) => {
+            e.stopPropagation();
+            const nextStatus = restaurant.status === 'open' ? 'closed' : 'open';
+            useRestaurantStore.setState({
+              restaurant: { ...restaurant, status: nextStatus },
+              settings: { ...useRestaurantStore.getState().settings, pauseOrders: nextStatus === 'closed' }
+            });
+          }}
+          className="flex items-center gap-1.5 bg-transparent border-none p-0 cursor-pointer"
+        >
           <Circle 
             size={8} 
-            fill={restaurant.status === 'open' ? 'var(--success)' : 'var(--warning)'} 
+            fill={restaurant.status === 'open' ? '#00cc00' : '#EF2A39'} 
             color="transparent" 
           />
-          <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
-            {restaurant.status === 'open' ? 'Open' : 'Paused'}
+          <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: restaurant.status === 'open' ? '#FFE100' : '#EF2A39' }}>
+            {restaurant.status === 'open' ? 'Open' : 'Closed'}
           </span>
-        </div>
+        </button>
       </div>
 
       {/* Nav Links */}

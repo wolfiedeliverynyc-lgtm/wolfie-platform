@@ -9,6 +9,13 @@ from unittest.mock import MagicMock, patch
 
 @pytest.fixture(scope="session")
 def app():
+    # Remove existing test SQLite database files to start with fresh schemas
+    for db_file in ["wolfie_test.db", "wolfie_dev.db"]:
+        if os.path.exists(db_file):
+            try:
+                os.remove(db_file)
+            except Exception:
+                pass
     with patch("services.payment.PaymentService"),      \
          patch("services.mapbox.MapboxClient"),          \
          patch("services.realtime.RealTimeService"),     \

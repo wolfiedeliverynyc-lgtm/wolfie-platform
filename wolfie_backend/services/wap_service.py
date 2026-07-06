@@ -29,6 +29,11 @@ class WAPActivationService:
     
     def get_or_create_subscription(self, session, restaurant_id: str) -> RestaurantAISubscription:
         """Get existing subscription or create a free one."""
+        # Check pending session objects first
+        for obj in session.new:
+            if obj.__class__.__name__ == 'RestaurantAISubscription' and obj.restaurant_id == restaurant_id:
+                return obj
+
         sub = session.query(RestaurantAISubscription).filter_by(
             restaurant_id=restaurant_id
         ).first()

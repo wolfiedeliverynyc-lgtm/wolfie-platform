@@ -21,6 +21,11 @@ class PayoutEngine:
     
     def get_or_create_balance(self, session: Session, restaurant_id: str) -> RestaurantBalance:
         """Get or initialise a restaurant balance record."""
+        # Check pending session objects first
+        for obj in session.new:
+            if obj.__class__.__name__ == 'RestaurantBalance' and obj.restaurant_id == restaurant_id:
+                return obj
+
         balance = session.query(RestaurantBalance).filter_by(restaurant_id=restaurant_id).first()
         if not balance:
             now = datetime.now(UTC)

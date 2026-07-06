@@ -2,11 +2,11 @@ import React, { useState } from 'react'
 import { useDriverStore } from '../store/useDriverStore'
 import {
   Shield, Check, User, Mail, Phone, Lock, Eye, EyeOff,
-  Bike, Car, Compass, FileText, ArrowRight, ArrowLeft, Upload, Smartphone
+  Bike, Car, Compass, FileText, ArrowRight, ArrowLeft, Upload, Smartphone, Zap
 } from 'lucide-react'
 
 export default function DriverAuthPage() {
-  const { setOnline, setDriverProfile, setKycStatus, setOnboarded, setToken } = useDriverStore()
+  const { theme, setOnline, setDriverProfile, setKycStatus, setOnboarded, setToken } = useDriverStore()
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login')
   
   const [loginPhone, setLoginPhone] = useState('')
@@ -41,35 +41,80 @@ export default function DriverAuthPage() {
     
     try {
       setLoginError('')
-      const email = `driver_${Math.floor(Math.random() * 100000)}@test.com`
-      const res = await fetch('http://localhost:5000/api/v1/auth/register', {
+      const apiUrl = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api/v1` : 'http://localhost:5000/api/v1';
+      
+      const identity = loginPhone.trim();
+      const isEmail = identity.includes('@');
+      
+      // Map the seeded test driver phone number to its email for login
+      const cleanPhone = identity.replace(/\D/g, '');
+      const testDriverPhone = '+1 (555) 019-4444'.replace(/\D/g, '');
+      
+      let loginEmail = identity;
+      if (!isEmail) {
+        if (cleanPhone === testDriverPhone || cleanPhone === '5550194444' || cleanPhone === '0194444') {
+          loginEmail = 'driver_demo@wolfie.delivery';
+        } else {
+          loginEmail = `${cleanPhone || 'driver'}@test.com`;
+        }
+      }
+
+      // Try logging in to the backend first
+      const res = await fetch(`${apiUrl}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: email,
-          password: 'password123',
-          role: 'driver',
-          name: 'Test Driver',
-          phone: loginPhone || '555-555-0000'
+          email: loginEmail.toLowerCase(),
+          password: loginPass || 'password123'
         })
-      })
+      });
       
       const data = await res.json()
+      
       if (!res.ok) {
-        throw new Error(data.error || 'Registration failed')
+        // If login fails, perform on-the-fly registration with correct full_name payload
+        const registerEmail = isEmail ? identity : `driver_${Math.floor(Math.random() * 100000)}@test.com`;
+        const regRes = await fetch(`${apiUrl}/auth/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: registerEmail.toLowerCase(),
+            password: loginPass || 'password123',
+            role: 'driver',
+            full_name: 'Test Driver',
+            phone: identity || '555-555-0000'
+          })
+        });
+        
+        const regData = await regRes.json();
+        if (!regRes.ok) {
+          throw new Error(regData.error || data.error || 'Authentication failed');
+        }
+        
+        setDriverProfile({
+          name: 'Test Driver',
+          email: registerEmail,
+          phone: identity || '555-555-0000',
+          vehicleType: 'Motorcycle',
+          vehiclePlate: 'NY-8849C',
+          vehicleModel: 'Vespa GTS 300',
+          profilePhoto: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=256'
+        });
+        setToken(regData.access_token);
+      } else {
+        // Login succeeded
+        setDriverProfile({
+          name: data.full_name || 'Kenji Sato',
+          email: loginEmail,
+          phone: data.phone || identity || '+1 (555) 019-4444',
+          vehicleType: data.vehicle_type || 'Motorcycle',
+          vehiclePlate: data.vehicle_plate || 'NY-8849C',
+          vehicleModel: data.vehicle_model || 'Vespa GTS 300',
+          profilePhoto: data.profile_photo || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=256'
+        });
+        setToken(data.access_token);
       }
       
-      setDriverProfile({
-        name: 'Test Driver',
-        email: email,
-        phone: loginPhone || '555-555-0000',
-        vehicleType: 'Motorcycle',
-        vehiclePlate: 'NY-8849C',
-        vehicleModel: 'Vespa GTS 300',
-        profilePhoto: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=256'
-      })
-      
-      setToken(data.access_token)
       setKycStatus('approved')
       setOnboarded(true)
       setOnline(true)
@@ -161,135 +206,383 @@ export default function DriverAuthPage() {
     setOnline(true)
   }
 
+  // Common input/label styles aligned with partner registers
+  const inputClass = "w-full h-[52px] bg-input-bg border-none focus:ring-1 focus:ring-primary rounded-xl px-4 text-text-primary text-[14px] outline-none transition-all placeholder-text-secondary/40 font-sans"
+  const labelClass = "text-[10px] font-bold text-text-secondary uppercase tracking-[0.15em] block mb-2 font-sans"
+
   return (
-    <div className="flex flex-col min-h-screen justify-center px-6 py-10 bg-[#050611]">
-      <div className="text-center mb-8">
-        <div className="w-14 h-14 rounded-2xl mx-auto flex items-center justify-center mb-4 text-3xl animate-pulse bg-[#ff5500]/15 border border-[#ff5500]/30">
-          🐺
-        </div>
-        <h1 className="text-2xl font-black uppercase tracking-widest text-white">Wolfie Courier</h1>
-        <p className="text-xs uppercase tracking-widest text-slate-400 mt-1">Ecosystem Dispatch & Fleet</p>
-      </div>
+    <div className={`w-full h-full flex flex-col justify-start bg-bg-app text-text-primary font-sans overflow-y-auto selection:bg-primary selection:text-black ${theme === 'light' ? 'light-theme' : ''}`}>
+      <div className="flex-1 flex flex-col items-center justify-start p-6 bg-bg-app">
+        <div className="w-full max-w-[480px] space-y-6 text-left">
 
-      <div className="w-full max-w-md mx-auto rounded-2xl overflow-hidden bg-[#0b0c1e] border border-slate-850">
-        {step < 4 && (
-          <div className="flex border-b border-slate-850">
-            <button onClick={() => { setActiveTab('login'); setStep(1); }} className={`flex-1 py-4 text-xs font-bold uppercase tracking-wider transition-all border-b-2 ${activeTab === 'login' ? 'border-[#ff5500] text-[#ff5500] bg-slate-900/30' : 'border-transparent text-slate-500 hover:text-white'}`}>Sign In</button>
-            <button onClick={() => { setActiveTab('register'); setStep(1); }} className={`flex-1 py-4 text-xs font-bold uppercase tracking-wider transition-all border-b-2 ${activeTab === 'register' ? 'border-[#ff5500] text-[#ff5500] bg-slate-900/30' : 'border-transparent text-slate-500 hover:text-white'}`}>Apply as Courier</button>
+          {/* Mobile logo */}
+          <div className="flex items-center gap-3 mb-2">
+            <img 
+              src="/wolf_logo.png" 
+              alt="Wolfie Logo" 
+              className={`h-7 object-contain ${theme === 'dark' ? 'invert' : ''}`} 
+            />
+            <span className="font-extrabold text-xl text-text-primary tracking-tight font-serif">Wolfie <span className="text-primary font-sans">COURIER</span></span>
           </div>
-        )}
 
-        <div className="p-6">
-          {activeTab === 'login' ? (
-            <form onSubmit={handleLogin} className="space-y-4">
-              {loginError && <div className="p-3 text-xs bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl">{loginError}</div>}
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Phone Number</label>
-                <div className="relative">
-                  <Phone size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
-                  <input type="tel" placeholder="+1 (555) 000-0000" value={loginPhone} onChange={e => setLoginPhone(e.target.value)} className="w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-850 rounded-xl text-sm text-white focus:outline-none focus:border-[#ff5500] transition-all" />
-                </div>
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Password</label>
-                <div className="relative">
-                  <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
-                  <input type={showPass ? 'text' : 'password'} placeholder="••••••••" value={loginPass} onChange={e => setLoginPass(e.target.value)} className="w-full pl-10 pr-10 py-3 bg-slate-950 border border-slate-850 rounded-xl text-sm text-white focus:outline-none focus:border-[#ff5500] transition-all" />
-                  <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white">{showPass ? <EyeOff size={16} /> : <Eye size={16} />}</button>
-                </div>
-              </div>
-              <button type="submit" className="w-full py-3.5 mt-2 bg-[#ff5500] text-white font-bold uppercase text-xs tracking-wider rounded-xl hover:bg-[#ff6611] active:scale-[0.98] transition-all cursor-pointer">ACCESS COURIER HUB</button>
+          {/* Back to Login button for onboarding stages */}
+          {activeTab === 'register' && step > 1 && (
+            <div>
               <button 
-                type="button" 
-                onClick={() => handleLogin()}
-                className="w-full py-3 mt-2 bg-slate-800 text-[#ff5500] font-bold uppercase text-xs tracking-wider rounded-xl hover:bg-slate-700 transition-all cursor-pointer border border-[#ff5500]/20"
+                onClick={handlePrevStep} 
+                className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.15em] text-text-secondary hover:text-primary transition-colors mb-6 cursor-pointer bg-transparent border-0"
               >
-                BYPASS LOGIN (TEST MODE)
+                <ArrowLeft size={14} /> Back
               </button>
-              <div className="text-center pt-2 text-[10px] text-slate-500">Demo: Use any credentials to sign in.</div>
-            </form>
-          ) : (
-            <div className="space-y-5">
-              {step < 4 && (
-                <div className="flex justify-between items-center gap-1.5 mb-2">
-                  {[1, 2, 3].map(num => (
-                    <React.Fragment key={num}>
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black transition-all ${step === num ? 'bg-[#ff5500] text-white ring-4 ring-[#ff5500]/20' : step > num ? 'bg-emerald-500 text-white' : 'bg-slate-900 text-slate-500'}`}>{step > num ? <Check size={12} /> : num}</div>
-                      {num < 3 && <div className={`flex-1 h-0.5 rounded ${step > num ? 'bg-emerald-500' : 'bg-slate-900'}`} />}
-                    </React.Fragment>
-                  ))}
-                </div>
-              )}
-
-              {step === 1 && (
-                <div className="space-y-4">
-                  <h3 className="text-sm font-bold text-white uppercase tracking-wider">Step 1: Courier Info</h3>
-                  <div className="space-y-1"><label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Full Name</label><div className="relative"><User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" /><input type="text" placeholder="John Doe" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-850 rounded-xl text-sm text-white focus:outline-none focus:border-[#ff5500] transition-all" /></div></div>
-                  <div className="space-y-1"><label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Email</label><div className="relative"><Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" /><input type="email" placeholder="john@example.com" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-850 rounded-xl text-sm text-white focus:outline-none focus:border-[#ff5500] transition-all" /></div></div>
-                  <div className="space-y-1"><label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Phone</label><div className="relative"><Phone size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" /><input type="tel" placeholder="+1 (555) 000-0000" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} className="w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-850 rounded-xl text-sm text-white focus:outline-none focus:border-[#ff5500] transition-all" /></div></div>
-                  <div className="space-y-1"><label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Password</label><div className="relative"><Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" /><input type="password" placeholder="••••••••" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} className="w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-850 rounded-xl text-sm text-white focus:outline-none focus:border-[#ff5500] transition-all" /></div></div>
-                  <div className="flex items-start gap-2 pt-2"><input type="checkbox" id="driver-terms" checked={termsAccepted} onChange={e => setTermsAccepted(e.target.checked)} className="mt-1 accent-[#ff5500] cursor-pointer" /><label htmlFor="driver-terms" className="text-[10px] text-slate-400 leading-relaxed cursor-pointer">I agree to the <span className="text-[#ff5500]">Terms of Service</span> & <span className="text-[#ff5500]">Privacy Policy</span></label></div>
-                  <button onClick={handleNextStep} className="w-full py-3.5 mt-2 bg-[#ff5500] text-white font-bold uppercase text-xs tracking-wider rounded-xl hover:bg-[#ff6611] active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 cursor-pointer">CONTINUE <ArrowRight size={14} /></button>
-                </div>
-              )}
-
-              {step === 2 && (
-                <div className="space-y-4">
-                  <h3 className="text-sm font-bold text-white uppercase tracking-wider">Step 2: Fleet Selection</h3>
-                  <div className="grid grid-cols-2 gap-2">
-                    {['Bicycle', 'E-Bike', 'Motorcycle', 'Car'].map(type => {
-                      const isSelected = formData.vehicleType === type
-                      return (<button key={type} onClick={() => setFormData({...formData, vehicleType: type})} className={`p-4 rounded-xl border flex flex-col items-center gap-2 transition-all cursor-pointer ${isSelected ? 'bg-[#ff5500]/15 border-[#ff5500] text-[#ff5500]' : 'bg-slate-950 border-slate-850 text-slate-400'}`}>{type === 'Car' ? <Car size={22} /> : <Bike size={22} />}<span className="text-xs font-bold">{type}</span></button>)
-                    })}
-                  </div>
-                  {formData.vehicleType !== 'Bicycle' && (
-                    <div className="space-y-4 pt-2">
-                      <div className="space-y-1"><label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">License Plate</label><input type="text" placeholder="ABC-1234" value={formData.vehiclePlate} onChange={e => setFormData({...formData, vehiclePlate: e.target.value})} className="w-full px-4 py-3 bg-slate-950 border border-slate-850 rounded-xl text-sm text-white focus:outline-none focus:border-[#ff5500] transition-all" /></div>
-                      <div className="grid grid-cols-2 gap-3"><div className="space-y-1"><label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Model</label><input type="text" placeholder="Toyota Prius 2018" value={formData.vehicleModel} onChange={e => setFormData({...formData, vehicleModel: e.target.value})} className="w-full px-4 py-3 bg-slate-950 border border-slate-850 rounded-xl text-sm text-white focus:outline-none focus:border-[#ff5500] transition-all" /></div><div className="space-y-1"><label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Color</label><input type="text" placeholder="Silver" value={formData.vehicleColor} onChange={e => setFormData({...formData, vehicleColor: e.target.value})} className="w-full px-4 py-3 bg-slate-950 border border-slate-850 rounded-xl text-sm text-white focus:outline-none focus:border-[#ff5500] transition-all" /></div></div>
-                    </div>
-                  )}
-                  <div className="flex gap-3 pt-2">
-                    <button onClick={handlePrevStep} className="flex-1 py-3 bg-slate-950 border border-slate-850 text-white font-bold uppercase text-xs tracking-wider rounded-xl active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 cursor-pointer"><ArrowLeft size={14} /> BACK</button>
-                    <button onClick={handleNextStep} className="flex-1 py-3 bg-[#ff5500] text-white font-bold uppercase text-xs tracking-wider rounded-xl hover:bg-[#ff6611] active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 cursor-pointer">CONTINUE <ArrowRight size={14} /></button>
-                  </div>
-                </div>
-              )}
-
-              {step === 3 && (
-                <div className="space-y-4 text-center">
-                  <h3 className="text-xs font-bold text-white uppercase tracking-wider text-left">Step 3: Avatar Setup</h3>
-                  <div className="relative w-28 h-28 mx-auto rounded-full overflow-hidden border-2 border-slate-850 bg-slate-950 flex items-center justify-center">{photoPreview ? <img src={photoPreview} alt="Avatar" className="w-full h-full object-cover" /> : <User size={36} className="text-slate-600" />}{photoLoading && <div className="absolute inset-0 bg-black/60 flex items-center justify-center"><div className="w-6 h-6 border-2 border-[#ff5500] border-t-transparent rounded-full animate-spin" /></div>}</div>
-                  <p className="text-[11px] text-slate-400 max-w-[240px] mx-auto">Upload a clear portrait photo for customer deliveries.</p>
-                  <button type="button" onClick={handlePhotoUpload} className="mx-auto px-5 py-2.5 rounded-lg border border-dashed border-slate-700 hover:border-[#ff5500] text-xs font-bold text-slate-400 hover:text-[#ff5500] transition-all flex items-center gap-1.5 cursor-pointer"><Upload size={14} /> Upload Portrait</button>
-                  <div className="flex gap-3 pt-4">
-                    <button onClick={handlePrevStep} className="flex-1 py-3 bg-slate-950 border border-slate-850 text-white font-bold uppercase text-xs tracking-wider rounded-xl active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 cursor-pointer"><ArrowLeft size={14} /> BACK</button>
-                    <button onClick={handleNextStep} disabled={!photoPreview} className={`flex-1 py-3 font-bold uppercase text-xs tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 ${photoPreview ? 'bg-[#ff5500] text-white hover:bg-[#ff6611] active:scale-[0.98] cursor-pointer' : 'bg-slate-900 text-slate-500 cursor-not-allowed'}`}>SEND OTP <Smartphone size={14} /></button>
-                  </div>
-                </div>
-              )}
-
-              {step === 4 && (
-                <div className="space-y-4">
-                  <div className="text-center space-y-1"><h3 className="text-sm font-bold text-white uppercase tracking-wider">Verify Phone</h3><p className="text-[11px] text-slate-400">OTP sent to <span className="text-[#ff5500] font-bold">{formData.phone}</span></p></div>
-                  {otpError && <div className="p-3 text-xs bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl text-center">{otpError}</div>}
-                  <div className="flex justify-center gap-2.5 py-4">{otpCodes.map((val, idx) => <input key={idx} id={`otp-${idx}`} type="text" maxLength={1} value={val} onChange={e => handleOtpChange(e.target.value, idx)} onKeyDown={e => handleOtpKeyDown(e, idx)} className="w-11 h-13 bg-slate-950 border-2 border-slate-850 rounded-xl text-center text-lg font-bold text-white focus:outline-none focus:border-[#ff5500] transition-all" />)}</div>
-                  <button onClick={handleOtpVerify} disabled={otpCodes.join('').length < 6 || otpVerifying} className={`w-full py-3.5 font-bold uppercase text-xs tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 ${otpCodes.join('').length === 6 && !otpVerifying ? 'bg-[#ff5500] text-white hover:bg-[#ff6611] active:scale-[0.98] cursor-pointer' : 'bg-slate-900 text-slate-500 cursor-not-allowed'}`}>{otpVerifying ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />VERIFYING...</> : 'VERIFY AND FINISH'}</button>
-                  <div className="text-center pt-2"><button onClick={triggerMockOtp} disabled={otpCountdown > 0} className="bg-transparent border-0 text-xs font-bold text-[#ff5500] disabled:text-slate-500 cursor-pointer">{otpCountdown > 0 ? `Resend in ${otpCountdown}s` : 'Resend Code'}</button></div>
-                  <div className="text-center text-[10px] text-slate-500">Hint: Code is 888888</div>
-                </div>
-              )}
-
-              {step === 5 && (
-                <div className="text-center py-6 space-y-5">
-                  <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/20 mx-auto flex items-center justify-center text-emerald-500 text-2xl animate-bounce"><Check size={28} /></div>
-                  <div className="space-y-1"><h3 className="text-base font-bold text-white uppercase tracking-wider">Application Received</h3><p className="text-xs text-slate-400 leading-normal max-w-[280px] mx-auto">Profile created. Now upload your compliance credentials.</p></div>
-                  <button onClick={completeOnboarding} className="w-full py-3.5 bg-[#ff5500] text-white font-bold uppercase text-xs tracking-wider rounded-xl hover:bg-[#ff6611] active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 cursor-pointer">PROCEED TO DOCUMENTS <ArrowRight size={14} /></button>
-                </div>
-              )}
             </div>
           )}
+
+          {/* Header section */}
+          <div>
+            <h1 className="text-3xl font-extrabold tracking-tight text-text-primary mb-2">
+              {activeTab === 'login' ? 'Courier Hub Login' : 'Courier Application'}
+            </h1>
+            <p className="text-[13px] uppercase tracking-[0.15em] text-text-secondary">
+              {activeTab === 'login' ? 'Ecosystem dispatch & live maps' : 'Sign up to deliver in Manhattan'}
+            </p>
+          </div>
+
+          {/* Tab Selection */}
+          {step < 4 && (
+            <div className="flex border-b border-bg-card-hover">
+              <button 
+                onClick={() => { setActiveTab('login'); setStep(1); }} 
+                className={`flex-1 py-4 text-xs font-bold uppercase tracking-wider transition-all border-b-2 ${activeTab === 'login' ? 'border-primary text-text-primary' : 'border-transparent text-text-secondary hover:text-text-primary'}`}
+              >
+                Sign In
+              </button>
+              <button 
+                onClick={() => { setActiveTab('register'); setStep(1); }} 
+                className={`flex-1 py-4 text-xs font-bold uppercase tracking-wider transition-all border-b-2 ${activeTab === 'register' ? 'border-primary text-text-primary' : 'border-transparent text-text-secondary hover:text-text-primary'}`}
+              >
+                Apply as Courier
+              </button>
+            </div>
+          )}
+
+          {/* Main Form container */}
+          <div className="bg-bg-card rounded-[24px] p-6 space-y-6 relative overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
+            
+            {activeTab === 'login' ? (
+              <form onSubmit={handleLogin} className="space-y-5">
+                {loginError && (
+                  <div className="p-3 text-xs bg-accent/10 border border-accent/20 text-accent rounded-xl text-center">
+                    {loginError}
+                  </div>
+                )}
+
+                <div>
+                  <label className={labelClass}>Phone Number</label>
+                  <div className="relative">
+                    <Phone size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary" />
+                    <input 
+                      type="tel" 
+                      placeholder="+1 (555) 000-0000" 
+                      value={loginPhone} 
+                      onChange={e => setLoginPhone(e.target.value)} 
+                      className={`${inputClass} pl-11`}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className={labelClass}>Password</label>
+                  <div className="relative">
+                    <Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary" />
+                    <input 
+                      type={showPass ? 'text' : 'password'} 
+                      placeholder="••••••••" 
+                      value={loginPass} 
+                      onChange={e => setLoginPass(e.target.value)} 
+                      className={`${inputClass} pl-11 pr-12`}
+                    />
+                    <button 
+                      type="button" 
+                      onClick={() => setShowPass(!showPass)} 
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text-primary cursor-pointer bg-transparent border-0"
+                    >
+                      {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+
+                <button 
+                  type="submit" 
+                  className="w-full py-4.5 mt-2 bg-primary hover:bg-primary-hover text-black font-black uppercase text-xs tracking-wider rounded-xl transition-all cursor-pointer border-none"
+                >
+                  ACCESS COURIER HUB
+                </button>
+
+                <button 
+                  type="button" 
+                  onClick={() => handleLogin()}
+                  className="w-full py-3.5 bg-bg-card-hover hover:brightness-105 text-primary font-bold uppercase text-xs tracking-wider rounded-xl transition-all cursor-pointer border border-primary/20"
+                >
+                  BYPASS LOGIN (TEST MODE)
+                </button>
+
+                <div className="text-center pt-2 text-[10px] text-text-secondary">
+                  Demo: Use any credentials to sign in.
+                </div>
+              </form>
+            ) : (
+              <div className="space-y-5">
+                {/* Step indicators inside form container */}
+                {step < 4 && (
+                  <div className="flex justify-between items-center gap-1.5 py-1 mb-2 border-b border-bg-card-hover/20">
+                    {[1, 2, 3].map(num => (
+                      <React.Fragment key={num}>
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black transition-all ${
+                          step === num 
+                            ? 'bg-primary text-black ring-4 ring-primary/20' 
+                            : step > num 
+                              ? 'bg-primary/20 text-primary' 
+                              : 'bg-input-bg text-text-secondary/50'
+                        }`}>
+                          {step > num ? <Check size={12} /> : num}
+                        </div>
+                        {num < 3 && (
+                          <div className={`flex-1 h-0.5 rounded ${step > num ? 'bg-primary/50' : 'bg-input-bg'}`} />
+                        )}
+                      </React.Fragment>
+                    ))}
+                  </div>
+                )}
+
+                {/* Step 1: Courier Info */}
+                {step === 1 && (
+                  <div className="space-y-4">
+                    <h3 className="text-xs uppercase tracking-[0.15em] text-primary font-bold flex items-center gap-2">
+                      <User size={14} /> Basic Details
+                    </h3>
+                    <div>
+                      <label className={labelClass}>Full Name</label>
+                      <div className="relative">
+                        <User size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary" />
+                        <input type="text" placeholder="John Doe" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className={`${inputClass} pl-11`} />
+                      </div>
+                    </div>
+                    <div>
+                      <label className={labelClass}>Email Address</label>
+                      <div className="relative">
+                        <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary" />
+                        <input type="email" placeholder="john@example.com" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className={`${inputClass} pl-11`} />
+                      </div>
+                    </div>
+                    <div>
+                      <label className={labelClass}>Phone Number</label>
+                      <div className="relative">
+                        <Phone size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary" />
+                        <input type="tel" placeholder="+1 (555) 000-0000" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} className={`${inputClass} pl-11`} />
+                      </div>
+                    </div>
+                    <div>
+                      <label className={labelClass}>Password</label>
+                      <div className="relative">
+                        <Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary" />
+                        <input type="password" placeholder="••••••••" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} className={`${inputClass} pl-11`} />
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3 pt-2">
+                      <input 
+                        type="checkbox" 
+                        id="driver-terms" 
+                        checked={termsAccepted} 
+                        onChange={e => setTermsAccepted(e.target.checked)} 
+                        className="mt-1 accent-primary cursor-pointer w-4 h-4 rounded" 
+                      />
+                      <label htmlFor="driver-terms" className="text-[10px] text-text-secondary leading-relaxed cursor-pointer select-none">
+                        I agree to the <span className="text-primary hover:underline font-bold">Terms of Service</span> & <span className="text-primary hover:underline font-bold">Privacy Policy</span>
+                      </label>
+                    </div>
+                    <button onClick={handleNextStep} className="w-full py-4 bg-primary hover:bg-primary-hover text-black font-black uppercase text-xs tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer border-none mt-2">
+                      CONTINUE <ArrowRight size={14} />
+                    </button>
+                  </div>
+                )}
+
+                {/* Step 2: Vehicle Selection */}
+                {step === 2 && (
+                  <div className="space-y-4">
+                    <h3 className="text-xs uppercase tracking-[0.15em] text-primary font-bold flex items-center gap-2">
+                      <Bike size={14} /> Fleet Selection
+                    </h3>
+                    <div className="grid grid-cols-2 gap-2.5">
+                      {['Bicycle', 'E-Bike', 'Motorcycle', 'Car'].map(type => {
+                        const isSelected = formData.vehicleType === type
+                        return (
+                          <button 
+                            key={type} 
+                            onClick={() => setFormData({...formData, vehicleType: type})} 
+                            className={`p-4 rounded-xl border flex flex-col items-center gap-2 transition-all cursor-pointer ${
+                              isSelected 
+                                ? 'bg-primary/10 border-primary text-primary' 
+                                : 'bg-input-bg border-transparent text-text-secondary hover:text-text-primary'
+                            }`}
+                          >
+                            {type === 'Car' ? <Car size={22} /> : <Bike size={22} />}
+                            <span className="text-xs font-bold">{type}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                    {formData.vehicleType !== 'Bicycle' && (
+                      <div className="space-y-4 pt-2">
+                        <div>
+                          <label className={labelClass}>License Plate</label>
+                          <input type="text" placeholder="ABC-1234" value={formData.vehiclePlate} onChange={e => setFormData({...formData, vehiclePlate: e.target.value})} className={inputClass} />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className={labelClass}>Model</label>
+                            <input type="text" placeholder="Vespa GTS 300" value={formData.vehicleModel} onChange={e => setFormData({...formData, vehicleModel: e.target.value})} className={inputClass} />
+                          </div>
+                          <div>
+                            <label className={labelClass}>Color</label>
+                            <input type="text" placeholder="Silver" value={formData.vehicleColor} onChange={e => setFormData({...formData, vehicleColor: e.target.value})} className={inputClass} />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    <div className="flex gap-3 pt-2">
+                      <button onClick={handlePrevStep} className="flex-1 py-3.5 bg-input-bg text-text-primary font-bold uppercase text-xs tracking-wider rounded-xl active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 cursor-pointer border-none">
+                        <ArrowLeft size={14} /> BACK
+                      </button>
+                      <button onClick={handleNextStep} className="flex-1 py-3.5 bg-primary hover:bg-primary-hover text-black font-black uppercase text-xs tracking-wider rounded-xl active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 cursor-pointer border-none">
+                        CONTINUE <ArrowRight size={14} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 3: Avatar Setup */}
+                {step === 3 && (
+                  <div className="space-y-4 text-center">
+                    <h3 className="text-xs uppercase tracking-[0.15em] text-primary font-bold flex items-center gap-2 text-left">
+                      <Upload size={14} /> Avatar Setup
+                    </h3>
+                    <div className="relative w-28 h-28 mx-auto rounded-full overflow-hidden border border-text-secondary bg-input-bg flex items-center justify-center">
+                      {photoPreview ? (
+                        <img src={photoPreview} alt="Avatar" className="w-full h-full object-cover" />
+                      ) : (
+                        <User size={36} className="text-text-secondary" />
+                      )}
+                      {photoLoading && (
+                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                          <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-text-secondary max-w-[240px] mx-auto">
+                      Upload a clear portrait photo for customer deliveries.
+                    </p>
+                    <button 
+                      type="button" 
+                      onClick={handlePhotoUpload} 
+                      className="mx-auto px-5 py-2.5 rounded-lg border border-dashed border-text-secondary/50 hover:border-primary text-xs font-bold text-text-secondary hover:text-primary transition-all flex items-center gap-1.5 cursor-pointer bg-transparent"
+                    >
+                      <Upload size={14} /> Upload Portrait
+                    </button>
+                    <div className="flex gap-3 pt-4">
+                      <button onClick={handlePrevStep} className="flex-1 py-3.5 bg-input-bg text-text-primary font-bold uppercase text-xs tracking-wider rounded-xl active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 cursor-pointer border-none">
+                        <ArrowLeft size={14} /> BACK
+                      </button>
+                      <button 
+                        onClick={handleNextStep} 
+                        disabled={!photoPreview} 
+                        className={`flex-1 py-3.5 font-black uppercase text-xs tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 border-none ${
+                          photoPreview 
+                            ? 'bg-primary text-black hover:bg-primary-hover active:scale-[0.98] cursor-pointer' 
+                            : 'bg-input-bg/50 text-text-secondary/35 cursor-not-allowed'
+                        }`}
+                      >
+                        SEND OTP <Smartphone size={14} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 4: OTP Verification */}
+                {step === 4 && (
+                  <div className="space-y-4">
+                    <div className="text-center space-y-1">
+                      <h3 className="text-sm font-bold text-text-primary uppercase tracking-wider">Verify Phone</h3>
+                      <p className="text-[11px] text-text-secondary">OTP sent to <span className="text-primary font-bold">{formData.phone}</span></p>
+                    </div>
+                    {otpError && (
+                      <div className="p-3 text-xs bg-accent/10 border border-accent/20 text-accent rounded-xl text-center">
+                        {otpError}
+                      </div>
+                    )}
+                    <div className="flex justify-center gap-2 py-2">
+                      {otpCodes.map((val, idx) => (
+                        <input 
+                          key={idx} 
+                          id={`otp-${idx}`} 
+                          type="text" 
+                          maxLength={1} 
+                          value={val} 
+                          onChange={e => handleOtpChange(e.target.value, idx)} 
+                          onKeyDown={e => handleOtpKeyDown(e, idx)} 
+                          className="w-10 h-12 bg-input-bg border-none rounded-xl text-center text-lg font-bold text-text-primary focus:ring-1 focus:ring-primary outline-none transition-all" 
+                        />
+                      ))}
+                    </div>
+                    <button 
+                      onClick={handleOtpVerify} 
+                      disabled={otpCodes.join('').length < 6 || otpVerifying} 
+                      className={`w-full py-4 font-black uppercase text-xs tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 border-none ${
+                        otpCodes.join('').length === 6 && !otpVerifying 
+                          ? 'bg-primary text-black hover:bg-primary-hover active:scale-[0.98] cursor-pointer' 
+                          : 'bg-input-bg/50 text-text-secondary/35 cursor-not-allowed'
+                      }`}
+                    >
+                      {otpVerifying ? (
+                        <><div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />VERIFYING...</>
+                      ) : 'VERIFY AND FINISH'}
+                    </button>
+                    <div className="text-center pt-2">
+                      <button onClick={triggerMockOtp} disabled={otpCountdown > 0} className="bg-transparent border-none text-xs font-bold text-primary disabled:text-text-secondary cursor-pointer">
+                        {otpCountdown > 0 ? `Resend in ${otpCountdown}s` : 'Resend Code'}
+                      </button>
+                    </div>
+                    <div className="text-center text-[10px] text-text-secondary">Hint: Code is 888888</div>
+                  </div>
+                )}
+
+                {/* Step 5: Onboarding Completed */}
+                {step === 5 && (
+                  <div className="text-center py-6 space-y-5">
+                    <div className="w-16 h-16 rounded-full bg-primary/10 border border-primary/20 mx-auto flex items-center justify-center text-primary text-2xl animate-bounce">
+                      <Check size={28} />
+                    </div>
+                    <div className="space-y-1">
+                      <h3 className="text-base font-bold text-text-primary uppercase tracking-wider">Application Received</h3>
+                      <p className="text-xs text-text-secondary leading-normal max-w-[280px] mx-auto">
+                        Profile created. Now upload your compliance credentials.
+                      </p>
+                    </div>
+                    <button onClick={completeOnboarding} className="w-full py-4 bg-primary hover:bg-primary-hover text-black font-black uppercase text-xs tracking-wider rounded-xl hover:scale-[0.99] transition-all flex items-center justify-center gap-1.5 cursor-pointer border-none">
+                      PROCEED TO DOCUMENTS <ArrowRight size={14} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Bottom Security Note */}
+          <p className="text-[10px] uppercase tracking-[0.15em] text-text-secondary/40 text-center font-sans">
+            Secured with 256-bit encryption · Wolfie Inc. © 2026
+          </p>
         </div>
       </div>
     </div>
-  )
+  );
 }

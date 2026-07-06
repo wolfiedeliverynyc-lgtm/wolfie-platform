@@ -99,9 +99,11 @@ def toggle_open():
 def get_menu():
     restaurant_id = request.args.get("restaurant_id") or request.user_id
     with get_db_session() as session:
-        items = session.query(MenuItem) \
-            .filter_by(restaurant_id=restaurant_id, is_available=True) \
-            .order_by(MenuItem.category).all()
+        query = session.query(MenuItem).filter_by(restaurant_id=restaurant_id)
+        if request.user_role == "customer":
+            query = query.filter_by(is_available=True)
+            
+        items = query.order_by(MenuItem.category).all()
         menu = [
             {c.name: getattr(i, c.name) for c in i.__table__.columns}
             for i in items
@@ -131,6 +133,7 @@ def add_menu_item():
                 category      = data["category"].strip(),
                 image_url     = data.get("image_url"),
                 is_available  = data.get("is_available", True),
+                sizes         = data.get("sizes", []),
                 created_at    = now,
                 updated_at    = now,
             )
@@ -154,7 +157,7 @@ def update_menu_item(item_id):
         item = session.get(MenuItem, item_id)
         if not item or item.restaurant_id != request.user_id:
             return jsonify({"error": "Item not found"}), 404
-        for field in ["name","description","price","category","image_url","is_available"]:
+        for field in ["name","description","price","category","image_url","is_available","sizes"]:
             if field in data:
                 setattr(item, field, data[field])
         item.updated_at = datetime.now(UTC)

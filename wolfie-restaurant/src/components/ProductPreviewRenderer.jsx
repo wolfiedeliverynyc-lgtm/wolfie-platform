@@ -4,13 +4,27 @@ import { useCartStore } from '../store/useCartStore';
 import { useNavigate } from 'react-router-dom';
 import { Clock, Plus, Flame, Sparkles, Check, Info, ShoppingBag } from 'lucide-react';
 
+function getFoodImage(name) {
+  if (!name) return '/assets/hamburger_1.png';
+  const n = name.toLowerCase();
+  if (n.includes('alpha') || n.includes('wolf')) return '/assets/hamburger_1.png';
+  if (n.includes('ramen') || n.includes('bowl')) return '/assets/hamburger_4.png';
+  if (n.includes('pizza') || n.includes('margherita')) return '/assets/hamburger_3.png';
+  if (n.includes('fries') || n.includes('loaded')) return '/assets/hamburger_2.png';
+  if (n.includes('combo') || n.includes('meal')) return '/assets/hamburger_details.png';
+  if (n.includes('coke') || n.includes('cola') || n.includes('drink') || n.includes('lemonade')) return '/assets/hamburger_2.png';
+  return '/assets/hamburger_1.png';
+}
+
 export default function ProductPreviewRenderer({ product }) {
-  const { modifierGroups, conditionalModifiers, ingredients } = useRestaurantStore();
+  const { modifierGroups, conditionalModifiers, ingredients, restaurant, settings } = useRestaurantStore();
   const { addToCart } = useCartStore();
   const navigate = useNavigate();
   const [selectedModifiers, setSelectedModifiers] = useState({});
   const [removedIngredients, setRemovedIngredients] = useState([]);
   const [totalPrice, setTotalPrice] = useState(product?.price || 0);
+
+  const isStoreClosed = restaurant?.status === 'closed' || restaurant?.status === 'paused' || settings?.pauseOrders;
 
   // Reset selections when product changes
   useEffect(() => {
@@ -75,9 +89,9 @@ export default function ProductPreviewRenderer({ product }) {
 
   if (!product) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-8 text-neutral-400 border border-dashed rounded-[2.5rem] bg-neutral-50">
-        <Info size={32} strokeWidth={1.5} className="mb-2" />
-        <p className="text-xs font-semibold text-center leading-normal">
+      <div className="flex-1 flex flex-col items-center justify-center p-8 text-[var(--text-secondary)] border border-dashed border-[var(--text-secondary)]/20 rounded-[2.5rem] bg-[var(--bg-card)]">
+        <Info size={32} strokeWidth={1.5} className="mb-2 text-[var(--text-secondary)]" />
+        <p className="text-xs font-semibold text-center leading-normal font-poppins">
           Select an item from your catalog to view the customer app simulation
         </p>
       </div>
@@ -154,37 +168,42 @@ export default function ProductPreviewRenderer({ product }) {
       </div>
 
       {/* Mobile Customer View Body */}
-      <div className="flex-1 overflow-y-auto pb-24">
+      <div className={`flex-1 overflow-y-auto pb-24 transition-opacity duration-300 ${(!product.available || isStoreClosed) ? 'opacity-70 pointer-events-none select-none' : ''}`}>
         {/* Header Image */}
         <div className="h-32 bg-amber-50 relative flex items-center justify-center overflow-hidden">
-          {product.image && (product.image.startsWith('data:') || product.image.startsWith('http') || product.image.startsWith('/') || /\.(png|jpe?g|gif|svg|webp)$/i.test(product.image)) ? (
-            <img src={product.image} className="w-full h-full object-cover" alt={product.name} />
-          ) : (
-            <span className="text-5xl">{product.image || '🍔'}</span>
-          )}
-          <span className="absolute bottom-2.5 right-2.5 text-[10px] bg-black bg-opacity-70 text-white font-bold px-2 py-0.5 rounded-full flex items-center gap-0.5">
-            <Clock size={9} /> {product.prepMins}m
+          <img src={getFoodImage(product.name)} className={`w-full h-full object-cover ${(!product.available || isStoreClosed) ? 'opacity-30 filter grayscale' : ''}`} alt={product.name} />
+          <span className="absolute bottom-2.5 right-2.5 text-[12px] bg-black bg-opacity-70 text-white font-bold px-2.5 py-0.75 rounded-full flex items-center gap-1 font-poppins">
+            <Clock size={11} /> {product.prepMins}m
           </span>
+          {!product.available ? (
+            <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center backdrop-blur-xs">
+              <span className="text-[13px] font-black text-[#EF2A39] bg-black px-3 py-1.5 rounded-full font-poppins uppercase tracking-wider">Out of Stock</span>
+            </div>
+          ) : isStoreClosed ? (
+            <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center backdrop-blur-xs">
+              <span className="text-[13px] font-black text-[#EF2A39] bg-black px-3 py-1.5 rounded-full font-poppins uppercase tracking-wider">Restaurant Closed</span>
+            </div>
+          ) : null}
         </div>
 
         {/* Product Meta */}
         <div className="p-4 space-y-2">
           <div className="flex justify-between items-start gap-2">
-            <h3 className="text-sm font-black leading-tight text-neutral-900">{product.name}</h3>
-            <span className="mono text-xs font-extrabold text-neutral-800 shrink-0">
+            <h3 className="text-[16px] font-black leading-tight text-neutral-900 font-poppins">{product.name}</h3>
+            <span className="mono text-[14.5px] font-extrabold text-neutral-800 shrink-0 font-poppins">
               ${product.price.toFixed(2)}
             </span>
           </div>
-          <p className="text-[11px] leading-relaxed text-neutral-500">
+          <p className="text-[12.5px] leading-relaxed text-neutral-500 font-poppins">
             {product.description}
           </p>
 
-          <div className="flex gap-2 text-[10px] font-bold">
-            <span className="flex items-center gap-0.5 text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded">
-              <Flame size={10} fill="currentColor" /> {product.calories} kcal
+          <div className="flex gap-2 text-[12px] font-bold">
+            <span className="flex items-center gap-0.5 text-[#EF2A39] bg-red-50 px-1.5 py-0.5 rounded font-poppins">
+              <Flame size={12} fill="currentColor" /> {product.calories} kcal
             </span>
             {product.dietaryTags?.map(tag => (
-              <span key={tag} className="bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded uppercase tracking-wider text-[9px]">
+              <span key={tag} className="bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded uppercase tracking-wider text-[11px] font-poppins">
                 {tag}
               </span>
             ))}
@@ -194,7 +213,7 @@ export default function ProductPreviewRenderer({ product }) {
         {/* Ingredients Customizer Removals */}
         {product.ingredients?.length > 0 && (
           <div className="px-4 py-3 border-t border-b border-neutral-100 bg-neutral-50">
-            <h4 className="text-[10px] font-black uppercase text-neutral-400 tracking-wider mb-2">
+            <h4 className="text-[10px] font-black uppercase text-neutral-400 tracking-wider mb-2 font-poppins">
               Customize Ingredients
             </h4>
             <div className="flex flex-wrap gap-1.5">
@@ -206,8 +225,9 @@ export default function ProductPreviewRenderer({ product }) {
                   <button
                     key={pi.ingredientId}
                     type="button"
+                    disabled={!product.available}
                     onClick={() => toggleIngredient(pi.ingredientId)}
-                    className="text-[10px] px-2 py-1 rounded-full font-semibold border cursor-pointer transition-colors"
+                    className="text-[10px] px-2 py-1 rounded-full font-semibold border cursor-pointer transition-colors font-poppins"
                     style={{
                       backgroundColor: isRemoved ? '#FEF2F2' : '#FFFFFF',
                       borderColor: isRemoved ? '#FCA5A5' : '#E5E7EB',
@@ -233,32 +253,32 @@ export default function ProductPreviewRenderer({ product }) {
             return (
               <div 
                 key={group.id} 
-                className="space-y-2 p-3 rounded-[2.5rem] border border-neutral-100 bg-white"
+                className="space-y-2 p-3 rounded-[24px] border border-neutral-100 bg-white"
                 style={{
                   boxShadow: '0 1px 2px rgba(0,0,0,0.01)',
-                  borderLeft: group.isRequired && !isSatisfied ? '3px solid #EF4444' : '1px solid #F3F4F6'
+                  borderLeft: group.isRequired && !isSatisfied ? '3px solid #EF2A39' : '1px solid #F3F4F6'
                 }}
               >
                 <div className="flex justify-between items-start">
                   <div>
-                    <h5 className="text-[11px] font-bold text-neutral-800 flex items-center gap-1">
+                    <h5 className="text-[11px] font-bold text-neutral-800 flex items-center gap-1 font-poppins">
                       {group.name}
                       {group.isRequired && (
-                        <span className="text-red-500 font-extrabold">*</span>
+                        <span className="text-[#EF2A39] font-extrabold">*</span>
                       )}
                     </h5>
                     {parentOption && (
-                      <span className="text-[9px] text-amber-600 font-bold uppercase tracking-wider flex items-center gap-0.5 mt-0.5">
+                      <span className="text-[9px] text-[#FFE100] font-bold uppercase tracking-wider flex items-center gap-0.5 mt-0.5 font-poppins">
                         <Sparkles size={9} /> Dependent on {parentOption.name}
                       </span>
                     )}
                   </div>
-                  <span className="text-[9px] font-bold uppercase tracking-wider text-neutral-400 bg-neutral-100 px-1.5 py-0.5 rounded-full">
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-neutral-400 bg-neutral-100 px-1.5 py-0.5 rounded-full font-poppins">
                     {group.minSelections === 1 && group.maxSelections === 1 ? 'Select 1' : `Max ${group.maxSelections}`}
                   </span>
                 </div>
 
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 font-poppins">
                   {group.options.map(opt => {
                     const isChecked = currentSelections.includes(opt.id);
                     const isRadio = group.minSelections === 1 && group.maxSelections === 1;
@@ -272,15 +292,16 @@ export default function ProductPreviewRenderer({ product }) {
                     return (
                       <label 
                         key={opt.id} 
-                        className="flex items-center justify-between py-1.5 px-2 rounded-2xl cursor-pointer hover:bg-neutral-50"
+                        className={`flex items-center justify-between py-1.5 px-2 rounded-2xl ${product.available ? 'cursor-pointer hover:bg-neutral-50' : 'cursor-not-allowed opacity-50'}`}
                       >
                         <div className="flex items-center gap-2">
                           <input
                             type={isRadio ? "radio" : "checkbox"}
                             name={group.id}
                             checked={isChecked}
+                            disabled={!product.available}
                             onChange={() => handleModifierToggle(group.id, opt.id, group.minSelections, group.maxSelections)}
-                            className="text-amber-500 focus:ring-amber-500 w-3.5 h-3.5"
+                            className="text-[#FFE100] focus:ring-[#FFE100] w-3.5 h-3.5"
                           />
                           <span className="text-[11px] text-neutral-700 font-medium">
                             {opt.name}
@@ -305,7 +326,9 @@ export default function ProductPreviewRenderer({ product }) {
         style={{ borderColor: 'var(--border)' }}
       >
         <button
+          disabled={!product.available || isStoreClosed}
           onClick={() => {
+            if (!product.available || isStoreClosed) return;
             // Validate required groups
             const unsatisfied = visibleGroups.filter(g => {
               const selected = selectedModifiers[g.id] || [];
@@ -347,10 +370,20 @@ export default function ProductPreviewRenderer({ product }) {
 
             navigate('/checkout');
           }}
-          className="w-full h-11 bg-neutral-900 hover:bg-neutral-800 text-white rounded-[2.5rem] text-xs font-bold flex items-center justify-between px-4 transition-colors cursor-pointer"
+          className={`w-full h-11 text-white rounded-[2.5rem] text-xs font-bold flex items-center justify-between px-4 transition-colors font-poppins ${
+            (product.available && !isStoreClosed) 
+              ? 'bg-neutral-900 hover:bg-neutral-800 cursor-pointer' 
+              : 'bg-neutral-300 text-neutral-500 cursor-not-allowed'
+          }`}
         >
-          <span>Add to Cart & Checkout</span>
-          <span className="mono font-black text-sm">${totalPrice.toFixed(2)}</span>
+          <span>
+            {isStoreClosed 
+              ? 'Restaurant Closed' 
+              : product.available 
+                ? 'Add to Cart & Checkout' 
+                : 'Not Available'}
+          </span>
+          {(product.available && !isStoreClosed) && <span className="mono font-black text-sm">${totalPrice.toFixed(2)}</span>}
         </button>
       </div>
     </div>

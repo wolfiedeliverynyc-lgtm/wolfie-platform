@@ -4,7 +4,7 @@ import { useDriverStore } from '../store/useDriverStore'
 
 export const useSocket = () => {
   const socketRef = useRef<Socket | null>(null)
-  const { setNetworkStatus, isOnline, updateOrderStatus, currentLocation, queueAction, updateWallet } = useDriverStore()
+  const { setNetworkStatus, isOnline, updateOrderStatus, currentLocation, queueAction, updateWallet, token } = useDriverStore()
 
   useEffect(() => {
     if (!isOnline) {
@@ -16,8 +16,10 @@ export const useSocket = () => {
     }
 
     if (!socketRef.current) {
-      const socket = io('http://localhost:5000', {
+      const socketUrl = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const socket = io(socketUrl, {
         transports: ['websocket'],
+        auth: { token },
         reconnectionDelay: 1000,
         reconnectionDelayMax: 5000,
         reconnectionAttempts: Infinity

@@ -60,20 +60,27 @@ def assign_driver(self, order_id: str, restaurant_id: str,
             redis_svc    = getattr(current_app, "redis",    None)
             best_driver  = None
 
+            lat = pickup_lat or order.pickup_lat
+            lng = pickup_lng or order.pickup_lng
+            if lat is None or lng is None:
+                if order.restaurant and order.restaurant.latitude is not None:
+                    lat = order.restaurant.latitude
+                    lng = order.restaurant.longitude
+
             if svc:
                 try:
                     best_driver = svc.find_best_driver(
                         order_id      = order_id,
-                        pickup_coords = (pickup_lat, pickup_lng) if pickup_lat else None,
+                        pickup_coords = {"lat": lat, "lng": lng} if lat is not None else None,
                         restaurant_id = restaurant_id,
                     )
                 except Exception as e:
                     logger.warning(f"Matching engine error: {e} — falling back to proximity")
 
             # Fallback: nearest online driver from Redis location cache
-            if not best_driver and redis_svc and pickup_lat:
+            if not best_driver and redis_svc and lat is not None:
                 online = redis_svc.locations.get_all_online()
-                best_driver = _nearest_driver(online, pickup_lat, pickup_lng, session)
+                best_driver = _nearest_driver(online, lat, lng, session)
 
             # Last resort: any available driver
             if not best_driver:
@@ -87,6 +94,11 @@ def assign_driver(self, order_id: str, restaurant_id: str,
                 # No driver found — retry later
                 logger.warning(f"No driver for order {order_id} — retry {self.request.retries + 1}")
                 try:
+                    from celery_app import USE_EAGER
+                    if USE_EAGER:
+                        logger.warning("EAGER MODE: aborting driver matching retry to prevent API blocking.")
+                        return _handle_no_driver(order_id, order, session, order_repo)
+                    
                     raise self.retry(countdown=RETRY_DELAY_SECONDS)
                 except MaxRetriesExceededError:
                     return _handle_no_driver(order_id, order, session, order_repo)

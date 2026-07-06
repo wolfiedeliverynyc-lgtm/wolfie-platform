@@ -54,7 +54,7 @@ class MapboxClient:
                 destination = f"{parts[1]},{parts[0]}"
 
             url = (
-                f"{MAPBOX_BASE}/directions/v5/mapbox/driving/"
+                f"{MAPBOX_BASE}/directions/v5/mapbox/driving-traffic/"
                 f"{origin};{destination}"
                 f"?access_token={self.token}"
                 f"&overview=simplified&geometries=geojson"
@@ -67,11 +67,13 @@ class MapboxClient:
             dist_km  = round(route["distance"] / 1000, 2)
             dur_min  = round(route["duration"] / 60, 1)
             o_parts  = origin.split(",")
+            d_parts  = destination.split(",")
 
             return {
                 "distance_km":   dist_km,
                 "duration_min":  dur_min,
                 "pickup_coords": {"lat": float(o_parts[1]), "lng": float(o_parts[0])},
+                "delivery_coords": {"lat": float(d_parts[1]), "lng": float(d_parts[0])},
                 "geometry":      route.get("geometry"),
             }
 
@@ -157,7 +159,7 @@ class MapboxClient:
             dest_idxs = ";".join(str(i + n_src) for i in range(len(destinations)))
 
             url = (
-                f"{MAPBOX_BASE}/directions-matrix/v1/mapbox/driving/{coords}"
+                f"{MAPBOX_BASE}/directions-matrix/v1/mapbox/driving-traffic/{coords}"
                 f"?sources={src_idxs}&destinations={dest_idxs}"
                 f"&access_token={self.token}"
             )
@@ -212,5 +214,6 @@ class MapboxClient:
             "distance_km":   2.3,
             "duration_min":  18,
             "pickup_coords": {"lat": 40.7128, "lng": -73.9866},
+            "delivery_coords": {"lat": 40.7250, "lng": -73.9600},
             "geometry":      None,
         }

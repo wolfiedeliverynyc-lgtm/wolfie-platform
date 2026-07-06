@@ -125,6 +125,8 @@ class UserRepository(BaseRepository[User]):
         elif role == "customer":
             user.total_orders = 0
             user.rating       = 5.0
+            user.dietary_preferences = extra.get("dietary_preferences", [])
+            user.allergy_preferences = extra.get("allergy_preferences", [])
 
         return self.add(user)
 

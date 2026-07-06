@@ -280,7 +280,7 @@ export default function App() {
 
     try {
       if (store.token) {
-        await fetch(`http://localhost:5000/api/v1/orders/${order.id}/status`, {
+        await fetch(`${API_BASE_URL}/orders/${order.id}/status`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',

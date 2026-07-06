@@ -26,21 +26,44 @@ class RealTimeService:
                                 lng: float, order_id: str = None):
         """Persist GPS + broadcast to order room."""
         from flask import current_app
-        db  = getattr(current_app, "db", None)
-        now = datetime.now(UTC).isoformat()
+        redis_inst = getattr(current_app, "redis", None)
+        db         = getattr(current_app, "db", None)
+        now        = datetime.now(UTC).isoformat()
 
-        if db:
+        # 1. Update in-memory Redis cache for fast retrieval (e.g. SmartMatching)
+        if redis_inst:
             try:
-                db.table("driver_locations").upsert({
-                    "driver_id":  driver_id,
-                    "lat":        lat,
-                    "lng":        lng,
-                    "order_id":   order_id,
-                    "updated_at": now,
-                }).execute()
+                redis_inst.locations.update(driver_id, lat, lng, order_id)
             except Exception as e:
-                logger.warning(f"update_driver_location DB: {e}")
+                logger.warning(f"Failed to update driver location in Redis: {e}")
 
+        # 2. Throttled DB Persistence: Save to PostgreSQL only once every 30 seconds
+        if db:
+            should_save_db = True
+            if redis_inst:
+                try:
+                    throttle_key = f"driver:{driver_id}:last_db_save"
+                    if redis_inst.cache.get(throttle_key):
+                        should_save_db = False
+                    else:
+                        redis_inst.cache.set(throttle_key, "true", ttl=30)
+                except Exception as e:
+                    logger.warning(f"Error checking location throttling: {e}")
+
+            if should_save_db:
+                try:
+                    db.table("driver_locations").upsert({
+                        "driver_id":  driver_id,
+                        "lat":        lat,
+                        "lng":        lng,
+                        "order_id":   order_id,
+                        "updated_at": now,
+                    }).execute()
+                    logger.debug(f"Persisted driver {driver_id} location to DB (unthrottled checkpoint)")
+                except Exception as e:
+                    logger.warning(f"update_driver_location DB failed: {e}")
+
+        # 3. Broadcast real-time location to WebSocket rooms (always, for smooth tracking)
         if order_id:
             self.sio.emit(
                 "driver_location",

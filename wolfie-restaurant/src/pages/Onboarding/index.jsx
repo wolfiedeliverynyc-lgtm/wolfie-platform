@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { onboardingApi, restaurantApi } from '../../api';
+import { onboardingApi } from '../../api';
 import { useRestaurantStore } from '../../store/useRestaurantStore';
 
 export default function OnboardingIndex() {
@@ -35,10 +35,6 @@ export default function OnboardingIndex() {
     if (!onboarding.nextStep) return null;
     
     switch (onboarding.nextStep.name) {
-      case 'business_info':
-        return <BusinessInfo onComplete={fetchStatus} />;
-      case 'restaurant_details':
-        return <RestaurantDetails onComplete={fetchStatus} />;
       case 'legal_acceptance':
         return <LegalAcceptance onComplete={fetchStatus} />;
       case 'wap_activation':
@@ -258,117 +254,6 @@ function PayoutSetup({ onComplete }) {
       <div className="mt-8">
         <button type="submit" onClick={() => setFormData({...formData, account_last4: formData.account_number.slice(-4)})} disabled={submitting || !formData.account_number} className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-orange-600 hover:bg-orange-700">
           {submitting ? 'Connecting...' : 'Connect Bank Account'}
-        </button>
-      </div>
-    </form>
-  );
-}
-
-function BusinessInfo({ onComplete }) {
-  const [restaurantName, setRestaurantName] = useState('');
-  const [address, setAddress] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!restaurantName || !address) return;
-    setSubmitting(true);
-    try {
-      await restaurantApi.updateProfile({
-        restaurant_name: restaurantName,
-        address: address
-      });
-      onComplete();
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <h3 className="text-lg font-medium text-gray-900 mb-2">Business Information</h3>
-      <p className="text-sm text-gray-500 mb-6">Tell us about your restaurant's business profile.</p>
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Restaurant Name</label>
-        <input required type="text" className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm text-black"
-          value={restaurantName} onChange={e => setRestaurantName(e.target.value)} placeholder="e.g. Abu Ali's Kitchen" />
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Business Address</label>
-        <input required type="text" className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm text-black"
-          value={address} onChange={e => setAddress(e.target.value)} placeholder="123 Main St, New York, NY 10001" />
-      </div>
-      <div className="mt-8">
-        <button type="submit" disabled={submitting} className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 font-medium">
-          {submitting ? 'Saving...' : 'Save & Continue'}
-        </button>
-      </div>
-    </form>
-  );
-}
-
-function RestaurantDetails({ onComplete }) {
-  const [category, setCategory] = useState('');
-  const [priceLevel, setPriceLevel] = useState('$$');
-  const [deliveryFee, setDeliveryFee] = useState('4.99');
-  const [deliveryTimeMin, setDeliveryTimeMin] = useState('30');
-  const [submitting, setSubmitting] = useState(false);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!category) return;
-    setSubmitting(true);
-    try {
-      await restaurantApi.updateProfile({
-        category: category,
-        price_level: priceLevel,
-        delivery_fee: parseFloat(deliveryFee),
-        delivery_time_min: parseInt(deliveryTimeMin)
-      });
-      onComplete();
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <h3 className="text-lg font-medium text-gray-900 mb-2">Restaurant Details</h3>
-      <p className="text-sm text-gray-500 mb-6">Provide additional details about your cuisine and service.</p>
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Cuisine Type / Category</label>
-        <input required type="text" className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm text-black"
-          value={category} onChange={e => setCategory(e.target.value)} placeholder="e.g. Mediterranean, Burgers, Italian" />
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Price Level</label>
-          <select className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 bg-white focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm text-black"
-            value={priceLevel} onChange={e => setPriceLevel(e.target.value)}>
-            <option>$</option>
-            <option>$$</option>
-            <option>$$$</option>
-            <option>$$$$</option>
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Delivery Fee ($)</label>
-          <input required type="number" step="0.01" className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm text-black"
-            value={deliveryFee} onChange={e => setDeliveryFee(e.target.value)} />
-        </div>
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Est. Delivery Time (minutes)</label>
-        <input required type="number" className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm text-black"
-          value={deliveryTimeMin} onChange={e => setDeliveryTimeMin(e.target.value)} />
-      </div>
-      <div className="mt-8">
-        <button type="submit" disabled={submitting} className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 font-medium">
-          {submitting ? 'Saving...' : 'Save & Continue'}
         </button>
       </div>
     </form>

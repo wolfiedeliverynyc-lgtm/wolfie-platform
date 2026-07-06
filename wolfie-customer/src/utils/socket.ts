@@ -15,11 +15,6 @@ export const connectSocket = (): Socket => {
     },
     transports: ['websocket'],
     autoConnect: false,
-    reconnection: true,
-    reconnectionAttempts: 10, // Stop retrying after 10 failed attempts
-    reconnectionDelay: 2000,  // Start with 2 seconds delay
-    reconnectionDelayMax: 15000, // Cap at 15 seconds max delay
-    randomizationFactor: 0.5, // Randomize to prevent server DDOS when recovering
   });
 
   socket.on('connect', () => {

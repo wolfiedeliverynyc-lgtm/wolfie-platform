@@ -132,8 +132,8 @@ export default function WolfieMap({
         ref={mapRef}
         mapboxAccessToken={MAPBOX_TOKEN}
         initialViewState={{
-          longitude: currentLocation[1] || -73.957,
-          latitude: currentLocation[0] || 40.718,
+          longitude: currentLocation[1] || 8.4410,
+          latitude: currentLocation[0] || 36.8990,
           zoom: 14,
           pitch: 0,
         }}
@@ -189,10 +189,10 @@ export default function WolfieMap({
         {pickupCoords && (
           <Marker longitude={pickupCoords[1]} latitude={pickupCoords[0]} anchor="bottom">
             <div className="flex flex-col items-center animate-bounce-in">
-              <div className="w-9 h-9 bg-[#ff5500] rounded-xl border-[3px] border-white shadow-lg shadow-orange-500/30 flex items-center justify-center text-white">
+              <div className="w-9 h-9 bg-primary text-black rounded-xl border-[3px] border-white shadow-lg shadow-orange-500/30 flex items-center justify-center text-white">
                 <MapPin className="w-4 h-4" />
               </div>
-              <div className="w-2 h-2 bg-[#ff5500] rounded-full mt-0.5 shadow-sm" />
+              <div className="w-2 h-2 bg-primary text-black rounded-full mt-0.5 shadow-sm" />
             </div>
           </Marker>
         )}
@@ -214,10 +214,10 @@ export default function WolfieMap({
           <Marker longitude={currentLocation[1]} latitude={currentLocation[0]} anchor="center">
             <div className="relative">
               {/* Pulse ring */}
-              <div className="absolute inset-[-8px] rounded-full bg-[#ff5500]/15 animate-ping" style={{ animationDuration: '2s' }} />
-              <div className="absolute inset-[-4px] rounded-full bg-[#ff5500]/25" />
+              <div className="absolute inset-[-8px] rounded-full bg-primary text-black/15 animate-ping" style={{ animationDuration: '2s' }} />
+              <div className="absolute inset-[-4px] rounded-full bg-primary text-black/25" />
               <div
-                className="w-10 h-10 bg-[#0b0c1e] rounded-full border-[3px] border-[#ff5500] shadow-xl shadow-orange-500/40 flex items-center justify-center text-xl relative z-10"
+                className="w-10 h-10 bg-bg-card rounded-full border-[3px] border-[#ff5500] shadow-xl shadow-orange-500/40 flex items-center justify-center text-xl relative z-10"
                 style={{ transform: `rotate(${driverHeading}deg)` }}
               >
                 🛵
@@ -229,17 +229,17 @@ export default function WolfieMap({
 
       {/* ETA / Distance HUD Overlay */}
       {showETA && eta !== null && (
-        <div className="absolute top-3 left-3 z-10 bg-[#0b0c1e]/90 backdrop-blur-md border border-slate-850 rounded-2xl px-3.5 py-2 flex items-center gap-3 shadow-lg">
+        <div className="absolute top-3 left-3 z-10 bg-bg-card/90 backdrop-blur-md border border-slate-850 rounded-2xl px-3.5 py-2 flex items-center gap-3 shadow-lg">
           <div className="flex items-center gap-1.5">
             <Clock className="w-3.5 h-3.5 text-[#ff5500]" />
-            <span className="text-xs font-extrabold text-slate-100 font-mono">{eta} min</span>
+            <span className="text-xs font-extrabold text-text-primary font-mono">{eta} min</span>
           </div>
           {routeDistance && (
             <>
               <div className="w-px h-4 bg-slate-800" />
               <div className="flex items-center gap-1.5">
                 <Navigation className="w-3.5 h-3.5 text-emerald-400" />
-                <span className="text-xs font-extrabold text-slate-100 font-mono">{routeDistance} km</span>
+                <span className="text-xs font-extrabold text-text-primary font-mono">{routeDistance} km</span>
               </div>
             </>
           )}
@@ -248,9 +248,9 @@ export default function WolfieMap({
 
       {/* Speed indicator */}
       {isNavigating && (
-        <div className="absolute bottom-3 left-3 z-10 bg-[#0b0c1e]/90 backdrop-blur-md border border-slate-850 rounded-xl px-3 py-1.5 flex items-center gap-2">
+        <div className="absolute bottom-3 left-3 z-10 bg-bg-card/90 backdrop-blur-md border border-slate-850 rounded-xl px-3 py-1.5 flex items-center gap-2">
           <Bike className="w-3.5 h-3.5 text-[#ff5500]" />
-          <span className="text-[10px] font-bold text-slate-300 uppercase tracking-wider">Navigating</span>
+          <span className="text-[10px] font-bold text-text-primary uppercase tracking-wider">Navigating</span>
         </div>
       )}
     </div>
