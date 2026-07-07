@@ -6,9 +6,9 @@ export interface LatLng {
 }
 
 export interface OrderItem {
-  id: string;
+  id?: string;
   name: string;
-  checked: boolean;
+  checked?: boolean;
 }
 
 export type OrderStatus =
