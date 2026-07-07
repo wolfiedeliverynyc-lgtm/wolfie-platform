@@ -109,11 +109,13 @@ def create_app(config_name: str = None) -> Flask:
     # ── Health check ──────────────────────────
     @app.route("/health")
     def health():
+        import os
         redis_inst = getattr(current_app, "redis", None)
         return jsonify({
             "status":   "ok",
             "service":  "wolfie-delivery",
-            "version":  "1.0.0",
+            "version":  "1.0.1",
+            "tmp_db_exists": os.path.exists("/tmp/wolfie_dev.db"),
             "database": health_check(),
             "redis":    redis_inst.health() if redis_inst else {"status": "disabled"},
         })
