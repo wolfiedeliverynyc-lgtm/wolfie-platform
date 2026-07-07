@@ -171,12 +171,33 @@ def init_db(app):
     Initializes engine from Flask config and attaches session factory.
     """
     from flask import g
+    import os
+    import shutil
 
     db_url = (
         app.config.get("DATABASE_URL")
         or _build_supabase_url(app)
         or "sqlite:///wolfie_dev.db"
     )
+
+    if db_url.startswith("sqlite"):
+        # On Render or Production, redirect SQLite database to writable /tmp folder
+        if os.getenv("RENDER") == "true" or os.getenv("FLASK_ENV") == "production":
+            src_db = db_url.replace("sqlite:///", "")
+            # Ensure path is relative to current directory if not absolute
+            if not os.path.isabs(src_db):
+                src_db = os.path.join(os.getcwd(), src_db)
+            
+            dest_db = "/tmp/wolfie_dev.db"
+            if not os.path.exists(dest_db):
+                if os.path.exists(src_db):
+                    shutil.copy(src_db, dest_db)
+                    logger.info(f"Copied template SQLite database from {src_db} to {dest_db}")
+                else:
+                    logger.warning(f"Template SQLite database {src_db} not found to copy!")
+            else:
+                logger.info(f"Using existing writable SQLite database at {dest_db}")
+            db_url = f"sqlite:///{dest_db}"
 
     testing = app.config.get("TESTING", False)
     engine  = init_engine(db_url, testing=testing)
