@@ -743,6 +743,36 @@ export const useRestaurantStore = create((set, get) => ({
     }
   },
 
+  updateProfile: async (profileUpdates) => {
+    try {
+      const { restaurantApi } = await import('../api');
+      const backendUpdates = {};
+      if (profileUpdates.name !== undefined) backendUpdates.restaurant_name = profileUpdates.name;
+      if (profileUpdates.description !== undefined) backendUpdates.story = profileUpdates.description;
+      if (profileUpdates.address !== undefined) backendUpdates.address = profileUpdates.address;
+      if (profileUpdates.logo !== undefined) backendUpdates.logo_image = profileUpdates.logo;
+      if (profileUpdates.heroImage !== undefined) backendUpdates.hero_image = profileUpdates.heroImage;
+      if (profileUpdates.latitude !== undefined) backendUpdates.latitude = parseFloat(profileUpdates.latitude);
+      if (profileUpdates.longitude !== undefined) backendUpdates.longitude = parseFloat(profileUpdates.longitude);
+      
+      if (Object.keys(backendUpdates).length > 0) {
+        await restaurantApi.updateProfile(backendUpdates);
+      }
+      
+      set(s => ({
+        restaurant: {
+          ...s.restaurant,
+          ...profileUpdates,
+          // Sync image key too
+          ...(profileUpdates.logo !== undefined ? { image: profileUpdates.logo } : {})
+        }
+      }));
+    } catch (err) {
+      console.error('Failed to update restaurant profile on backend:', err);
+      throw err;
+    }
+  },
+
   // Hydration Actions
   fetchAndHydrateAll: async () => {
     try {
@@ -778,6 +808,9 @@ export const useRestaurantStore = create((set, get) => ({
           name: profile.restaurant_name || 'Abu Ali\'s Kitchen',
           status: profile.is_open ? 'open' : 'closed',
           image: profile.logo_image || '/assets/restaurant_logo_wendys.png',
+          logo: profile.logo_image || '/assets/restaurant_logo_wendys.png',
+          heroImage: profile.hero_image || '/assets/restaurant_cover_wendys.png',
+          description: profile.story || profile.bio || 'Signature dishes, loaded fries, and refreshing craft drinks.',
           cuisine: profile.category || 'Mediterranean',
           rating: profile.rating || 4.8,
           address: profile.address || '',
