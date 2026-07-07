@@ -4702,12 +4702,21 @@ export default function HomePage() {
 
               <div className="space-y-3">
                 {cartItems.map((item, idx) => (
-                  <div key={idx} className="flex justify-between items-center py-1.5 font-roboto text-[14px]">
+                  <div key={idx} className="flex justify-between items-start py-1.5 font-roboto text-[14px]">
                     <div className="text-left">
                       <span className="font-bold text-[#3C2F2F]">{item.quantity}x {item.foodItem.name}</span>
                       <span className="text-[#A6A6A6] text-[11.5px] block mt-0.5">Size: {item.size} • Spicy: {item.spicy}%</span>
+                      {((item.toppings || []).length > 0 || (item.addons || []).length > 0 || (item.drinks || []).length > 0) && (
+                        <span className="text-[#6A6A6A] text-[11.5px] block mt-0.5 leading-snug">
+                          + {[
+                            ...item.toppings.map(id => toppingOptions.find(o => o.id === id)?.name),
+                            ...item.addons.map(id => addonOptions.find(o => o.id === id)?.name),
+                            ...item.drinks.map(id => drinkOptions.find(o => o.id === id)?.name)
+                          ].filter(Boolean).join(', ')}
+                        </span>
+                      )}
                     </div>
-                    <span className="font-bold text-[#EF2A39]">${(item.pricePerUnit * item.quantity).toFixed(2)}</span>
+                    <span className="font-bold text-[#EF2A39] shrink-0">${(item.pricePerUnit * item.quantity).toFixed(2)}</span>
                   </div>
                 ))}
               </div>
@@ -8568,6 +8577,29 @@ export default function HomePage() {
                     </button>
                   </div>
                   
+                  {/* Basket Items List Review */}
+                  <div className="bg-gray-50/50 border border-gray-100/50 rounded-[20px] p-4.5 mb-3 space-y-3.5 text-left">
+                    <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Basket Items</div>
+                    {cartItems.map((item, idx) => (
+                      <div key={idx} className="flex justify-between items-start py-1 border-b border-gray-100/30 last:border-0 last:pb-0 font-roboto text-[13.5px]">
+                        <div>
+                          <span className="font-bold text-[#3C2F2F]">{item.quantity}x {item.foodItem.name}</span>
+                          <span className="text-[#A6A6A6] text-[11px] block mt-0.5">Size: {item.size} • Spicy: {item.spicy}%</span>
+                          {((item.toppings || []).length > 0 || (item.addons || []).length > 0 || (item.drinks || []).length > 0) && (
+                            <span className="text-[#6A6A6A] text-[10.5px] block mt-0.5 leading-snug">
+                              + {[
+                                ...item.toppings.map(id => toppingOptions.find(o => o.id === id)?.name),
+                                ...item.addons.map(id => addonOptions.find(o => o.id === id)?.name),
+                                ...item.drinks.map(id => drinkOptions.find(o => o.id === id)?.name)
+                              ].filter(Boolean).join(', ')}
+                            </span>
+                          )}
+                        </div>
+                        <span className="font-bold text-[#EF2A39] shrink-0 ml-2">${(item.pricePerUnit * item.quantity).toFixed(2)}</span>
+                      </div>
+                    ))}
+                  </div>
+
                   {/* Ledger */}
                   <div className="bg-gray-50/50 border border-gray-100/50 rounded-[20px] p-4.5 space-y-3.5 text-left">
                     <div className="flex justify-between items-center">
