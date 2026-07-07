@@ -114,7 +114,9 @@ def create_app(config_name: str = None) -> Flask:
         return jsonify({
             "status":   "ok",
             "service":  "wolfie-delivery",
-            "version":  "1.0.1",
+            "version":  "1.0.2",
+            "cwd": os.getcwd(),
+            "cwd_contents": os.listdir(os.getcwd()),
             "tmp_db_exists": os.path.exists("/tmp/wolfie_dev.db"),
             "database": health_check(),
             "redis":    redis_inst.health() if redis_inst else {"status": "disabled"},
