@@ -418,11 +418,12 @@ const [newSizeForm, setNewSizeForm] = useState({ name: '', price: 0, prepMins: 0
                   </div>
 
                   {editorTab === 'profile' && (
-                    <div className="space-y-8">
+                    <div className="space-y-8 text-left">
                       <div>
                         <label className="block text-sm font-medium text-[var(--text-secondary)] mb-3 font-poppins">Item Title</label>
                         <input type="text" value={activeProduct.name} onChange={e => handleProductUpdate('name', e.target.value)} className="w-full bg-[var(--bg-card-hover)] border-none rounded-xl p-4 text-[var(--text-primary)] text-lg focus:ring-1 focus:ring-[var(--accent-yellow)] outline-none font-poppins" />
                       </div>
+                      
                       <div className="grid grid-cols-2 gap-8">
                         <div>
                           <label className="block text-sm font-medium text-[var(--text-secondary)] mb-3 font-poppins">Price ($)</label>
@@ -433,10 +434,56 @@ const [newSizeForm, setNewSizeForm] = useState({ name: '', price: 0, prepMins: 0
                           <input type="number" value={activeProduct.prepMins} onChange={e => handleProductUpdate('prepMins', parseInt(e.target.value)||0)} className="w-full bg-[var(--bg-card-hover)] border-none rounded-xl p-4 text-[var(--text-primary)] text-lg focus:ring-1 focus:ring-[var(--accent-yellow)] outline-none font-bold font-poppins" />
                         </div>
                       </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div>
+                          <label className="block text-sm font-medium text-[var(--text-secondary)] mb-3 font-poppins">Category</label>
+                          <select 
+                            value={activeProduct.category} 
+                            onChange={e => handleProductUpdate('category', e.target.value)}
+                            className="w-full bg-[var(--bg-card-hover)] border-none rounded-xl p-4 text-[var(--text-primary)] text-sm outline-none focus:ring-1 focus:ring-[var(--accent-yellow)] font-poppins"
+                          >
+                            {menuCategories.map(cat => (
+                              <option key={cat} value={cat}>{cat}</option>
+                            ))}
+                          </select>
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-[var(--text-secondary)] mb-3 font-poppins">Dietary Category</label>
+                          <div className="flex flex-wrap gap-2">
+                            {['Vegan', 'Vegetarian', 'Gluten-Free', 'Halal', 'Healthy', 'Spicy'].map(tag => {
+                              const hasTag = (activeProduct.dietaryTags || []).includes(tag.toLowerCase());
+                              return (
+                                <button
+                                  key={tag}
+                                  type="button"
+                                  onClick={() => {
+                                    const currentTags = activeProduct.dietaryTags || [];
+                                    const newTags = hasTag
+                                      ? currentTags.filter(t => t !== tag.toLowerCase())
+                                      : [...currentTags, tag.toLowerCase()];
+                                    handleProductUpdate('dietaryTags', newTags);
+                                  }}
+                                  className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border-none cursor-pointer ${
+                                    hasTag 
+                                      ? 'bg-[var(--accent-yellow)] text-black font-poppins font-bold'
+                                      : 'bg-[var(--bg-card-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                                  }`}
+                                >
+                                  {tag}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+
                       <div>
                         <label className="block text-sm font-medium text-[var(--text-secondary)] mb-3 font-poppins">Description</label>
                         <textarea rows={4} value={activeProduct.description} onChange={e => handleProductUpdate('description', e.target.value)} className="w-full bg-[var(--bg-card-hover)] border-none rounded-xl p-4 text-[var(--text-primary)] text-lg focus:ring-1 focus:ring-[var(--accent-yellow)] outline-none resize-none font-poppins" />
                       </div>
+
                       <div className="flex items-center justify-between p-6 rounded-2xl bg-[var(--bg-card-hover)] border-none font-poppins">
                         <span className="text-lg font-bold text-[var(--text-primary)]">Available to Order</span>
                         <button onClick={() => toggleItemAvailability(activeProduct.id)} className={`w-14 h-8 rounded-full p-1 transition-colors ${activeProduct.available ? 'bg-[var(--accent-yellow)]' : 'bg-[var(--bg-card)]'}`}>

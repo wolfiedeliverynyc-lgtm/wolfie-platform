@@ -52,8 +52,10 @@ export default function SettingsPage() {
   const [locLongitude, setLocLongitude] = useState(restaurant.longitude || -74.0060);
   const [isCoordinatesConfirmed, setIsCoordinatesConfirmed] = useState(true);
 
-  // Save states
-  const [saveStatus, setSaveStatus] = useState(''); // '', 'saving', 'saved', 'error'
+  // Save states for different cards
+  const [profileSaveStatus, setProfileSaveStatus] = useState(''); // '', 'saving', 'saved', 'error'
+  const [locationSaveStatus, setLocationSaveStatus] = useState(''); // '', 'saving', 'saved', 'error'
+  const [opsSaveStatus, setOpsSaveStatus] = useState(''); // '', 'saving', 'saved', 'error'
   const [hoursSaveStatus, setHoursSaveStatus] = useState(''); // '', 'saving', 'saved', 'error'
 
   const [viewport, setViewport] = useState({
@@ -89,17 +91,9 @@ export default function SettingsPage() {
     });
   };
 
-  const handleNameChange = (e) => {
-    setRestaurantName(e.target.value);
-  };
-
-  const handleDescChange = (e) => {
-    setRestaurantDesc(e.target.value);
-  };
-
-  const handleAddressChange = (e) => {
-    setRestaurantAddress(e.target.value);
-  };
+  const handleNameChange = (e) => setRestaurantName(e.target.value);
+  const handleDescChange = (e) => setRestaurantDesc(e.target.value);
+  const handleAddressChange = (e) => setRestaurantAddress(e.target.value);
 
   const toggleSetting = (key) => updateSettings({ [key]: !settings[key] });
   const handlePrepTimeChange = (e) => updateSettings({ prepTimeDefault: parseInt(e.target.value) || 15 });
@@ -125,25 +119,59 @@ export default function SettingsPage() {
     setIsCoordinatesConfirmed(true);
   };
 
-  // Profile Save handler
+  // Profile Identity Save Handler (Card 1)
   const handleSaveProfile = async () => {
     try {
-      setSaveStatus('saving');
+      setProfileSaveStatus('saving');
       await updateProfile({
         name: restaurantName,
         description: restaurantDesc,
-        address: restaurantAddress,
         logo: restaurant.logo || restaurant.image,
-        heroImage: restaurant.heroImage,
+        heroImage: restaurant.heroImage
+      });
+      setProfileSaveStatus('saved');
+      setTimeout(() => setProfileSaveStatus(''), 3000);
+    } catch (err) {
+      console.error(err);
+      setProfileSaveStatus('error');
+      setTimeout(() => setProfileSaveStatus(''), 3000);
+    }
+  };
+
+  // Location / Address Save Handler (Card 2)
+  const handleSaveLocation = async () => {
+    try {
+      setLocationSaveStatus('saving');
+      await updateProfile({
+        address: restaurantAddress,
         latitude: locLatitude,
         longitude: locLongitude
       });
-      setSaveStatus('saved');
-      setTimeout(() => setSaveStatus(''), 3000);
+      setIsCoordinatesConfirmed(true);
+      setLocationSaveStatus('saved');
+      setTimeout(() => setLocationSaveStatus(''), 3000);
     } catch (err) {
       console.error(err);
-      setSaveStatus('error');
-      setTimeout(() => setSaveStatus(''), 3000);
+      setLocationSaveStatus('error');
+      setTimeout(() => setLocationSaveStatus(''), 3000);
+    }
+  };
+
+  // Operational Settings Save Handler (Card 3)
+  const handleSaveOps = async () => {
+    try {
+      setOpsSaveStatus('saving');
+      await updateSettings({
+        prepTimeDefault: settings.prepTimeDefault,
+        autoAccept: settings.autoAccept,
+        soundAlerts: settings.soundAlerts
+      });
+      setOpsSaveStatus('saved');
+      setTimeout(() => setOpsSaveStatus(''), 3000);
+    } catch (err) {
+      console.error(err);
+      setOpsSaveStatus('error');
+      setTimeout(() => setOpsSaveStatus(''), 3000);
     }
   };
 
@@ -241,102 +269,35 @@ export default function SettingsPage() {
               
               {activeTab === 'identity' && (
                 <motion.div key="identity" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-8">
+                  
+                  {/* Card 1: Business Profile Identity */}
                   <div className="bg-[var(--bg-card)] border-none rounded-[24px] p-10 relative overflow-hidden">
                     <p className="text-[14px] uppercase tracking-[0.2em] text-[var(--accent-yellow)] font-bold mb-8 font-sans flex items-center gap-3 font-poppins">
                       <Fingerprint size={16} /> Business Profile
                     </p>
                     
                     <div className="space-y-8 text-left">
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        {/* Left column: Text inputs */}
-                        <div className="space-y-6">
-                          {/* Name input */}
-                          <div className="space-y-2 group">
-                            <label className="text-[13px] font-bold uppercase tracking-[0.15em] text-[var(--text-secondary)] group-focus-within:text-[var(--accent-yellow)] transition-colors font-poppins">Restaurant Name</label>
-                            <input
-                              type="text"
-                              value={restaurantName}
-                              onChange={handleNameChange}
-                              className="w-full bg-transparent border-b border-[var(--text-secondary)]/20 py-3 text-2xl font-light tracking-wider text-[var(--text-primary)] outline-none focus:border-[var(--accent-yellow)] transition-colors font-poppins font-bold"
-                            />
-                          </div>
+                      {/* Name input */}
+                      <div className="space-y-2 group">
+                        <label className="text-[13px] font-bold uppercase tracking-[0.15em] text-[var(--text-secondary)] group-focus-within:text-[var(--accent-yellow)] transition-colors font-poppins">Restaurant Name</label>
+                        <input
+                          type="text"
+                          value={restaurantName}
+                          onChange={handleNameChange}
+                          className="w-full bg-transparent border-b border-[var(--text-secondary)]/20 py-3 text-2xl font-light tracking-wider text-[var(--text-primary)] outline-none focus:border-[var(--accent-yellow)] transition-colors font-poppins font-bold"
+                        />
+                      </div>
 
-                          {/* Description textarea */}
-                          <div className="space-y-2 group">
-                            <label className="text-[13px] font-bold uppercase tracking-[0.15em] text-[var(--text-secondary)] group-focus-within:text-[var(--accent-yellow)] transition-colors font-poppins">Business Description</label>
-                            <textarea
-                              rows={3}
-                              value={restaurantDesc}
-                              onChange={handleDescChange}
-                              className="w-full bg-transparent border-b border-[var(--text-secondary)]/20 py-3 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent-yellow)] transition-colors font-poppins resize-none"
-                              placeholder="Tell customers about your kitchen..."
-                            />
-                          </div>
-
-                          {/* Address input */}
-                          <div className="space-y-2 group">
-                            <label className="text-[13px] font-bold uppercase tracking-[0.15em] text-[var(--text-secondary)] group-focus-within:text-[var(--accent-yellow)] transition-colors font-poppins">Physical Address</label>
-                            <input
-                              type="text"
-                              value={restaurantAddress}
-                              onChange={handleAddressChange}
-                              className="w-full bg-transparent border-b border-[var(--text-secondary)]/20 py-3 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent-yellow)] transition-colors font-poppins"
-                              placeholder="e.g. 234 Bedford Ave, Brooklyn, NY"
-                            />
-                          </div>
-                        </div>
-
-                        {/* Right column: Interactive Map Picker */}
-                        <div className="space-y-4">
-                          <div className="flex justify-between items-center">
-                            <label className="text-[13px] font-bold uppercase tracking-[0.15em] text-[var(--text-secondary)] font-poppins">Pin Location on Map</label>
-                            {!isCoordinatesConfirmed && (
-                              <span className="text-[10px] font-bold text-[var(--accent-yellow)] animate-pulse uppercase tracking-wider">Unconfirmed Selection</span>
-                            )}
-                          </div>
-                          <div className="h-[250px] rounded-2xl overflow-hidden border border-[var(--text-secondary)]/10 relative">
-                            {MAPBOX_TOKEN ? (
-                              <Map
-                                {...viewport}
-                                onMove={evt => setViewport(evt.viewState)}
-                                onClick={handleMapClick}
-                                mapStyle={MAP_STYLE}
-                                mapboxAccessToken={MAPBOX_TOKEN}
-                                style={{ width: '100%', height: '100%' }}
-                              >
-                                <Marker latitude={locLatitude} longitude={locLongitude}>
-                                  <div className="w-5 h-5 bg-[var(--accent-yellow)] border-2 border-black rounded-full shadow-[0_0_15px_var(--accent-yellow)] flex items-center justify-center animate-bounce">
-                                    <MapPin size={10} className="text-black" />
-                                  </div>
-                                </Marker>
-                              </Map>
-                            ) : (
-                              <div className="absolute inset-0 bg-[var(--bg-card-hover)] flex flex-col items-center justify-center text-[var(--text-secondary)]/30">
-                                <Compass size={32} className="animate-spin mb-4" />
-                                <span className="text-xs">Connecting Vector Core...</span>
-                              </div>
-                            )}
-                          </div>
-                          
-                          <div className="flex items-center justify-between bg-[var(--bg-card-hover)] p-4 rounded-xl">
-                            <div className="text-[11px] font-mono text-[var(--text-secondary)]">
-                              Lat: {locLatitude.toFixed(6)} | Lng: {locLongitude.toFixed(6)}
-                            </div>
-                            <button
-                              type="button"
-                              onClick={handleConfirmLocation}
-                              disabled={isCoordinatesConfirmed}
-                              className={`px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all border-none ${
-                                isCoordinatesConfirmed 
-                                  ? 'bg-[#22c55e]/20 text-[#22c55e] cursor-default'
-                                  : 'bg-[var(--accent-yellow)] text-black cursor-pointer hover:brightness-105 shadow-[0_0_15px_rgba(255,184,0,0.2)]'
-                              }`}
-                            >
-                              {isCoordinatesConfirmed ? '✓ Confirmed' : 'Confirm Pin'}
-                            </button>
-                          </div>
-                        </div>
+                      {/* Description textarea */}
+                      <div className="space-y-2 group">
+                        <label className="text-[13px] font-bold uppercase tracking-[0.15em] text-[var(--text-secondary)] group-focus-within:text-[var(--accent-yellow)] transition-colors font-poppins">Business Description</label>
+                        <textarea
+                          rows={3}
+                          value={restaurantDesc}
+                          onChange={handleDescChange}
+                          className="w-full bg-transparent border-b border-[var(--text-secondary)]/20 py-3 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent-yellow)] transition-colors font-poppins resize-none font-medium"
+                          placeholder="Tell customers about your kitchen..."
+                        />
                       </div>
 
                       {/* Brand Logo Selector */}
@@ -436,8 +397,155 @@ export default function SettingsPage() {
                         </div>
                       </div>
 
-                      {/* Store Controls */}
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6">
+                      {/* Dedicated Save Profile Details Button */}
+                      <div className="pt-6 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={handleSaveProfile}
+                          disabled={profileSaveStatus === 'saving'}
+                          className={`px-8 py-4.5 rounded-2xl text-[13px] font-black uppercase tracking-[0.15em] border-none transition-all flex items-center gap-3 cursor-pointer shadow-lg ${
+                            profileSaveStatus === 'saved' 
+                              ? 'bg-[#22c55e] text-white shadow-[0_0_20px_rgba(34,197,94,0.3)]'
+                              : profileSaveStatus === 'error'
+                              ? 'bg-[var(--accent-red)] text-white shadow-[0_0_20px_rgba(239,42,57,0.3)]'
+                              : 'bg-[var(--accent-yellow)] text-black hover:shadow-[0_0_30px_rgba(255,184,0,0.3)] hover:scale-102'
+                          }`}
+                        >
+                          {profileSaveStatus === 'saving' ? (
+                            <Loader size={14} className="animate-spin" />
+                          ) : profileSaveStatus === 'saved' ? (
+                            <Check size={14} />
+                          ) : (
+                            <Save size={14} />
+                          )}
+                          {profileSaveStatus === 'saving' 
+                            ? 'Saving Profile Details...' 
+                            : profileSaveStatus === 'saved' 
+                            ? 'Profile Details Saved!' 
+                            : profileSaveStatus === 'error' 
+                            ? 'Failed to Save Profile!' 
+                            : 'Save Profile Details'}
+                        </button>
+                      </div>
+
+                    </div>
+                  </div>
+
+                  {/* Card 2: Physical Address & Map Location Picker */}
+                  <div className="bg-[var(--bg-card)] border-none rounded-[24px] p-10 relative overflow-hidden">
+                    <p className="text-[14px] uppercase tracking-[0.2em] text-[var(--accent-yellow)] font-bold mb-8 font-sans flex items-center gap-3 font-poppins">
+                      <MapPin size={16} /> Location & Address Configuration
+                    </p>
+
+                    <div className="space-y-8 text-left">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        {/* Address text input */}
+                        <div className="space-y-6">
+                          <div className="space-y-2 group">
+                            <label className="text-[13px] font-bold uppercase tracking-[0.15em] text-[var(--text-secondary)] group-focus-within:text-[var(--accent-yellow)] transition-colors font-poppins">Physical Address</label>
+                            <input
+                              type="text"
+                              value={restaurantAddress}
+                              onChange={handleAddressChange}
+                              className="w-full bg-transparent border-b border-[var(--text-secondary)]/20 py-3 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent-yellow)] transition-colors font-poppins font-semibold"
+                              placeholder="e.g. 234 Bedford Ave, Brooklyn, NY"
+                            />
+                          </div>
+
+                          <div className="bg-[var(--bg-card-hover)] p-5 rounded-2xl border border-[var(--text-secondary)]/5 font-poppins">
+                            <div className="text-[12px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-2">Selected Coordinates</div>
+                            <div className="text-sm font-mono text-[var(--text-primary)]">
+                              Lat: {locLatitude.toFixed(6)} <br/> Lng: {locLongitude.toFixed(6)}
+                            </div>
+                            <div className="mt-4 flex justify-between items-center">
+                              <span className="text-[11px] text-[var(--text-secondary)] uppercase">Status:</span>
+                              <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${isCoordinatesConfirmed ? 'bg-[#22c55e]/15 text-[#22c55e]' : 'bg-[var(--accent-yellow)]/15 text-[var(--accent-yellow)] animate-pulse'}`}>
+                                {isCoordinatesConfirmed ? 'Confirmed' : 'Pending Confirmation'}
+                              </span>
+                            </div>
+                            {!isCoordinatesConfirmed && (
+                              <button
+                                type="button"
+                                onClick={handleConfirmLocation}
+                                className="w-full mt-4 py-2.5 rounded-xl bg-[var(--accent-yellow)] text-black text-xs font-black uppercase tracking-wider border-none cursor-pointer hover:brightness-105"
+                              >
+                                Confirm Coordinates Pin
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Interactive map */}
+                        <div className="space-y-4">
+                          <label className="block text-[13px] font-bold uppercase tracking-[0.15em] text-[var(--text-secondary)] font-poppins">Click Map to Pick Pinpoint Location</label>
+                          <div className="h-[260px] rounded-2xl overflow-hidden border border-[var(--text-secondary)]/10 relative">
+                            {MAPBOX_TOKEN ? (
+                              <Map
+                                {...viewport}
+                                onMove={evt => setViewport(evt.viewState)}
+                                onClick={handleMapClick}
+                                mapStyle={MAP_STYLE}
+                                mapboxAccessToken={MAPBOX_TOKEN}
+                                style={{ width: '100%', height: '100%' }}
+                              >
+                                <Marker latitude={locLatitude} longitude={locLongitude}>
+                                  <div className="w-6 h-6 bg-[var(--accent-yellow)] border-2 border-black rounded-full shadow-[0_0_15px_var(--accent-yellow)] flex items-center justify-center animate-bounce">
+                                    <MapPin size={12} className="text-black" />
+                                  </div>
+                                </Marker>
+                              </Map>
+                            ) : (
+                              <div className="absolute inset-0 bg-[var(--bg-card-hover)] flex flex-col items-center justify-center text-[var(--text-secondary)]/30">
+                                <Compass size={32} className="animate-spin mb-4" />
+                                <span className="text-xs">Connecting Vector Core...</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Dedicated Save Location Button */}
+                      <div className="pt-6 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={handleSaveLocation}
+                          disabled={locationSaveStatus === 'saving'}
+                          className={`px-8 py-4.5 rounded-2xl text-[13px] font-black uppercase tracking-[0.15em] border-none transition-all flex items-center gap-3 cursor-pointer shadow-lg ${
+                            locationSaveStatus === 'saved' 
+                              ? 'bg-[#22c55e] text-white shadow-[0_0_20px_rgba(34,197,94,0.3)]'
+                              : locationSaveStatus === 'error'
+                              ? 'bg-[var(--accent-red)] text-white shadow-[0_0_20px_rgba(239,42,57,0.3)]'
+                              : 'bg-[var(--accent-yellow)] text-black hover:shadow-[0_0_30px_rgba(255,184,0,0.3)] hover:scale-102'
+                          }`}
+                        >
+                          {locationSaveStatus === 'saving' ? (
+                            <Loader size={14} className="animate-spin" />
+                          ) : locationSaveStatus === 'saved' ? (
+                            <Check size={14} />
+                          ) : (
+                            <Save size={14} />
+                          )}
+                          {locationSaveStatus === 'saving' 
+                            ? 'Saving Location Settings...' 
+                            : locationSaveStatus === 'saved' 
+                            ? 'Location & Address Saved!' 
+                            : locationSaveStatus === 'error' 
+                            ? 'Failed to Save Location!' 
+                            : 'Save Location & Address'}
+                        </button>
+                      </div>
+
+                    </div>
+                  </div>
+
+                  {/* Card 3: Operational Rules */}
+                  <div className="bg-[var(--bg-card)] border-none rounded-[24px] p-10 relative overflow-hidden">
+                    <p className="text-[14px] uppercase tracking-[0.2em] text-[var(--accent-yellow)] font-bold mb-8 font-sans flex items-center gap-3 font-poppins">
+                      <Zap size={16} /> Operational Control Settings
+                    </p>
+
+                    <div className="space-y-8 text-left">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="bg-[var(--bg-card-hover)] p-6 rounded-[24px] border border-[var(--text-secondary)]/5 relative overflow-hidden">
                           <p className="text-[13px] font-bold uppercase tracking-[0.15em] text-[var(--text-secondary)] mb-2 font-poppins">Automated Accept</p>
                           <div className="flex items-center justify-between mt-4">
@@ -476,39 +584,40 @@ export default function SettingsPage() {
                         </div>
                       </div>
 
-                      {/* Profile Save Changes Actions */}
-                      <div className="pt-8 border-t border-[var(--text-secondary)]/10 flex justify-end">
+                      {/* Dedicated Save Ops Settings Button */}
+                      <div className="pt-6 flex justify-end">
                         <button
                           type="button"
-                          onClick={handleSaveProfile}
-                          disabled={saveStatus === 'saving'}
-                          className={`px-10 py-5 rounded-2xl text-[13px] font-black uppercase tracking-[0.15em] border-none transition-all flex items-center gap-3 cursor-pointer shadow-lg ${
-                            saveStatus === 'saved' 
+                          onClick={handleSaveOps}
+                          disabled={opsSaveStatus === 'saving'}
+                          className={`px-8 py-4.5 rounded-2xl text-[13px] font-black uppercase tracking-[0.15em] border-none transition-all flex items-center gap-3 cursor-pointer shadow-lg ${
+                            opsSaveStatus === 'saved' 
                               ? 'bg-[#22c55e] text-white shadow-[0_0_20px_rgba(34,197,94,0.3)]'
-                              : saveStatus === 'error'
+                              : opsSaveStatus === 'error'
                               ? 'bg-[var(--accent-red)] text-white shadow-[0_0_20px_rgba(239,42,57,0.3)]'
                               : 'bg-[var(--accent-yellow)] text-black hover:shadow-[0_0_30px_rgba(255,184,0,0.3)] hover:scale-102'
                           }`}
                         >
-                          {saveStatus === 'saving' ? (
+                          {opsSaveStatus === 'saving' ? (
                             <Loader size={14} className="animate-spin" />
-                          ) : saveStatus === 'saved' ? (
+                          ) : opsSaveStatus === 'saved' ? (
                             <Check size={14} />
                           ) : (
                             <Save size={14} />
                           )}
-                          {saveStatus === 'saving' 
-                            ? 'Persisting Profile...' 
-                            : saveStatus === 'saved' 
-                            ? 'Profile Saved Successfully!' 
-                            : saveStatus === 'error' 
-                            ? 'Failed to Save!' 
-                            : 'Save Profile Changes'}
+                          {opsSaveStatus === 'saving' 
+                            ? 'Saving Operations...' 
+                            : opsSaveStatus === 'saved' 
+                            ? 'Operations Saved!' 
+                            : opsSaveStatus === 'error' 
+                            ? 'Failed to Save Settings!' 
+                            : 'Save Operational Settings'}
                         </button>
                       </div>
 
                     </div>
                   </div>
+
                 </motion.div>
               )}
 
