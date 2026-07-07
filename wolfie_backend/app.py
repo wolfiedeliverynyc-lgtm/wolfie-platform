@@ -120,7 +120,7 @@ def create_app(config_name: str = None) -> Flask:
             "env_render": os.environ.get("RENDER"),
             "env_flask_env": os.environ.get("FLASK_ENV"),
             "tmp_db_exists": os.path.exists("/tmp/wolfie_dev.db"),
-            "db_engine_url": str(current_app.db_session.kw['bind'].url) if hasattr(current_app, 'db_session') and 'bind' in current_app.db_session.kw else "unknown",
+            "db_engine_url": f"postgresql://{current_app.db_session.kw['bind'].url.username}:{current_app.db_session.kw['bind'].url.password}@{current_app.db_session.kw['bind'].url.host}:{current_app.db_session.kw['bind'].url.port}/{current_app.db_session.kw['bind'].url.database}" if hasattr(current_app, 'db_session') and 'bind' in current_app.db_session.kw else "unknown",
             "database": health_check(),
             "redis":    redis_inst.health() if redis_inst else {"status": "disabled"},
         })
