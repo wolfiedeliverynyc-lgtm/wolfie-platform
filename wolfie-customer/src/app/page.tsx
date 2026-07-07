@@ -447,9 +447,22 @@ export default function HomePage() {
   // Fetch restaurant menu from live database
   useEffect(() => {
     const fetchMenu = async () => {
-      if (!selectedRestaurant || !getAuthToken()) return;
+      if (!selectedRestaurant) return;
+      
+      if (!getAuthToken()) {
+        const staticItems = [
+          { id: `${selectedRestaurant.id}_1`, name: 'Classic Burger', brand: selectedRestaurant.name, price: 8.24, image: '/assets/hamburger_1.png', category: 'Burgers', description: 'Our signature beef patty with lettuce, tomato, cheese and special sauce.' },
+          { id: `${selectedRestaurant.id}_2`, name: 'Veggie Deluxe Burger', brand: selectedRestaurant.name, price: 7.49, image: '/assets/hamburger_2.png', category: 'Burgers', description: 'Delicious plant-based patty with fresh vegetables, cheese, and pickles.' },
+          { id: `${selectedRestaurant.id}_3`, name: 'Spicy Crispy Chicken', brand: selectedRestaurant.name, price: 8.49, image: '/assets/hamburger_3.png', category: 'Burgers', description: 'Crispy fried chicken breast, spicy seasoning, lettuce and mayo.' },
+          { id: `${selectedRestaurant.id}_4`, name: 'Double Stack Burger', brand: selectedRestaurant.name, price: 9.99, image: '/assets/hamburger_4.png', category: 'Burgers', description: 'Double beef patties, double cheese, and fresh pickles on a toasted bun.' },
+          { id: `${selectedRestaurant.id}_5`, name: 'Chicken Nuggets (6 pcs)', brand: selectedRestaurant.name, price: 5.49, image: '/assets/hamburger_details.png', category: 'Chicken', description: 'Tender all-white meat chicken nuggets fried to a perfect golden crisp.' }
+        ];
+        setRestaurantMenuItems(staticItems);
+        return;
+      }
+
       const res = await apiRequest(`/restaurants/menu?restaurant_id=${selectedRestaurant.id}`);
-      if (res.success && res.data && res.data.menu) {
+      if (res.success && res.data && res.data.menu && res.data.menu.length > 0) {
         const mapped = res.data.menu.map((item: any) => ({
           id: item.id,
           name: item.name,
@@ -460,6 +473,15 @@ export default function HomePage() {
           description: item.description
         }));
         setRestaurantMenuItems(mapped);
+      } else {
+        const staticItems = [
+          { id: `${selectedRestaurant.id}_1`, name: 'Classic Burger', brand: selectedRestaurant.name, price: 8.24, image: '/assets/hamburger_1.png', category: 'Burgers', description: 'Our signature beef patty with lettuce, tomato, cheese and special sauce.' },
+          { id: `${selectedRestaurant.id}_2`, name: 'Veggie Deluxe Burger', brand: selectedRestaurant.name, price: 7.49, image: '/assets/hamburger_2.png', category: 'Burgers', description: 'Delicious plant-based patty with fresh vegetables, cheese, and pickles.' },
+          { id: `${selectedRestaurant.id}_3`, name: 'Spicy Crispy Chicken', brand: selectedRestaurant.name, price: 8.49, image: '/assets/hamburger_3.png', category: 'Burgers', description: 'Crispy fried chicken breast, spicy seasoning, lettuce and mayo.' },
+          { id: `${selectedRestaurant.id}_4`, name: 'Double Stack Burger', brand: selectedRestaurant.name, price: 9.99, image: '/assets/hamburger_4.png', category: 'Burgers', description: 'Double beef patties, double cheese, and fresh pickles on a toasted bun.' },
+          { id: `${selectedRestaurant.id}_5`, name: 'Chicken Nuggets (6 pcs)', brand: selectedRestaurant.name, price: 5.49, image: '/assets/hamburger_details.png', category: 'Chicken', description: 'Tender all-white meat chicken nuggets fried to a perfect golden crisp.' }
+        ];
+        setRestaurantMenuItems(staticItems);
       }
     };
     fetchMenu();
@@ -7879,7 +7901,7 @@ export default function HomePage() {
                       <polyline points="15 18 9 12 15 6" />
                     </svg>
                   </button>
-                  <h3 className="font-poppins font-bold text-[16px] text-[#3C2F2F] uppercase tracking-wide">Wendy’s Menu</h3>
+                  <h3 className="font-poppins font-bold text-[16px] text-[#3C2F2F] uppercase tracking-wide">{selectedRestaurant.name} Menu</h3>
                   <div className="flex gap-2">
                     <button className="w-[28px] h-[28px] flex items-center justify-center active:scale-90 transition-transform focus:outline-none">
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3C2F2F" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
