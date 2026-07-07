@@ -211,9 +211,59 @@ export default function DriverAuthPage() {
   const labelClass = "text-[10px] font-bold text-text-secondary uppercase tracking-[0.15em] block mb-2 font-sans"
 
   return (
-    <div className={`w-full h-full flex flex-col justify-start bg-bg-app text-text-primary font-sans overflow-y-auto selection:bg-primary selection:text-black ${theme === 'light' ? 'light-theme' : ''}`}>
-      <div className="flex-1 flex flex-col items-center justify-start p-6 bg-bg-app">
-        <div className="w-full max-w-[480px] space-y-6 text-left">
+    <div className={`min-h-screen w-full bg-bg-app text-text-primary font-sans flex overflow-hidden selection:bg-primary selection:text-black ${theme === 'light' ? 'light-theme' : ''}`}>
+      <div className="w-full grid grid-cols-1 lg:grid-cols-2">
+        
+        {/* Left Side: Hero Panel */}
+        <div className="hidden lg:flex flex-col justify-end relative overflow-hidden h-full p-16 select-none">
+          {/* Background image */}
+          <div className="absolute inset-0 z-0">
+            <img 
+              src="/driver_onboarding_cover.png" 
+              alt="Welcome to Wolfie Courier" 
+              className="w-full h-full object-cover transform scale-105" 
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#000000] via-[#000000]/80 to-transparent z-10" />
+          </div>
+
+          {/* Ambient glow */}
+          <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-primary opacity-[0.04] blur-[120px] pointer-events-none z-10" />
+          
+          {/* Content overlay */}
+          <div className="relative z-20 max-w-xl text-left">
+            <div className="flex items-center gap-3 mb-8">
+              <span className="text-3xl" role="img" aria-label="wolf">🐺</span>
+              <div className="text-left">
+                <span className="font-extrabold text-[24px] text-white tracking-tight block leading-none font-serif">Wolfie <span className="text-primary font-sans">COURIER</span></span>
+                <span className="font-black text-[9px] text-primary tracking-[0.25em] uppercase mt-1 block">Fleet Portal</span>
+              </div>
+            </div>
+
+            <div className="w-10 h-1 bg-primary mb-6 shadow-[0_0_10px_#FFE100]" />
+
+            <h2 className="text-white text-4xl font-extrabold tracking-tight mb-4 leading-tight">
+              Maximize Your Ride's <br/>
+              <span className="text-primary">Earning Potential</span>
+            </h2>
+            <p className="text-[#94a3b8] text-[15px] leading-relaxed mb-8">
+              Join NYC's fastest delivery network. Wolfie offers dynamic order dispatching, priority hotspots, and instant Zelle cashouts. Deliver on your terms, earn premium rates.
+            </p>
+
+            {/* Trust badges */}
+            <div className="flex items-center gap-6 mt-8">
+              <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.15em] text-[#94a3b8] font-bold">
+                <Shield size={14} className="text-primary" /> Verified Fleet
+              </div>
+              <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.15em] text-[#94a3b8] font-bold">
+                <Zap size={14} className="text-primary" /> Keep 100% of Tips
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Side: Registration & Login Forms */}
+        <div className="flex items-center justify-center p-8 lg:p-16 overflow-y-auto bg-bg-app">
+          <div className="w-full max-w-[480px] space-y-8 text-left">
 
           {/* Mobile logo */}
           <div className="flex items-center gap-3 mb-2">
@@ -584,5 +634,6 @@ export default function DriverAuthPage() {
         </div>
       </div>
     </div>
+  </div>
   );
 }
