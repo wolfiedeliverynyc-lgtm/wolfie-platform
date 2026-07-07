@@ -22,6 +22,14 @@ const AuthGate = () => {
     setTheme(theme === 'dark' ? 'light' : 'dark');
   };
 
+  if (kycStatus === 'not_started' || kycStatus === 'rejected') {
+    return <DriverAuthPage />;
+  }
+
+  if (kycStatus === 'pending') {
+    return <DocumentUploadPage onComplete={() => setKycStatus('approved')} />;
+  }
+
   return (
     <div className={`min-h-screen w-full flex flex-col md:flex-row items-center justify-center bg-zinc-950 p-0 md:p-6 transition-colors duration-300 font-sans ${theme === 'light' ? 'bg-zinc-100' : ''}`}>
       
@@ -44,13 +52,7 @@ const AuthGate = () => {
 
         {/* Inner page content container */}
         <div className="flex-1 overflow-hidden relative flex flex-col bg-bg-app">
-          {kycStatus === 'not_started' || kycStatus === 'rejected' ? (
-            <DriverAuthPage />
-          ) : kycStatus === 'pending' ? (
-            <DocumentUploadPage onComplete={() => setKycStatus('approved')} />
-          ) : (
-            <App />
-          )}
+          <App />
         </div>
 
         {/* Interactive iOS Home Indicator bar for Phone POV */}
