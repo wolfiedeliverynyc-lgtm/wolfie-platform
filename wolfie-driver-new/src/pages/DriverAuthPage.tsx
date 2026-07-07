@@ -5,9 +5,35 @@ import {
   Bike, Car, Compass, FileText, ArrowRight, ArrowLeft, Upload, Smartphone, Zap
 } from 'lucide-react'
 
+const onboardingSlides = [
+  {
+    image: './driver_onboarding_cover.png',
+    title: 'Maximize Your Ride\'s Earning Potential',
+    desc: 'Join NYC\'s fastest delivery network. Wolfie offers dynamic order dispatching, priority hotspots, and instant Zelle cashouts. Deliver on your terms, earn premium rates.'
+  },
+  {
+    image: './onboarding_radar_ny.png',
+    title: 'Advanced Radar Dispatching',
+    desc: 'Get priority matching with nearby orders. Our smart routing algorithms calculate the fastest pathways to keep you moving and earning.'
+  },
+  {
+    image: './onboarding_bklyn.jpg',
+    title: 'Brooklyn to Manhattan Coverage',
+    desc: 'Explore high-demand areas with visual heatmaps. Drive in coordinates with active surge multipliers and premium rates during peak hours.'
+  }
+];
+
 export default function DriverAuthPage() {
   const { theme, setOnline, setDriverProfile, setKycStatus, setOnboarded, setToken } = useDriverStore()
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login')
+  const [currentSlide, setCurrentSlide] = React.useState(0)
+
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % onboardingSlides.length)
+    }, 5000)
+    return () => clearInterval(interval)
+  }, [])
   
   const [loginPhone, setLoginPhone] = useState('')
   const [loginPass, setLoginPass] = useState('')
@@ -214,15 +240,24 @@ export default function DriverAuthPage() {
     <div className={`min-h-screen w-full bg-bg-app text-text-primary font-sans flex overflow-hidden selection:bg-primary selection:text-black ${theme === 'light' ? 'light-theme' : ''}`}>
       <div className="w-full grid grid-cols-1 lg:grid-cols-2">
         
-        {/* Left Side: Hero Panel */}
+        {/* Left Side: Hero Panel with Carousel */}
         <div className="hidden lg:flex flex-col justify-end relative overflow-hidden h-full p-16 select-none">
-          {/* Background image */}
+          {/* Background image crossfade */}
           <div className="absolute inset-0 z-0">
-            <img 
-              src="/driver_onboarding_cover.png" 
-              alt="Welcome to Wolfie Courier" 
-              className="w-full h-full object-cover transform scale-105" 
-            />
+            {onboardingSlides.map((slide, idx) => (
+              <div
+                key={idx}
+                className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
+                  idx === currentSlide ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                }`}
+              >
+                <img 
+                  src={slide.image} 
+                  alt={slide.title} 
+                  className="w-full h-full object-cover transform scale-105" 
+                />
+              </div>
+            ))}
             <div className="absolute inset-0 bg-gradient-to-t from-[#000000] via-[#000000]/80 to-transparent z-10" />
           </div>
 
@@ -230,8 +265,8 @@ export default function DriverAuthPage() {
           <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-primary opacity-[0.04] blur-[120px] pointer-events-none z-10" />
           
           {/* Content overlay */}
-          <div className="relative z-20 max-w-xl text-left">
-            <div className="flex items-center gap-3 mb-8">
+          <div className="relative z-20 max-w-xl text-left h-[320px] flex flex-col justify-end">
+            <div className="flex items-center gap-3 mb-6 shrink-0">
               <span className="text-3xl" role="img" aria-label="wolf">🐺</span>
               <div className="text-left">
                 <span className="font-extrabold text-[24px] text-white tracking-tight block leading-none font-serif">Wolfie <span className="text-primary font-sans">COURIER</span></span>
@@ -239,23 +274,57 @@ export default function DriverAuthPage() {
               </div>
             </div>
 
-            <div className="w-10 h-1 bg-primary mb-6 shadow-[0_0_10px_#FFE100]" />
+            <div className="w-10 h-1 bg-primary mb-6 shadow-[0_0_10px_#FFE100] shrink-0" />
 
-            <h2 className="text-white text-4xl font-extrabold tracking-tight mb-4 leading-tight">
-              Maximize Your Ride's <br/>
-              <span className="text-primary">Earning Potential</span>
-            </h2>
-            <p className="text-[#94a3b8] text-[15px] leading-relaxed mb-8">
-              Join NYC's fastest delivery network. Wolfie offers dynamic order dispatching, priority hotspots, and instant Zelle cashouts. Deliver on your terms, earn premium rates.
-            </p>
+            {/* Fading text content */}
+            <div className="relative flex-1 min-h-[140px]">
+              {onboardingSlides.map((slide, idx) => (
+                <div
+                  key={idx}
+                  className={`absolute inset-0 transition-all duration-700 ease-in-out flex flex-col justify-start ${
+                    idx === currentSlide 
+                      ? 'opacity-100 translate-y-0' 
+                      : 'opacity-0 translate-y-4 pointer-events-none'
+                  }`}
+                >
+                  <h2 className="text-white text-3xl font-extrabold tracking-tight mb-3 leading-tight">
+                    {slide.title.includes('Potential') ? (
+                      <>
+                        Maximize Your Ride's <br/>
+                        <span className="text-primary font-sans">Earning Potential</span>
+                      </>
+                    ) : (
+                      slide.title
+                    )}
+                  </h2>
+                  <p className="text-[#94a3b8] text-[13.5px] leading-relaxed">
+                    {slide.desc}
+                  </p>
+                </div>
+              ))}
+            </div>
 
-            {/* Trust badges */}
-            <div className="flex items-center gap-6 mt-8">
-              <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.15em] text-[#94a3b8] font-bold">
-                <Shield size={14} className="text-primary" /> Verified Fleet
+            {/* Slide Indicator Dots and Trust Badges */}
+            <div className="flex items-center justify-between border-t border-white/10 pt-4 mt-2 shrink-0">
+              <div className="flex gap-2">
+                {onboardingSlides.map((_, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => setCurrentSlide(idx)}
+                    className={`h-1.5 rounded-full transition-all duration-300 ${
+                      idx === currentSlide ? 'w-6 bg-primary' : 'w-1.5 bg-white/20'
+                    }`}
+                  />
+                ))}
               </div>
-              <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.15em] text-[#94a3b8] font-bold">
-                <Zap size={14} className="text-primary" /> Keep 100% of Tips
+              
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.15em] text-[#94a3b8] font-bold">
+                  <Shield size={12} className="text-primary" /> Verified Fleet
+                </div>
+                <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.15em] text-[#94a3b8] font-bold">
+                  <Zap size={12} className="text-primary" /> 100% Tips
+                </div>
               </div>
             </div>
           </div>
@@ -268,7 +337,7 @@ export default function DriverAuthPage() {
           {/* Mobile logo */}
           <div className="flex items-center gap-3 mb-2">
             <img 
-              src="/wolf_logo.png" 
+              src="./wolf_logo.png" 
               alt="Wolfie Logo" 
               className={`h-7 object-contain ${theme === 'dark' ? 'invert' : ''}`} 
             />
