@@ -109,18 +109,11 @@ def create_app(config_name: str = None) -> Flask:
     # ── Health check ──────────────────────────
     @app.route("/health")
     def health():
-        import os
         redis_inst = getattr(current_app, "redis", None)
         return jsonify({
             "status":   "ok",
             "service":  "wolfie-delivery",
-            "version":  "1.0.4",
-            "cwd": os.getcwd(),
-            "cwd_contents": os.listdir(os.getcwd()),
-            "env_render": os.environ.get("RENDER"),
-            "env_flask_env": os.environ.get("FLASK_ENV"),
-            "tmp_db_exists": os.path.exists("/tmp/wolfie_dev.db"),
-            "db_engine_url": current_app.db_session.kw['bind'].url.render_as_string(hide_password=False) if hasattr(current_app, 'db_session') and 'bind' in current_app.db_session.kw else "unknown",
+            "version":  "1.1.0",
             "database": health_check(),
             "redis":    redis_inst.health() if redis_inst else {"status": "disabled"},
         })
