@@ -311,7 +311,16 @@ const DashboardGrid = () => {
               id={item.id} 
               title={item.title} 
               className={`premium-card ${item.className || 'accent-blue'} ${isOrdersCard ? 'md:col-span-2' : ''}`}
-              onClick={setSelectedId}
+              onClick={(id) => {
+                if (id === 'orders' || id === 'delivery') setActivePage('orders');
+                else if (id === 'menu') setActivePage('menu');
+                else if (id === 'analytics') setActivePage('analytics');
+                else if (id === 'wallet') setActivePage('finance');
+                else if (id === 'reviews') setActivePage('reviews');
+                else if (id === 'settings') setActivePage('settings');
+                else if (id === 'support') setSupportModalOpen(true);
+                else setSelectedId(id);
+              }}
             >
               <div className="premium-card-inner">
                 {/* Header */}
