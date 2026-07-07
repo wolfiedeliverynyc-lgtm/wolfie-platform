@@ -1386,7 +1386,7 @@ export default function HomePage() {
 
       if (existingIndex > -1) {
         const updated = [...prev];
-        updated[existingIndex].quantity += 1;
+        updated[existingIndex].quantity += portionCount;
         return updated;
       } else {
         const newItem: CartItem = {
@@ -1397,7 +1397,7 @@ export default function HomePage() {
           addons: [...selectedAddons],
           drinks: [...selectedDrinks],
           spicy: spicyLevel,
-          quantity: 1,
+          quantity: portionCount,
           pricePerUnit
         };
         return [...prev, newItem];
