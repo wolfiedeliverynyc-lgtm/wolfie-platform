@@ -86,8 +86,10 @@ class RedisManager:
     def ping(self) -> bool:
         try:
             self.client(0).ping()
+            logger.info("✅ Redis ping successful")
             return True
-        except Exception:
+        except Exception as e:
+            logger.exception(f"❌ Redis ping failed: {e}")
             return False
 
     def health(self) -> dict:
