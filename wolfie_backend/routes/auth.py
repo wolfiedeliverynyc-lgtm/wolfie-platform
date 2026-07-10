@@ -106,7 +106,18 @@ def require_auth(roles: list[str] | None = None, admin_types: list[str] | None =
 @rate_limit(limit=5, window=300)   # 5 registrations per 5 min per IP
 def register():
     data    = request.get_json(silent=True) or {}
-    missing = [f for f in ["email","password","full_name","phone","role"] if not data.get(f)]
+    full_name = data.get("full_name") or data.get("name")
+    role = data.get("role") or "customer"
+    
+    payload_data = {
+        "email": data.get("email"),
+        "password": data.get("password"),
+        "full_name": full_name,
+        "phone": data.get("phone"),
+        "role": role
+    }
+    
+    missing = [f for f in ["email","password","full_name","phone","role"] if not payload_data.get(f)]
     if missing:
         return jsonify({"error": f"Missing fields: {missing}"}), 400
 
@@ -114,26 +125,44 @@ def register():
         with transaction() as session:
             repo = UserRepository(session)
             user = repo.create(
-                email     = data["email"],
-                password  = data["password"],
-                full_name = data["full_name"],
-                phone     = data["phone"],
-                role      = data["role"],
+                email     = payload_data["email"],
+                password  = payload_data["password"],
+                full_name = payload_data["full_name"],
+                phone     = payload_data["phone"],
+                role      = payload_data["role"],
                 extra     = {k: v for k, v in data.items()
-                             if k not in {"email","password","full_name","phone","role"}},
+                             if k not in {"email","password","full_name","name","phone","role"}},
             )
             tokens  = _generate_tokens(user.id, user.role, current_app.config["JWT_SECRET_KEY"])
             user_id = user.id
             role    = user.role
+            email_val = user.email
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
     except Exception as e:
         logger.error(f"register: {e}")
         return jsonify({"error": "Registration failed"}), 500
 
-    logger.info(f"New {role} registered: {data['email']}")
-    return jsonify({"message": "Account created", "user_id": user_id,
-                    "role": role, **tokens}), 201
+    logger.info(f"New {role} registered: {email_val}")
+    
+    response_payload = {
+        "message": "Account created",
+        "user_id": user_id,
+        "role": role,
+        "access_token": tokens["access_token"],
+        "refresh_token": tokens["refresh_token"],
+        "expires_in": tokens["expires_in"],
+        "token": tokens["access_token"],
+        "user": {
+            "id": user_id,
+            "user_id": user_id,
+            "email": email_val,
+            "full_name": payload_data["full_name"],
+            "phone": payload_data["phone"],
+            "role": role
+        }
+    }
+    return jsonify(response_payload), 201
 
 
 @auth_bp.route("/login", methods=["POST"])
@@ -155,14 +184,22 @@ def login():
                 return jsonify({"error": "Account deactivated. Contact support."}), 403
             repo.record_login(user)
             tokens    = _generate_tokens(user.id, user.role, current_app.config["JWT_SECRET_KEY"], getattr(user, 'admin_type', None))
-            user_data = {"user_id": user.id, "role": user.role, "full_name": user.full_name}
+            user_data = {
+                "user": {
+                    "id": user.id,
+                    "user_id": user.id,
+                    "role": user.role,
+                    "full_name": user.full_name,
+                    "email": user.email
+                }
+            }
             if getattr(user, 'admin_type', None):
-                user_data["admin_type"] = user.admin_type
+                user_data["user"]["admin_type"] = user.admin_type
     except Exception as e:
         logger.error(f"login: {e}")
         return jsonify({"error": "Login failed"}), 500
 
-    logger.info(f"Login: {email} ({user_data['role']})")
+    logger.info(f"Login: {email} ({user_data['user']['role']})")
     return jsonify({**user_data, **tokens}), 200
 
 
@@ -294,8 +331,8 @@ def verify_otp():
             val = redis_inst.get(f"otp:{phone}")
             if val:
                 stored_code = val.decode() if isinstance(val, bytes) else val
-        except Exception:
-            pass
+        except Exception as e:
+            current_app.logger.warning(f"OTP lookup failed for {phone}: {e}")
 
     if stored_code is None:
         otp_store = getattr(current_app, '_otp_store', {})

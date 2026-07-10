@@ -229,8 +229,8 @@ class RateLimiter:
     def reset(self, key: str):
         try:
             self._r.delete(f"{self.PREFIX}{key}")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Rate limit reset failed for key '{key}': {e}")
 
 
 # ══════════════════════════════════════════════════════════════════════════════

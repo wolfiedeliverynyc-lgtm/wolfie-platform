@@ -65,8 +65,8 @@ def update_availability():
             "driver_id": request.user_id,
             "status": "available" if is_available else "offline"
         }, room="admin")
-    except Exception:
-        pass
+    except Exception as e:
+        current_app.logger.warning(f"Failed to broadcast driver status to admin: {e}")
 
     return jsonify({"is_available": bool(is_available)}), 200
 
@@ -157,6 +157,42 @@ def update_location():
     }, room="admin")
 
     return jsonify({"status": "ok"}), 200
+
+
+@drivers_bp.route("/<driver_id>/location", methods=["PATCH", "POST"])
+@require_auth(["driver", "customer", "admin"])
+def update_location_by_id(driver_id):
+    data     = request.get_json(silent=True) or {}
+    lat      = data.get("lat")
+    lng      = data.get("lng")
+    order_id = data.get("order_id")
+
+    if lat is None or lng is None:
+        return jsonify({"error": "lat and lng required"}), 400
+
+    lat, lng = float(lat), float(lng)
+
+    redis = getattr(current_app, "redis", None)
+    if redis:
+        redis.locations.update(driver_id, lat, lng, order_id)
+
+    try:
+        with transaction() as session:
+            repo = DriverLocationRepository(session)
+            repo.upsert(driver_id, lat, lng, order_id)
+    except Exception as e:
+        logger.error(f"update_location_by_id DB persist failed: {e}")
+
+    if order_id:
+        _emit("driver_location", {
+            "driver_id": driver_id, "lat": lat, "lng": lng
+        }, room=f"order_{order_id}")
+
+    _emit("driver_location", {
+        "driver_id": driver_id, "lat": lat, "lng": lng
+    }, room="admin")
+
+    return jsonify({"status": "updated", "message": "Location updated"}), 200
 
 
 @drivers_bp.route("/orders/history", methods=["GET"])

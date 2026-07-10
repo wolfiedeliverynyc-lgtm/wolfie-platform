@@ -1,0 +1,674 @@
+[
+  {
+    "id": "TC001",
+    "title": "Place an order with a new card",
+    "description": "A customer can review the cart, enter delivery details, add a new card, place the order, and reach order confirmation.",
+    "category": "Checkout and Order Placement",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Open the cart"
+      },
+      {
+        "type": "action",
+        "description": "Proceed to checkout"
+      },
+      {
+        "type": "action",
+        "description": "Enter delivery details"
+      },
+      {
+        "type": "action",
+        "description": "Add a new credit card"
+      },
+      {
+        "type": "action",
+        "description": "Review the order total"
+      },
+      {
+        "type": "action",
+        "description": "Place the order"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify an order confirmation is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the order is shown as placed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC002",
+    "title": "Browse a menu item and add it to the cart",
+    "description": "This verifies that a user can choose a food item from a restaurant, customize it, add it to the cart, and see it appear there.",
+    "category": "Food Customization and Cart Management",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Open a restaurant detail view"
+      },
+      {
+        "type": "action",
+        "description": "Choose a food item"
+      },
+      {
+        "type": "action",
+        "description": "Select a spicy level"
+      },
+      {
+        "type": "action",
+        "description": "Toggle toppings and additions"
+      },
+      {
+        "type": "action",
+        "description": "Add the item to the cart"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the cart shows the added item"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the cart total is updated"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC003",
+    "title": "Complete live tracking after checkout",
+    "description": "A customer can open order tracking after checkout, see status changes, and view the driver moving on the map.",
+    "category": "Live Order Tracking",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Open the order tracking view"
+      },
+      {
+        "type": "action",
+        "description": "Wait for the order status to update"
+      },
+      {
+        "type": "action",
+        "description": "Expand order details"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify delivery progress is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the driver location is displayed on the map"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC004",
+    "title": "Place an order with a saved card",
+    "description": "A customer can complete checkout using a saved payment card and reach order confirmation.",
+    "category": "Checkout and Order Placement",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Open the cart"
+      },
+      {
+        "type": "action",
+        "description": "Proceed to checkout"
+      },
+      {
+        "type": "action",
+        "description": "Enter delivery details"
+      },
+      {
+        "type": "action",
+        "description": "Select a saved payment card"
+      },
+      {
+        "type": "action",
+        "description": "Review the order total"
+      },
+      {
+        "type": "action",
+        "description": "Place the order"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify an order confirmation is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the placed order is reflected in the confirmation state"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC005",
+    "title": "Browse restaurants on the home screen",
+    "description": "This verifies that a guest or signed-in user can view the restaurant list from the home screen.",
+    "category": "Restaurant Browsing and Discovery",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify restaurants are displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the home browsing content is visible"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC006",
+    "title": "Retain cart contents and totals through checkout",
+    "description": "A customer can move from cart to checkout and see the selected items and updated total carried through the purchase flow.",
+    "category": "Checkout and Order Placement",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Open the cart"
+      },
+      {
+        "type": "action",
+        "description": "Proceed to checkout"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the selected cart items are still displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the order total is displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC007",
+    "title": "Open a restaurant detail view from discovery",
+    "description": "This verifies that a user can open a restaurant detail view from the restaurant listing.",
+    "category": "Restaurant Browsing and Discovery",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Open a restaurant from the list"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the restaurant detail view is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify menu items are displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC008",
+    "title": "Edit cart quantities and see the total update",
+    "description": "This verifies that a user can change item quantities in the cart and see the cart total recalculate correctly before checkout.",
+    "category": "Food Customization and Cart Management",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Open a restaurant detail view"
+      },
+      {
+        "type": "action",
+        "description": "Choose a food item"
+      },
+      {
+        "type": "action",
+        "description": "Customize the item"
+      },
+      {
+        "type": "action",
+        "description": "Add the item to the cart"
+      },
+      {
+        "type": "action",
+        "description": "Open the cart"
+      },
+      {
+        "type": "action",
+        "description": "Adjust the item quantity"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the updated quantity is shown"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the cart total is updated"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC009",
+    "title": "Search for a restaurant or dish",
+    "description": "This verifies that a user can search for restaurants or dishes and see relevant results on the home screen.",
+    "category": "Restaurant Browsing and Discovery",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the search field with a restaurant or dish name"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify search results are displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the results match the search query"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC010",
+    "title": "Filter restaurants by category",
+    "description": "This verifies that a user can narrow the restaurant list by category and see the results update.",
+    "category": "Restaurant Browsing and Discovery",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Select a restaurant category filter"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the restaurant list updates to show filtered results"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify matching restaurants are displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC011",
+    "title": "Keep cart items available while moving through the app",
+    "description": "This verifies that items added to the cart remain available when the user navigates from restaurant browsing to the cart.",
+    "category": "Food Customization and Cart Management",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Open a restaurant detail view"
+      },
+      {
+        "type": "action",
+        "description": "Choose a food item"
+      },
+      {
+        "type": "action",
+        "description": "Add the item to the cart"
+      },
+      {
+        "type": "action",
+        "description": "Open the cart"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the added item is still in the cart"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the cart total is displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC012",
+    "title": "Open courier chat from tracking",
+    "description": "A customer can open courier chat from live tracking and send a message while continuing to track the delivery.",
+    "category": "Live Order Tracking",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Open the order tracking view"
+      },
+      {
+        "type": "action",
+        "description": "Open courier chat"
+      },
+      {
+        "type": "action",
+        "description": "Send a message to the courier"
+      },
+      {
+        "type": "action",
+        "description": "Return to the tracking view"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the sent message is visible in the chat"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the tracking view remains available"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC013",
+    "title": "Restore order progress during tracking",
+    "description": "A customer can keep tracking an active delivery and still see the current order progress after viewing details and chat.",
+    "category": "Live Order Tracking",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Open the order tracking view"
+      },
+      {
+        "type": "action",
+        "description": "Expand order details"
+      },
+      {
+        "type": "action",
+        "description": "Open courier chat"
+      },
+      {
+        "type": "action",
+        "description": "Return to the tracking view"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the current delivery status is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the order details remain accessible"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC014",
+    "title": "Register and enter the app with a saved session",
+    "description": "This verifies that a new user can create an account, complete verification and address setup, and arrive on the home screen with an active session.",
+    "category": "Authentication",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /register"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the account details with a new email and password"
+      },
+      {
+        "type": "action",
+        "description": "Submit the registration form"
+      },
+      {
+        "type": "action",
+        "description": "Complete the verification step"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the address details"
+      },
+      {
+        "type": "action",
+        "description": "Submit the address details"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the home screen is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the user session is established"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC015",
+    "title": "Keep saved profile details available for checkout",
+    "description": "A returning user can update saved account details in settings and later see those details available during checkout.",
+    "category": "Profile and Settings",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Open settings"
+      },
+      {
+        "type": "action",
+        "description": "Update the delivery address"
+      },
+      {
+        "type": "action",
+        "description": "Save changes"
+      },
+      {
+        "type": "action",
+        "description": "Open the cart"
+      },
+      {
+        "type": "action",
+        "description": "Proceed to checkout"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the saved delivery address is available during checkout"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the checkout details are prefilled from the account"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC016",
+    "title": "Log in and reach the home screen",
+    "description": "This verifies that a returning user can sign in with email and password and enter the home screen.",
+    "category": "Authentication",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the home screen is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the user session is established"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC017",
+    "title": "Update delivery address settings",
+    "description": "A registered user can update the saved delivery address in settings and see the new address reflected afterward.",
+    "category": "Profile and Settings",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Open settings"
+      },
+      {
+        "type": "action",
+        "description": "Update the delivery address"
+      },
+      {
+        "type": "action",
+        "description": "Save changes"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the updated address is displayed in the account"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the saved settings remain available"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC018",
+    "title": "Update dietary preferences and allergies",
+    "description": "A registered user can save dietary preferences and allergies in settings and see them reflected in the account.",
+    "category": "Profile and Settings",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Open settings"
+      },
+      {
+        "type": "action",
+        "description": "Update dietary preferences and allergies"
+      },
+      {
+        "type": "action",
+        "description": "Save changes"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the updated preferences are displayed in the account"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the allergies information is displayed"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC019",
+    "title": "Restore a stored session on app launch",
+    "description": "This verifies that a returning user with a saved session lands on the home screen without needing to authenticate again.",
+    "category": "Authentication",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the home screen is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the user is treated as signed in"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC020",
+    "title": "Show an empty state when no restaurants match a search",
+    "description": "This verifies that the app clearly handles a search that returns no visible restaurant results.",
+    "category": "Restaurant Browsing and Discovery",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the search field with a unique unavailable query"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify an empty state message is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify no restaurant results are shown"
+      }
+    ],
+    "priority": "Low"
+  }
+]

@@ -34,8 +34,10 @@ try:
     _r = redis.Redis.from_url(_MQ_URL, socket_timeout=1)
     _r.ping()
     _message_queue = _MQ_URL
-except Exception:
-    pass
+except Exception as e:
+    logging.getLogger("wolfie").critical(
+        f"Redis message queue unreachable — SocketIO will NOT scale across workers: {e}"
+    )
 
 _async_mode = None
 try:
@@ -224,6 +226,7 @@ def _register_blueprints(app: Flask):
     from routes.favorites import favorites_bp
     from routes.driver_kyc import driver_kyc_bp
     from routes.legal import legal_bp
+    from routes.testing import testing_bp
 
     app.register_blueprint(auth_bp,         url_prefix="/api/v1/auth")
     app.register_blueprint(legal_bp,        url_prefix="/api/v1/legal")
@@ -252,6 +255,7 @@ def _register_blueprints(app: Flask):
     app.register_blueprint(admin_finance_bp,url_prefix="/api/v1/admin")
     app.register_blueprint(admin_ai_wap_bp, url_prefix="/api/v1/admin")
     app.register_blueprint(uploads_bp, url_prefix="/api/v1")
+    app.register_blueprint(testing_bp, url_prefix="/api/v1/testing")
 
     app.logger.info("✅ All blueprints registered")
 
@@ -356,8 +360,10 @@ def _register_socket_events():
         # Persist location
         try:
             current_app.realtime.update_driver_location(driver_id, lat, lng, order_id)
-        except Exception:
-            pass
+        except Exception as e:
+            current_app.logger.error(
+                f"Failed to persist driver location [driver={driver_id}, order={order_id}]: {e}"
+            )
 
         # Broadcast to customer
         socketio.emit(

@@ -25,6 +25,7 @@ Architecture:
 """
 
 import json
+import logging
 import statistics
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Optional, Tuple
@@ -229,8 +230,8 @@ class WAPEngine:
                 route = self.mapbox.get_route_duration(distance_km)
                 if route:
                     return route * traffic_factor
-            except:
-                pass
+            except Exception as e:
+                logging.getLogger("wolfie").warning(f"WAP Mapbox route lookup failed: {e}")
 
         # Fallback calculation
         drive_time = (distance_km / base_speed) * 60  # minutes

@@ -24,8 +24,8 @@ def _emit(order_id, event, data):
         if not socketio:
             from app import socketio
         socketio.emit(event, data, room=f"order_{order_id}", namespace="/")
-    except Exception:
-        pass
+    except Exception as e:
+        logger.error(f"Failed to emit '{event}' for order {order_id}: {e}")
 
 
 @restaurants_bp.route("/orders", methods=["GET"])
@@ -266,8 +266,8 @@ def save_delivery_zones():
 
 
 @restaurants_bp.route("/", methods=["GET"])
-@require_auth(["customer", "restaurant", "admin"])
 def list_restaurants():
+    """Public endpoint — no authentication required to browse restaurants."""
     with get_db_session() as session:
         users = session.query(UserRepository.model).filter_by(role="restaurant", is_active=True).all()
         res = []
@@ -296,14 +296,14 @@ def list_restaurants():
 
 
 @restaurants_bp.route("/<restaurant_id>", methods=["GET"])
-@require_auth(["customer", "restaurant", "admin"])
 def get_restaurant_detail(restaurant_id):
+    """Public endpoint — returns restaurant profile and details."""
     with get_db_session() as session:
         repo = UserRepository(session)
         u = repo.find_active(restaurant_id)
         if not u or u.role != "restaurant":
             return jsonify({"error": "Restaurant not found"}), 404
-        
+
         return jsonify({
             "id": u.id,
             "restaurant_name": u.restaurant_name,
@@ -324,6 +324,23 @@ def get_restaurant_detail(restaurant_id):
             "delivery_fee": u.delivery_fee,
             "busy_mode": u.busy_mode,
         }), 200
+
+
+@restaurants_bp.route("/<restaurant_id>/menu", methods=["GET"])
+def get_restaurant_menu(restaurant_id):
+    """Public endpoint — returns available menu items for a restaurant by ID."""
+    with get_db_session() as session:
+        items = (
+            session.query(MenuItem)
+            .filter_by(restaurant_id=restaurant_id, is_available=True)
+            .order_by(MenuItem.category)
+            .all()
+        )
+        menu = [
+            {c.name: getattr(i, c.name) for c in i.__table__.columns}
+            for i in items
+        ]
+        return jsonify({"menu": menu, "count": len(menu)}), 200
 
 
 @restaurants_bp.route("/profile", methods=["PATCH"])

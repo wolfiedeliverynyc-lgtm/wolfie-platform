@@ -1,0 +1,1128 @@
+[
+  {
+    "id": "TC001",
+    "title": "Place an order from cart to confirmation",
+    "description": "This test verifies a customer can enter delivery and payment details, submit a valid order, and reach the order confirmation state.",
+    "category": "Order Placement & Checkout",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Open a restaurant from the list"
+      },
+      {
+        "type": "action",
+        "description": "Add a menu item to the cart"
+      },
+      {
+        "type": "action",
+        "description": "Open the cart"
+      },
+      {
+        "type": "action",
+        "description": "Proceed to checkout"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the pickup address field with a valid pickup address"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the delivery address field with a valid delivery address"
+      },
+      {
+        "type": "action",
+        "description": "Select a payment method"
+      },
+      {
+        "type": "action",
+        "description": "Submit the order"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify an order confirmation is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the placed order is ready for tracking"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC002",
+    "title": "Track a newly placed order with live map updates",
+    "description": "This test verifies a customer can open an order in tracking, join the live room, and see driver movement and status updates reflected in the tracking UI.",
+    "category": "Real-Time Order Tracking",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Open the tracking view for a placed order"
+      },
+      {
+        "type": "action",
+        "description": "Join the order tracking room"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the live driver location is displayed on the map"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the order status timeline is updating"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC003",
+    "title": "Sign up, verify, and reach restaurant browsing",
+    "description": "This test verifies a first-time registrant can complete onboarding, verify their account, and land on the restaurant list ready to browse.",
+    "category": "Authentication & Session Persistence",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the registration email field with a new valid email"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the registration password field with a valid password"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the phone number field with a valid phone number"
+      },
+      {
+        "type": "action",
+        "description": "Submit the registration form"
+      },
+      {
+        "type": "action",
+        "description": "Enter the valid OTP into the verification field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the OTP verification form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the restaurant list is displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC004",
+    "title": "Register, verify, and enter the restaurant list",
+    "description": "This test verifies that a first-time customer can create an account, complete phone verification, and reach the restaurant list as a signed-in user.",
+    "category": "Authentication & Session Management",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with a new customer email"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with a valid password"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the full name field with a new customer name"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the phone field with a valid phone number"
+      },
+      {
+        "type": "action",
+        "description": "Submit the registration form"
+      },
+      {
+        "type": "action",
+        "description": "Enter the OTP verification screen"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the OTP code field with a valid code"
+      },
+      {
+        "type": "action",
+        "description": "Submit the OTP verification form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the restaurant list is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the user is signed in"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC005",
+    "title": "Log in and continue shopping as a returning customer",
+    "description": "This test verifies an authenticated returning customer can log in and reach the main shopping experience without interruption.",
+    "category": "Authentication & Session Persistence",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the restaurant list is displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC006",
+    "title": "Log in and load the current profile",
+    "description": "This test verifies that a returning customer can log in and view their saved profile details after authentication.",
+    "category": "Authentication & Session Management",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Open the profile area"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the current profile details are displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify saved dietary and allergy preferences are visible"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC007",
+    "title": "Customize an item and add it to the cart",
+    "description": "This test verifies that a customer can choose item customizations and add the configured item to the cart with totals updated.",
+    "category": "Cart & Customization",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Open a restaurant menu"
+      },
+      {
+        "type": "action",
+        "description": "Select a menu item"
+      },
+      {
+        "type": "action",
+        "description": "Choose a size"
+      },
+      {
+        "type": "action",
+        "description": "Choose toppings"
+      },
+      {
+        "type": "action",
+        "description": "Choose addons"
+      },
+      {
+        "type": "action",
+        "description": "Choose drinks"
+      },
+      {
+        "type": "action",
+        "description": "Choose a spicy level"
+      },
+      {
+        "type": "action",
+        "description": "Add the item to the cart"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the cart contains the added item"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the cart total is updated"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC008",
+    "title": "Persist access to the restaurant list after refresh",
+    "description": "This test verifies a logged-in customer can return to the app and continue from the restaurant browsing experience without being signed out.",
+    "category": "Authentication & Session Persistence",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to the restaurant list page again"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the restaurant list is displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC009",
+    "title": "Open a restaurant menu and view its items",
+    "description": "This test verifies that a logged-in customer can select a restaurant and see its menu items load successfully.",
+    "category": "Restaurant Discovery & Menu Viewing",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Open the restaurant list"
+      },
+      {
+        "type": "action",
+        "description": "Select a restaurant"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the restaurant menu is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify menu items are visible"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC010",
+    "title": "Browse restaurants and filter the list",
+    "description": "This test verifies that a logged-in customer can browse restaurants and narrow the list using discovery filters.",
+    "category": "Restaurant Discovery & Menu Viewing",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Open the restaurant list"
+      },
+      {
+        "type": "action",
+        "description": "Apply a nearby filter"
+      },
+      {
+        "type": "action",
+        "description": "Apply a rating filter"
+      },
+      {
+        "type": "action",
+        "description": "Apply a best seller filter"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify filtered restaurants are displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the restaurant list remains available"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC011",
+    "title": "Update cart quantity and recalculate totals",
+    "description": "This test verifies that changing item quantity in the cart updates the item count and recalculates the total price.",
+    "category": "Cart & Customization",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Open the cart"
+      },
+      {
+        "type": "action",
+        "description": "Increase the quantity of a cart item"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the cart item quantity is updated"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the cart total is recalculated"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC012",
+    "title": "Open a restaurant menu and view available items",
+    "description": "This test verifies a customer can move from discovery into a restaurant menu and see the available menu items to order.",
+    "category": "Restaurant Discovery & Menu Browsing",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Open a restaurant from the list"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the restaurant menu is displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC013",
+    "title": "Block access to the profile without signing in",
+    "description": "This test verifies that an unauthenticated visitor cannot view the profile area and is prompted to authenticate instead.",
+    "category": "Authentication & Session Management",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Attempt to open the profile area without submitting credentials"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify access to profile details is blocked"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a sign-in prompt or login requirement is visible"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC014",
+    "title": "Browse restaurants and filter by ratings or nearby options",
+    "description": "This test verifies a customer can discover restaurants and narrow the list using common filters before opening a menu.",
+    "category": "Restaurant Discovery & Menu Browsing",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Apply a restaurant filter for nearby or highly rated options"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the restaurant list updates to show filtered results"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC015",
+    "title": "Remove the last cart item and see the empty state",
+    "description": "This test verifies that removing items from the cart clears the order summary and shows an empty-cart state when nothing remains.",
+    "category": "Cart & Customization",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Open the cart"
+      },
+      {
+        "type": "action",
+        "description": "Remove the remaining cart item"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the cart is empty"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify an empty-cart state is visible"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC016",
+    "title": "Update dietary and allergy preferences",
+    "description": "This test verifies a customer can edit their saved preferences and see the updated values persist in the profile UI after saving.",
+    "category": "Profile & Preferences Management",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Open profile settings"
+      },
+      {
+        "type": "action",
+        "description": "Update the dietary preferences field with valid values"
+      },
+      {
+        "type": "action",
+        "description": "Update the allergy preferences field with valid values"
+      },
+      {
+        "type": "action",
+        "description": "Save the profile changes"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the updated preferences are displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the changes persist in the profile view"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC017",
+    "title": "Remove an item from the cart",
+    "description": "This test verifies a customer can remove an item from the cart and the cart reflects the updated empty or reduced state.",
+    "category": "Cart Customization & Quantity Management",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Open a restaurant from the list"
+      },
+      {
+        "type": "action",
+        "description": "Add a menu item to the cart"
+      },
+      {
+        "type": "action",
+        "description": "Open the cart"
+      },
+      {
+        "type": "action",
+        "description": "Remove the item from the cart"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the cart no longer contains the removed item"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC018",
+    "title": "View saved profile preferences after login",
+    "description": "This test verifies a customer can open profile settings and see their current dietary and allergy preferences available for editing.",
+    "category": "Profile & Preferences Management",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Open profile settings"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the saved profile preferences are displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify dietary and allergy preference fields are available"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC019",
+    "title": "Reject an invalid OTP during verification",
+    "description": "This test verifies that an incorrect OTP is rejected and the customer remains on the verification flow without completing signup.",
+    "category": "Authentication & Session Management",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with a new customer email"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with a valid password"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the full name field with a new customer name"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the phone field with a valid phone number"
+      },
+      {
+        "type": "action",
+        "description": "Submit the registration form"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the OTP code field with an invalid code"
+      },
+      {
+        "type": "action",
+        "description": "Submit the OTP verification form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify an invalid OTP error is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify account verification is not completed"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC020",
+    "title": "Leave tracking and stop live updates",
+    "description": "This test verifies a customer can exit order tracking and leave the live room so the tracking session ends cleanly.",
+    "category": "Real-Time Order Tracking",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Open the tracking view for a placed order"
+      },
+      {
+        "type": "action",
+        "description": "Join the order tracking room"
+      },
+      {
+        "type": "action",
+        "description": "Exit the tracking screen"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the tracking view is closed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify live tracking updates are no longer shown"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC021",
+    "title": "Send and receive a chat message during tracking",
+    "description": "This test verifies a customer can use the in-app order chat while tracking an order and see the conversation appear in the chat panel.",
+    "category": "Real-Time Order Tracking",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Open the tracking view for a placed order"
+      },
+      {
+        "type": "action",
+        "description": "Join the order tracking room"
+      },
+      {
+        "type": "action",
+        "description": "Type a chat message into the order chat field"
+      },
+      {
+        "type": "action",
+        "description": "Send the chat message"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the chat message appears in the conversation"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC022",
+    "title": "Show validation feedback when profile preferences are invalid",
+    "description": "This test verifies that saving invalid dietary or allergy preferences is rejected with visible validation feedback and does not update the profile.",
+    "category": "Authentication & Session Management",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Open the profile preferences area"
+      },
+      {
+        "type": "action",
+        "description": "Set invalid dietary preferences"
+      },
+      {
+        "type": "action",
+        "description": "Set invalid allergy preferences"
+      },
+      {
+        "type": "action",
+        "description": "Save the profile changes"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a preference validation error is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the profile changes are not saved"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC023",
+    "title": "Block checkout when the cart is empty",
+    "description": "This test verifies a customer cannot submit checkout from an empty cart and receives a visible validation state instead of placing an order.",
+    "category": "Order Placement & Checkout",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Open the cart"
+      },
+      {
+        "type": "action",
+        "description": "Proceed to checkout"
+      },
+      {
+        "type": "action",
+        "description": "Submit the order"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a validation error is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the order is not submitted"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC024",
+    "title": "Handle an invalid restaurant selection gracefully",
+    "description": "This test verifies that selecting an invalid restaurant does not break the menu view and shows a clear not-found state.",
+    "category": "Restaurant Discovery & Menu Viewing",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Open the restaurant menu view"
+      },
+      {
+        "type": "action",
+        "description": "Select an invalid restaurant entry"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a restaurant not found state is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify menu items are not displayed"
+      }
+    ],
+    "priority": "Low"
+  },
+  {
+    "id": "TC025",
+    "title": "Reject invalid customization values before adding an item",
+    "description": "This test verifies that malformed item customizations are blocked and the cart is not updated with invalid selections.",
+    "category": "Cart & Customization",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Open a restaurant menu"
+      },
+      {
+        "type": "action",
+        "description": "Select a menu item"
+      },
+      {
+        "type": "action",
+        "description": "Enter invalid customization values"
+      },
+      {
+        "type": "action",
+        "description": "Add the item to the cart"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a customization validation error is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the item is not added to the cart"
+      }
+    ],
+    "priority": "Low"
+  },
+  {
+    "id": "TC026",
+    "title": "Show validation when preference values are invalid",
+    "description": "This test verifies the profile editor rejects invalid preference values and shows a visible validation state without saving changes.",
+    "category": "Profile & Preferences Management",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Open profile settings"
+      },
+      {
+        "type": "action",
+        "description": "Enter invalid preference values"
+      },
+      {
+        "type": "action",
+        "description": "Save the profile changes"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a validation error is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the invalid changes are not saved"
+      }
+    ],
+    "priority": "Low"
+  }
+]

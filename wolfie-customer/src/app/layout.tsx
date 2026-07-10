@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import { Lustria, Poppins, Roboto, Inter } from "next/font/google";
 import "./globals.css";
+import { ErrorBoundary } from "@/providers/ErrorBoundary";
+import QueryProvider from "@/providers/QueryProvider";
+import AuthProvider from "@/providers/AuthProvider";
+import { SocketProvider } from "@/providers/SocketProvider";
 
 const lustria = Lustria({
   subsets: ["latin"],
@@ -41,7 +45,17 @@ export default function RootLayout({
       lang="en"
       className={`${lustria.variable} ${poppins.variable} ${roboto.variable} ${inter.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <ErrorBoundary>
+          <QueryProvider>
+            <AuthProvider>
+              <SocketProvider>
+                {children}
+              </SocketProvider>
+            </AuthProvider>
+          </QueryProvider>
+        </ErrorBoundary>
+      </body>
     </html>
   );
 }

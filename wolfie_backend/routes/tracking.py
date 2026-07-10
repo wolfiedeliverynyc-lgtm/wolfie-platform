@@ -59,8 +59,8 @@ def get_order_tracking(order_id):
                     order.delivery_address,
                 )
                 updated_eta = route.get("duration_min", updated_eta)
-            except Exception:
-                pass
+            except Exception as e:
+                current_app.logger.warning(f"ETA recalculation failed for order {order.id}: {e}")
 
         return jsonify({
             "order_id":         order_id,

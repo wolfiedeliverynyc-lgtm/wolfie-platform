@@ -32,35 +32,47 @@ def _stripe():
 def create_payment_intent():
     data     = request.get_json(silent=True) or {}
     order_id = data.get("order_id")
-    if not order_id:
-        return jsonify({"error": "order_id required"}), 400
+    amount   = data.get("amount")
+    currency = data.get("currency", "usd")
+    
+    if not order_id and not amount:
+        return jsonify({"error": "order_id or amount required"}), 400
 
     try:
-        with get_db_session() as session:
-            order_repo = OrderRepository(session)
-            order      = order_repo.get(order_id)
-            if not order:
-                return jsonify({"error": "Order not found"}), 404
+        if order_id:
+            with get_db_session() as session:
+                order_repo = OrderRepository(session)
+                order      = order_repo.get(order_id)
+                if not order:
+                    return jsonify({"error": "Order not found"}), 404
 
-            pay_repo = PaymentRepository(session)
-            existing = pay_repo.find_by_order(order_id)
-            if existing and existing.status == "completed":
-                return jsonify({"error": "Order already paid"}), 400
+                pay_repo = PaymentRepository(session)
+                existing = pay_repo.find_by_order(order_id)
+                if existing and existing.status == "completed":
+                    return jsonify({"error": "Order already paid"}), 400
 
-            total_cents = int(round(order.total * 100))
-
-            s      = _stripe()
-            intent = s.PaymentIntent.create(
-                amount               = total_cents,
-                currency             = "usd",
-                payment_method_types = ["card"],
-                metadata             = {
+                total_cents = int(round(order.total * 100))
+                metadata = {
                     "order_id":      order_id,
                     "customer_id":   order.customer_id,
                     "restaurant_id": order.restaurant_id,
-                },
-                description = f"Wolfie Delivery #{order_id[:8]}",
-            )
+                }
+                description = f"Wolfie Delivery #{order_id[:8]}"
+        else:
+            total_cents = int(amount)
+            metadata = {
+                "customer_id":   request.user_id,
+            }
+            description = "Wolfie Custom Payment"
+
+        s      = _stripe()
+        intent = s.PaymentIntent.create(
+            amount               = total_cents,
+            currency             = currency,
+            payment_method_types = ["card"],
+            metadata             = metadata,
+            description          = description,
+        )
 
         return jsonify({
             "client_secret": intent.client_secret,

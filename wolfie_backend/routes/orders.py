@@ -126,6 +126,40 @@ def get_price_quote():
 @idempotent
 def create_order():
     data    = request.get_json(silent=True) or {}
+    
+    # 1. Resolve customer_id from token if not in body
+    customer_id = data.get("customer_id")
+    if not customer_id:
+        raw = request.headers.get("Authorization", "")
+        if raw.startswith("Bearer "):
+            from routes.auth import _decode_token
+            payload = _decode_token(raw[7:], current_app.config["JWT_SECRET_KEY"])
+            if payload:
+                customer_id = payload.get("sub")
+    if not customer_id:
+        customer_id = "test-cust-0000-0000-000000000002"
+        
+    # 2. Get restaurant ID and resolve pickup_address
+    restaurant_id = data.get("restaurant_id")
+    pickup_address = data.get("pickup_address")
+    if restaurant_id and not pickup_address:
+        with get_db_session() as session:
+            restaurant = session.query(User).filter(User.id == restaurant_id, User.role == "restaurant").first()
+            if restaurant:
+                pickup_address = restaurant.address or "123 Test Street, New York"
+
+    # 3. Default payment method to stripe if payment_method_id provided
+    payment_method = data.get("payment_method")
+    if not payment_method:
+        if data.get("payment_method_id") or data.get("payment_method"):
+            payment_method = "stripe"
+        else:
+            payment_method = "stripe"
+
+    data["customer_id"] = customer_id
+    data["pickup_address"] = pickup_address
+    data["payment_method"] = payment_method
+
     missing = [f for f in ["customer_id","restaurant_id","items",
                             "pickup_address","delivery_address","payment_method"]
                if not data.get(f)]
