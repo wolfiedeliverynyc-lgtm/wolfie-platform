@@ -4,6 +4,7 @@ import {
   Shield, Check, User, Mail, Phone, Lock, Eye, EyeOff,
   Bike, Car, Compass, FileText, ArrowRight, ArrowLeft, Upload, Smartphone, Zap
 } from 'lucide-react'
+import { API_BASE } from '../lib/api'
 
 const onboardingSlides = [
   {
@@ -67,7 +68,7 @@ export default function DriverAuthPage() {
     
     try {
       setLoginError('')
-      const apiUrl = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api/v1` : 'http://localhost:5000/api/v1';
+      const apiUrl = API_BASE;
       
       const identity = loginPhone.trim();
       const isEmail = identity.includes('@');

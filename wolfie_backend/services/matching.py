@@ -27,63 +27,94 @@ class SmartMatchingEngine:
                           pickup_coords: dict = None,
                           restaurant_id: str  = None) -> dict | None:
         """
-        Finds closest available driver to pickup_coords.
+        Finds closest available driver to pickup_coords using Mapbox traffic-aware routing.
         Returns driver dict or None if no driver available.
         """
         from database.session import get_session
         from database.repositories import UserRepository
         from database.repositories.rating import DriverLocationRepository
         
-        try:
-            with get_session() as session:
-                user_repo = UserRepository(session)
-                loc_repo = DriverLocationRepository(session)
+        with get_session() as session:
+            user_repo = UserRepository(session)
+            loc_repo = DriverLocationRepository(session)
+            
+            # 1. Get all available drivers
+            drivers = user_repo.find_available_drivers()
+            if not drivers:
+                logger.info("SmartMatching: no available drivers")
+                return None
+            
+            p_lat = float(pickup_coords.get("lat", 36.7525)) if pickup_coords else 36.7525
+            p_lng = float(pickup_coords.get("lng", 3.0588)) if pickup_coords else 3.0588
+            
+            # 2. Get coordinates and compute Haversine distance as pre-filtering step
+            candidates = []
+            for driver in drivers:
+                loc = loc_repo.get_for_driver(driver.id)
+                d_lat, d_lng = None, None
+                if loc:
+                    d_lat, d_lng = float(loc.lat), float(loc.lng)
+                else:
+                    redis = getattr(current_app, "redis", None)
+                    if redis:
+                        last_loc = redis.locations.get(driver.id)
+                        if last_loc and last_loc.get("lat") and last_loc.get("lng"):
+                            d_lat, d_lng = float(last_loc["lat"]), float(last_loc["lng"])
                 
-                # 1. Get all available drivers
-                drivers = user_repo.find_available_drivers()
-                if not drivers:
-                    logger.info("SmartMatching: no available drivers")
-                    return None
+                if d_lat is not None and d_lng is not None:
+                    h_dist = self._haversine(p_lat, p_lng, d_lat, d_lng)
+                    candidates.append({
+                        "driver": driver,
+                        "lat": d_lat,
+                        "lng": d_lng,
+                        "h_dist": h_dist
+                    })
+                else:
+                    candidates.append({
+                        "driver": driver,
+                        "lat": None,
+                        "lng": None,
+                        "h_dist": 999.0
+                    })
+
+            # Filter candidates with valid coordinates
+            valid_candidates = [c for c in candidates if c["lat"] is not None and c["lng"] is not None]
+            if not valid_candidates:
+                logger.info("SmartMatching: no drivers with valid locations")
+                return None
+
+            # Sort by Haversine distance and select top 15 candidates
+            valid_candidates.sort(key=lambda x: x["h_dist"])
+            top_candidates = valid_candidates[:15]
+
+            # 3. Call Mapbox Matrix API for actual driving distances (propagates any exceptions)
+            sources = [{"lat": c["lat"], "lng": c["lng"]} for c in top_candidates]
+            destinations = [{"lat": p_lat, "lng": p_lng}]
+            
+            matrix = self.mapbox.distance_matrix(sources, destinations)
+
+            # 4. Score drivers using Mapbox routing distances
+            best_driver = None
+            best_score = float("inf")
+            
+            for idx, c in enumerate(top_candidates):
+                dist_km = matrix[idx][0]
+                driver = c["driver"]
+                score = dist_km - (float(driver.rating or 5.0) * 0.3)
                 
-                # 2. Score drivers
-                best_driver = None
-                best_score = float("inf")
-                
-                p_lat = float(pickup_coords.get("lat", 36.7525)) if pickup_coords else 36.7525
-                p_lng = float(pickup_coords.get("lng", 3.0588)) if pickup_coords else 3.0588
-                
-                for driver in drivers:
-                    loc = loc_repo.get_for_driver(driver.id)
-                    
-                    dist_km = 999.0
-                    if loc:
-                        dist_km = self._haversine(p_lat, p_lng, float(loc.lat), float(loc.lng))
-                    else:
-                        redis = getattr(current_app, "redis", None)
-                        if redis:
-                            last_loc = redis.locations.get(driver.id)
-                            if last_loc and last_loc.get("lat") and last_loc.get("lng"):
-                                dist_km = self._haversine(p_lat, p_lng, float(last_loc["lat"]), float(last_loc["lng"]))
-                    
-                    score = dist_km - (float(driver.rating or 5.0) * 0.3)
-                    
-                    if score < best_score:
-                        best_score = score
-                        best_driver = {
-                            "id": driver.id,
-                            "name": driver.full_name,
-                            "phone": driver.phone,
-                            "rating": driver.rating,
-                            "distance_km": round(dist_km, 2)
-                        }
-                
-                if best_driver:
-                    logger.info(f"Matched driver {best_driver['id']} for order {order_id} (dist={best_driver['distance_km']}km)")
-                return best_driver
-                
-        except Exception as e:
-            logger.error(f"SmartMatching error: {e}")
-            return None
+                if score < best_score:
+                    best_score = score
+                    best_driver = {
+                        "id": driver.id,
+                        "name": driver.full_name,
+                        "phone": driver.phone,
+                        "rating": driver.rating,
+                        "distance_km": round(dist_km, 2)
+                    }
+            
+            if best_driver:
+                logger.info(f"Matched driver {best_driver['id']} for order {order_id} (dist={best_driver['distance_km']}km)")
+            return best_driver
 
     @staticmethod
     def _haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:

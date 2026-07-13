@@ -147,34 +147,36 @@ class MapboxClient:
         Returns matrix of distances in km.
         Used by SmartMatchingEngine.
         """
-        if self._mock or not sources or not destinations:
-            return [[2.0] * len(destinations) for _ in sources]
+        if self._mock:
+            raise ValueError("Mapbox token is not configured (mock mode active)")
+        if not sources or not destinations:
+            return []
 
-        try:
-            coords = ";".join(
-                [f"{p['lng']},{p['lat']}" for p in sources + destinations]
-            )
-            n_src  = len(sources)
-            src_idxs  = ";".join(str(i) for i in range(n_src))
-            dest_idxs = ";".join(str(i + n_src) for i in range(len(destinations)))
+        coords = ";".join(
+            [f"{p['lng']},{p['lat']}" for p in sources + destinations]
+        )
+        n_src  = len(sources)
+        src_idxs  = ";".join(str(i) for i in range(n_src))
+        dest_idxs = ";".join(str(i + n_src) for i in range(len(destinations)))
 
-            url = (
-                f"{MAPBOX_BASE}/directions-matrix/v1/mapbox/driving-traffic/{coords}"
-                f"?sources={src_idxs}&destinations={dest_idxs}"
-                f"&access_token={self.token}"
-            )
-            resp = requests.get(url, timeout=8)
-            resp.raise_for_status()
-            data = resp.json()
+        url = (
+            f"{MAPBOX_BASE}/directions-matrix/v1/mapbox/driving-traffic/{coords}"
+            f"?sources={src_idxs}&destinations={dest_idxs}"
+            f"&annotations=distance"
+            f"&access_token={self.token}"
+        )
+        resp = requests.get(url, timeout=8)
+        resp.raise_for_status()
+        data = resp.json()
 
-            # Convert meters to km
-            return [
-                [d / 1000 if d else 999 for d in row]
-                for row in data["distances"]
-            ]
-        except Exception as e:
-            logger.warning(f"distance_matrix failed: {e}")
-            return [[2.0] * len(destinations) for _ in sources]
+        if "distances" not in data:
+            raise KeyError("Mapbox directions-matrix API response is missing 'distances' field")
+
+        # Convert meters to km
+        return [
+            [d / 1000 if d is not None else 999.0 for d in row]
+            for row in data["distances"]
+        ]
 
     # ── Geofence check ────────────────────────
 

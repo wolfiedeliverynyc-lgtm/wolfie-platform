@@ -1,7 +1,16 @@
 // Central API Fetch Utility for connecting to Flask Backend
 
+const formatApiUrl = (url: string | undefined, defaultUrl: string): string => {
+  const target = url || defaultUrl;
+  const trimmed = target.trim().replace(/\/+$/, '');
+  if (!trimmed.endsWith('/api/v1')) {
+    return trimmed + '/api/v1';
+  }
+  return trimmed;
+};
+
 // Dynamically read the base API url, default to localhost Flask port
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+const API_BASE_URL = formatApiUrl(process.env.NEXT_PUBLIC_API_URL, 'http://localhost:5000/api/v1');
 
 export const getAuthToken = (): string | null => {
   if (typeof window !== 'undefined') {

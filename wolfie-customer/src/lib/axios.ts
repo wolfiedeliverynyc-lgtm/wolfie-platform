@@ -1,7 +1,16 @@
 import axios from 'axios';
 
+const formatApiUrl = (url: string | undefined, defaultUrl: string): string => {
+  const target = url || defaultUrl;
+  const trimmed = target.trim().replace(/\/+$/, '');
+  if (!trimmed.endsWith('/api/v1')) {
+    return trimmed + '/api/v1';
+  }
+  return trimmed;
+};
+
 export const apiClient = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'https://wolfie-backend-pt9u.onrender.com/api/v1',
+  baseURL: formatApiUrl(process.env.NEXT_PUBLIC_API_URL, 'https://wolfie-backend-pt9u.onrender.com/api/v1'),
   headers: {
     'Content-Type': 'application/json',
   },

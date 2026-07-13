@@ -4,6 +4,7 @@ import {
 } from 'lucide-react';
 import { useDriverStore } from '../store/useDriverStore';
 import { useEffect } from 'react';
+import { API_BASE } from '../lib/api';
 
 interface WalletDashProps {
   onBack: () => void;
@@ -29,7 +30,7 @@ export default function WalletDash({
       const { token, updateWallet } = useDriverStore.getState();
       if (!token) return;
       try {
-        const res = await fetch('http://localhost:5000/api/v1/payments/driver/earnings', {
+        const res = await fetch(`${API_BASE}/payments/driver/earnings`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) {

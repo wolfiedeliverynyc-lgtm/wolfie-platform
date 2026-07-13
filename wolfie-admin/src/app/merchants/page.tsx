@@ -39,7 +39,11 @@ export default function MerchantsOperationsPage() {
     setLoadingReviews(true);
     setMerchantReviews([]);
     try {
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+      let apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+      apiBase = apiBase.trim().replace(/\/+$/, '');
+      if (!apiBase.endsWith('/api/v1')) {
+        apiBase = apiBase + '/api/v1';
+      }
       const res = await fetch(`${apiBase}/ratings/restaurant/${merchantId}`);
       if (res.ok) {
         const data = await res.json();

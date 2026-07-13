@@ -68,14 +68,11 @@ def assign_driver(self, order_id: str, restaurant_id: str,
                     lng = order.restaurant.longitude
 
             if svc:
-                try:
-                    best_driver = svc.find_best_driver(
-                        order_id      = order_id,
-                        pickup_coords = {"lat": lat, "lng": lng} if lat is not None else None,
-                        restaurant_id = restaurant_id,
-                    )
-                except Exception as e:
-                    logger.warning(f"Matching engine error: {e} — falling back to proximity")
+                best_driver = svc.find_best_driver(
+                    order_id      = order_id,
+                    pickup_coords = {"lat": lat, "lng": lng} if lat is not None else None,
+                    restaurant_id = restaurant_id,
+                )
 
             # Fallback: nearest online driver from Redis location cache
             if not best_driver and redis_svc and lat is not None:

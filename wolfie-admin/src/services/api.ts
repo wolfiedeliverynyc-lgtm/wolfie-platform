@@ -1,10 +1,19 @@
 // src/services/api.ts
 import axios, { InternalAxiosRequestConfig, AxiosResponse } from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
+const formatApiUrl = (url: string | undefined, defaultUrl: string): string => {
+  const target = url || defaultUrl;
+  const trimmed = target.trim().replace(/\/+$/, '');
+  if (!trimmed.endsWith('/api/v1')) {
+    return trimmed + '/api/v1';
+  }
+  return trimmed;
+};
+
+const API_URL = formatApiUrl(process.env.NEXT_PUBLIC_API_URL, 'http://localhost:4000/api/v1');
 
 export const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1',
+  baseURL: formatApiUrl(process.env.NEXT_PUBLIC_API_URL, 'http://localhost:5000/api/v1'),
   headers: {
     'Content-Type': 'application/json',
     'Cache-Control': 'no-cache, no-store, must-revalidate',

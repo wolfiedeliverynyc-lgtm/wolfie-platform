@@ -15,6 +15,7 @@ import OfferCard from './components/OfferCard';
 import ActiveDeliveryWidget from './components/ActiveDeliveryWidget';
 import WolfSvg from './components/WolfSvg';
 import NotificationsPanel from './components/NotificationsPanel';
+import { API_BASE } from './lib/api';
 
 // Pre-configured custom high-fidelity orders corresponding to screenshot template
 // REMOVED: Mock order generators have been replaced by real backend REST API fetches and websocket events.
@@ -96,7 +97,7 @@ export default function App() {
     onLocation: async (lat, lng, heading) => {
       if (store.token) {
         try {
-          await fetch('http://localhost:5000/api/v1/drivers/location', {
+          await fetch(`${API_BASE}/drivers/location`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -233,7 +234,7 @@ export default function App() {
 
     try {
       if (store.token) {
-        await fetch('http://localhost:5000/api/v1/drivers/status', {
+        await fetch(`${API_BASE}/drivers/status`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
@@ -256,7 +257,7 @@ export default function App() {
     // Make backend call to decline
     try {
       if (store.token) {
-        await fetch(`http://localhost:5000/api/v1/orders/${orderId}/status`, {
+        await fetch(`${API_BASE}/orders/${orderId}/status`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
@@ -279,7 +280,7 @@ export default function App() {
 
     try {
       if (store.token) {
-        await fetch(`http://localhost:5000/api/v1/orders/${order.id}/status`, {
+        await fetch(`${API_BASE}/orders/${order.id}/status`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
@@ -338,14 +339,14 @@ export default function App() {
           const loc = store.currentLocation || [0,0];
           
           // Send picked_up
-          await fetch(`http://localhost:5000/api/v1/orders/${activeOrder.id}/status`, {
+          await fetch(`${API_BASE}/orders/${activeOrder.id}/status`, {
             method: 'PATCH',
             headers,
             body: JSON.stringify({ status: 'picked_up', lat: loc[0], lng: loc[1] })
           });
           
           // Send on_the_way
-          await fetch(`http://localhost:5000/api/v1/orders/${activeOrder.id}/status`, {
+          await fetch(`${API_BASE}/orders/${activeOrder.id}/status`, {
             method: 'PATCH',
             headers,
             body: JSON.stringify({ status: 'on_the_way', lat: loc[0], lng: loc[1] })
@@ -388,7 +389,7 @@ export default function App() {
     try {
       if (store.token) {
         const loc = store.currentLocation || [0,0];
-        await fetch(`http://localhost:5000/api/v1/orders/${activeOrder.id}/status`, {
+        await fetch(`${API_BASE}/orders/${activeOrder.id}/status`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',

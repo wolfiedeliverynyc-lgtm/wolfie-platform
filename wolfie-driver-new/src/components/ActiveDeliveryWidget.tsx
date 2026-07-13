@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { Order, OrderItem, OrderStatus } from '../types';
 import { useDriverStore } from '../store/useDriverStore';
+import { API_BASE } from '../lib/api';
 
 interface ActiveDeliveryWidgetProps {
   order: Order;
@@ -82,7 +83,7 @@ export default function ActiveDeliveryWidget({
       const formData = new FormData();
       formData.append('file', file);
       
-      const res = await fetch('http://localhost:5000/api/v1/uploads', {
+      const res = await fetch(`${API_BASE}/uploads`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${store.token}`
