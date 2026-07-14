@@ -245,6 +245,10 @@ export default function Home() {
               <li><span>Setup fee</span><span className="mval">$0</span></li>
               <li><span>Contract</span><span className="mval">None</span></li>
             </ul>
+            <div className="mt-8 flex flex-wrap gap-4">
+              <a href="https://wolfie-platform-sfog-bjdojzh9k-wolfiedeliverynyc-8378s-projects.vercel.app/register" className="btn-gold" target="_blank" rel="noopener noreferrer">Join Free</a>
+              <a href="/restaurant" className="btn-outline">Know More</a>
+            </div>
           </div>
           <div className="dual-card sr d1" id="drivers">
             <div className="dual-card-tag">For drivers</div>
@@ -257,6 +261,10 @@ export default function Home() {
               <li><span>Tips</span><span className="mval">100% to you</span></li>
               <li><span>Pay shown</span><span className="mval">Before accept</span></li>
             </ul>
+            <div className="mt-8 flex flex-wrap gap-4">
+              <a href="https://driver.wolfie.com/register" className="btn-gold" target="_blank" rel="noopener noreferrer">Join Free</a>
+              <a href="/driver" className="btn-outline">Know More</a>
+            </div>
           </div>
         </div>
       </section>

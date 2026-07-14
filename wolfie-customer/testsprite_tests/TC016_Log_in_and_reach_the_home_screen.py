@@ -40,17 +40,12 @@ async def run_test():
         except Exception:
             pass
         
-        # -> Click the visible 'Reload' button on the browser error page to try to load the site.
+        # -> Click the 'Reload' button on the connection error page to retry loading the login screen.
         # Reload button
         elem = page.locator('[id="reload-button"]')
         await elem.click(timeout=10000)
         
-        # -> Click the 'Reload' button on the error page to attempt to load the site again.
-        # Reload button
-        elem = page.locator('[id="reload-button"]')
-        await elem.click(timeout=10000)
-        
-        # -> Click the 'Reload' button on the browser error page to try loading the site again.
+        # -> Click the 'Reload' button on the connection error page to retry loading the login screen.
         # Reload button
         elem = page.locator('[id="reload-button"]')
         await elem.click(timeout=10000)
@@ -58,16 +53,22 @@ async def run_test():
         # --> Assertions to verify final state
         
         # --> Verify the home screen is displayed
-        # Assert: Expected the browser URL to contain wolfie-platform-9hjw.vercel.app indicating the home screen is displayed.
-        await expect(page).to_have_url(re.compile("wolfie\\-platform\\-9hjw\\.vercel\\.app"), timeout=15000), "Expected the browser URL to contain wolfie-platform-9hjw.vercel.app indicating the home screen is displayed."
-        # Assert: Expected the browser URL to match the home screen URL (https://wolfie-platform-9hjw.vercel.app).
-        await expect(page).to_have_url(re.compile("^https?://wolfie-platform-9hjw\\.vercel\\.app/?$"), timeout=15000), "Expected the browser URL to match the home screen URL (https://wolfie-platform-9hjw.vercel.app)."
-        # Assert: Verify the user session is established
-        assert False, "Expected: Verify the user session is established (could not be verified on the page)"
+        # Assert: Expected the Reload button to not be visible when the home screen is displayed.
+        await expect(page.locator("xpath=/html/body/div[1]/div[1]/div[2]/div/button").nth(0)).not_to_be_visible(timeout=15000), "Expected the Reload button to not be visible when the home screen is displayed."
+        # Assert: Expected the Details button to not be visible when the home screen is displayed.
+        await expect(page.locator("xpath=/html/body/div[1]/div[1]/div[2]/button").nth(0)).not_to_be_visible(timeout=15000), "Expected the Details button to not be visible when the home screen is displayed."
+        # Assert: Expected the connection error link 'Checking the proxy and the firewall' to not be visible when the home screen is displayed.
+        await expect(page.locator("xpath=/html/body/div[1]/div[1]/div[1]/div[2]/div[1]/ul/li[2]/a").nth(0)).not_to_be_visible(timeout=15000), "Expected the connection error link 'Checking the proxy and the firewall' to not be visible when the home screen is displayed."
+        
+        # --> Verify the user session is established
+        # Assert: Expected URL to contain '/home' to confirm the user was redirected to the home screen and the session was established.
+        await expect(page).to_have_url(re.compile("/home"), timeout=15000), "Expected URL to contain '/home' to confirm the user was redirected to the home screen and the session was established."
+        # Assert: Expected the 'Reload' button to not be visible because the connection error should be cleared and the app loaded, indicating the session was established.
+        await expect(page.locator("xpath=/html/body/div[1]/div[1]/div[2]/div/button").nth(0)).not_to_be_visible(timeout=15000), "Expected the 'Reload' button to not be visible because the connection error should be cleared and the app loaded, indicating the session was established."
         
         # --> Test blocked by environment/access constraints during agent run
-        # Reason: TEST BLOCKED The test could not be run — the application could not be reached in the browser. Observations: - The browser displays an error page stating ERR_CONNECTION_CLOSED for wolfie-platform-9hjw.vercel.app. - Only the 'Reload' and 'Details' buttons are present on the error page; no homepage content or 'Sign In' control is available. - Reload was attempted multiple times but the site remain...
-        raise AssertionError("Test blocked during agent run: " + "TEST BLOCKED The test could not be run \u2014 the application could not be reached in the browser. Observations: - The browser displays an error page stating ERR_CONNECTION_CLOSED for wolfie-platform-9hjw.vercel.app. - Only the 'Reload' and 'Details' buttons are present on the error page; no homepage content or 'Sign In' control is available. - Reload was attempted multiple times but the site remain..." + " — the exported script cannot reproduce a PASS in this environment.")
+        # Reason: TEST BLOCKED The test could not be run because the login page is unreachable due to a network/connection error. Observations: - The browser shows a connection error page: 'This site can't be reached' with error code ERR_CONNECTION_CLOSED. - Clicking the visible 'Reload' button did not recover the site; the error page remains displayed after multiple attempts. - The application login UI (/login)...
+        raise AssertionError("Test blocked during agent run: " + "TEST BLOCKED The test could not be run because the login page is unreachable due to a network/connection error. Observations: - The browser shows a connection error page: 'This site can't be reached' with error code ERR_CONNECTION_CLOSED. - Clicking the visible 'Reload' button did not recover the site; the error page remains displayed after multiple attempts. - The application login UI (/login)..." + " — the exported script cannot reproduce a PASS in this environment.")
         await asyncio.sleep(5)
 
     finally:

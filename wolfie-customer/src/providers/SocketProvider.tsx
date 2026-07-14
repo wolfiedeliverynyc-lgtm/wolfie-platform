@@ -1,8 +1,10 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { io, Socket } from 'socket.io-client';
+import { Socket } from 'socket.io-client';
 import { logger } from '@/utils/logger';
+import { getAuthToken } from '@/utils/api';
+import { connectSocket, disconnectSocket } from '@/utils/socket';
 
 interface SocketContextType {
   socket: Socket | null;
@@ -19,41 +21,58 @@ export const useSocket = () => useContext(SocketContext);
 export const SocketProvider = ({ children }: { children: ReactNode }) => {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const [token, setToken] = useState<string | null>(null);
+
+  // Poll for token changes to update socket auth dynamically
+  useEffect(() => {
+    setToken(getAuthToken());
+
+    const interval = setInterval(() => {
+      const currentToken = getAuthToken();
+      if (currentToken !== token) {
+        setToken(currentToken);
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [token]);
 
   useEffect(() => {
-    const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'https://wolfie-backend-pt9u.onrender.com';
-    
-    logger.info(`Connecting to Socket server at ${SOCKET_URL}`);
-    
-    const socketInstance = io(SOCKET_URL, {
-      transports: ['websocket'],
-      autoConnect: true,
-      reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
-    });
+    // Force disconnect previous instance to ensure fresh initialization with current token
+    disconnectSocket();
 
-    socketInstance.on('connect', () => {
+    logger.info(`Connecting to Socket server (Authenticated: ${!!token})`);
+    
+    const socketInstance = connectSocket();
+
+    setIsConnected(socketInstance.connected);
+
+    const onConnect = () => {
       logger.info('Socket connected:', socketInstance.id);
       setIsConnected(true);
-    });
+    };
 
-    socketInstance.on('disconnect', (reason) => {
+    const onDisconnect = (reason: string) => {
       logger.warn('Socket disconnected:', reason);
       setIsConnected(false);
-    });
+    };
 
-    socketInstance.on('connect_error', (err) => {
+    const onConnectError = (err: any) => {
       logger.error('Socket connection error:', err);
-    });
+    };
+
+    socketInstance.on('connect', onConnect);
+    socketInstance.on('disconnect', onDisconnect);
+    socketInstance.on('connect_error', onConnectError);
 
     setSocket(socketInstance);
 
     return () => {
-      logger.info('Disconnecting socket...');
-      socketInstance.disconnect();
+      logger.info('Cleaning up socket event listeners...');
+      socketInstance.off('connect', onConnect);
+      socketInstance.off('disconnect', onDisconnect);
+      socketInstance.off('connect_error', onConnectError);
     };
-  }, []);
+  }, [token]);
 
   return (
     <SocketContext.Provider value={{ socket, isConnected }}>
@@ -61,3 +80,5 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
     </SocketContext.Provider>
   );
 };
+
+

@@ -28,9 +28,18 @@ async function request(path, options = {}) {
   }
   const res = await fetch(`${BASE}${path}`, { ...options, headers })
   const data = await res.json().catch(() => ({}))
-  if (!res.ok) throw { status: res.status, message: data.error || 'Request failed', data }
+  if (!res.ok) {
+    if (res.status === 401) {
+      clearToken();
+      if (typeof window !== 'undefined' && window.location.hash !== '#/login' && window.location.hash !== '#/register') {
+        window.location.hash = '#/login';
+      }
+    }
+    throw { status: res.status, message: data.error || 'Request failed', data }
+  }
   return data
 }
+
 
 // ── Auth (Restaurant) ─────────────────────────
 export const restaurantAuth = {

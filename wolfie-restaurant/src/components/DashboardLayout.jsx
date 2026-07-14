@@ -1,13 +1,16 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, UtensilsCrossed, BarChart3, Settings, LogOut, Users, FileText, CreditCard } from 'lucide-react';
+import { clearToken } from '../api';
 
 const DashboardLayout = ({ children }) => {
   const navigate = useNavigate();
 
   const handleLogout = () => {
+    clearToken();
     navigate('/login');
   };
+
 
   return (
     <div className="dashboard-layout">

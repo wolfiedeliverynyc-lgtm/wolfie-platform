@@ -2838,6 +2838,7 @@ export default function HomePage() {
         orderId={activeOrder ? activeOrder.id : undefined}
         restaurantName={activeOrder ? activeOrder.restaurantName : undefined}
         restaurantLogo={activeOrder ? activeOrder.restaurantLogo : undefined}
+        initialStatus={activeOrder ? activeOrder.status : undefined}
         onBackToHome={() => {
           setCurrentView('home');
           setActiveTab('home');

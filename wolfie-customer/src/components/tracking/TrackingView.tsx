@@ -15,6 +15,7 @@ interface TrackingViewProps {
   orderId?: string;
   restaurantLogo?: string;
   restaurantName?: string;
+  initialStatus?: string;
 }
 
 export default function TrackingView({
@@ -22,9 +23,10 @@ export default function TrackingView({
   orderedItems,
   onBackToHome,
   onOpenChat,
-  orderId = 'WOLF_983210',
+  orderId,
   restaurantLogo = '/assets/logo_wendys.png',
   restaurantName = "Wendy's Burgers",
+  initialStatus,
 }: TrackingViewProps) {
   const { socket } = useSocket();
 
@@ -63,6 +65,28 @@ export default function TrackingView({
     ];
   };
 
+  // Map initialStatus to corresponding UI progress and status
+  useEffect(() => {
+    if (initialStatus) {
+      let mappedStatus: 'received' | 'preparing' | 'ontheway' | 'arrived' = 'received';
+      let progress = 0;
+      
+      if (['assigned', 'accepted', 'preparing'].includes(initialStatus)) {
+        mappedStatus = 'preparing';
+        progress = 25;
+      } else if (['ready', 'picked_up', 'on_the_way'].includes(initialStatus)) {
+        mappedStatus = 'ontheway';
+        progress = 65;
+      } else if (['delivered', 'Completed', 'arrived'].includes(initialStatus)) {
+        mappedStatus = 'arrived';
+        progress = 100;
+      }
+      
+      setTrackingStatus(mappedStatus);
+      setDriverProgress(progress);
+    }
+  }, [initialStatus]);
+
   // Connect to Socket and listen for real-time tracking seeding if online
   useEffect(() => {
     if (socket && orderId) {
@@ -77,14 +101,19 @@ export default function TrackingView({
       socket.on('order_status_update', (data: any) => {
         if (data.status) {
           let mappedStatus: 'received' | 'preparing' | 'ontheway' | 'arrived' = 'received';
+          let progress = 0;
           if (['assigned', 'accepted', 'preparing'].includes(data.status)) {
             mappedStatus = 'preparing';
+            progress = 25;
           } else if (['ready', 'picked_up', 'on_the_way'].includes(data.status)) {
             mappedStatus = 'ontheway';
+            progress = 65;
           } else if (data.status === 'delivered') {
             mappedStatus = 'arrived';
+            progress = 100;
           }
           setTrackingStatus(mappedStatus);
+          setDriverProgress(progress);
         }
       });
 
@@ -96,8 +125,12 @@ export default function TrackingView({
     }
   }, [socket, orderId]);
 
-  // Interpolation simulation loop (runs alongside or fallback)
+  // Interpolation simulation loop (runs ONLY if it's the fallback mock order)
   useEffect(() => {
+    if (orderId && orderId !== 'WOLF_983210') {
+      return;
+    }
+
     let startTime = Date.now();
     const duration = 24000; // 24 seconds loop
     
@@ -132,7 +165,26 @@ export default function TrackingView({
     }, 100);
     
     return () => clearInterval(interval);
-  }, []);
+  }, [orderId]);
+
+  // Show "No Active Orders" view if there is no order
+  if (!orderId || !orderedItems || orderedItems.length === 0) {
+    return (
+      <div className="max-w-[600px] mx-auto text-center py-20 px-6 animate-fadeIn">
+        <span className="text-[64px] block mb-4">🛵</span>
+        <h3 className="font-poppins font-bold text-[24px] text-[#3C2F2F]">No Active Orders</h3>
+        <p className="font-roboto text-[15px] text-[#A6A6A6] mt-2 mb-8 leading-relaxed">
+          You don't have any active orders currently in progress. Go back to the homepage to discover premium meals!
+        </p>
+        <button
+          onClick={onBackToHome}
+          className="px-8 py-3.5 bg-[#EF2A39] hover:bg-[#D61B29] text-white font-roboto font-bold text-[15px] rounded-[18px] transition-all cursor-pointer shadow-md active:scale-98"
+        >
+          Return to Homepage
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-[1400px] mx-auto select-none animate-fadeIn text-left pb-16 flex flex-col lg:flex-row gap-8 min-h-[calc(100vh-140px)]">

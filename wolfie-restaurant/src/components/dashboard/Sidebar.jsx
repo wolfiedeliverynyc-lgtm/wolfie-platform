@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { LayoutDashboard, ShoppingBag, UtensilsCrossed, Monitor, BarChart3, Settings, Sun, Moon, Hexagon, HelpCircle, Wallet, LogOut, Star } from 'lucide-react';
 import { useRestaurantStore } from '../../store/useRestaurantStore';
 import { useNavigate } from 'react-router-dom';
+import { clearToken } from '../../api';
 
 const Sidebar = () => {
   const navigate = useNavigate();
@@ -31,9 +32,10 @@ const Sidebar = () => {
 
   const handleLogout = (e) => {
     e.stopPropagation();
-    localStorage.removeItem('restaurant_token');
+    clearToken();
     navigate('/login');
   };
+
 
   const navItems = [
     { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
