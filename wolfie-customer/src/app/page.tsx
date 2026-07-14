@@ -1,4 +1,5 @@
 'use client';
+// Force Vercel rebuild to apply new ignore rules.
 
 import { useState, useEffect, useRef } from 'react';
 import { apiRequest, setAuthToken, getAuthToken, setAuthUserId, getAuthUserId } from '@/utils/api';
