@@ -1,0 +1,23 @@
+node_modules
+**/node_modules
+.next
+**/.next
+.git
+.agents
+wolfie-clean-project
+wolfie-clean-project (2)
+wolfie_backend
+pizza-menu
+ezgif-238b15af1c360435-jpg
+/*.png
+*.mp4
+*.webm
+*.log
+venv
+**/venv
+__pycache__
+**/__pycache__
+wolfie_backend/wolfie_test.db
+wolfie_backend/wolfie_dev.db
+dist
+**/dist
