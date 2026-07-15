@@ -28,6 +28,7 @@ export default function DriverAuthPage() {
   const { theme, setOnline, setDriverProfile, setKycStatus, setOnboarded, setToken } = useDriverStore()
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login')
   const [currentSlide, setCurrentSlide] = React.useState(0)
+  const [registering, setRegistering] = useState(false)
 
   React.useEffect(() => {
     const interval = setInterval(() => {
@@ -63,6 +64,56 @@ export default function DriverAuthPage() {
   const [otpError, setOtpError] = useState('')
   const [otpVerifying, setOtpVerifying] = useState(false)
 
+  const registerDriverOnBackend = async () => {
+    setRegistering(true);
+    try {
+      const apiUrl = API_BASE;
+      // 1. Try to register on backend
+      const regRes = await fetch(`${apiUrl}/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: formData.email.toLowerCase(),
+          password: formData.password,
+          role: 'driver',
+          full_name: formData.name,
+          phone: formData.phone,
+          vehicle_type: formData.vehicleType,
+          vehicle_plate: formData.vehiclePlate,
+          vehicle_model: formData.vehicleModel,
+          profile_photo: formData.profilePhoto
+        })
+      });
+      
+      const regData = await regRes.json();
+      if (!regRes.ok && regRes.status !== 400) {
+        throw new Error(regData.error || 'Failed to register account.');
+      }
+      
+      // 2. Log in to get the JWT token
+      const logRes = await fetch(`${apiUrl}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: formData.email.toLowerCase(),
+          password: formData.password
+        })
+      });
+      
+      const logData = await logRes.json();
+      if (!logRes.ok) {
+        throw new Error(logData.error || 'Registration succeeded, but failed to log in.');
+      }
+      
+      setToken(logData.access_token);
+      setStep(5); // Go directly to Step 5, skipping Step 4 (OTP)
+    } catch (err: any) {
+      alert(err.message || 'Registration failed.');
+    } finally {
+      setRegistering(false);
+    }
+  };
+
   const handleLogin = async (e?: React.FormEvent) => {
     if (e) e.preventDefault()
     
@@ -92,55 +143,27 @@ export default function DriverAuthPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: loginEmail.toLowerCase(),
-          password: loginPass || 'password123'
+          password: loginPass
         })
       });
       
       const data = await res.json()
       
       if (!res.ok) {
-        // If login fails, perform on-the-fly registration with correct full_name payload
-        const registerEmail = isEmail ? identity : `driver_${Math.floor(Math.random() * 100000)}@test.com`;
-        const regRes = await fetch(`${apiUrl}/auth/register`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email: registerEmail.toLowerCase(),
-            password: loginPass || 'password123',
-            role: 'driver',
-            full_name: 'Test Driver',
-            phone: identity || '555-555-0000'
-          })
-        });
-        
-        const regData = await regRes.json();
-        if (!regRes.ok) {
-          throw new Error(regData.error || data.error || 'Authentication failed');
-        }
-        
-        setDriverProfile({
-          name: 'Test Driver',
-          email: registerEmail,
-          phone: identity || '555-555-0000',
-          vehicleType: 'Motorcycle',
-          vehiclePlate: 'NY-8849C',
-          vehicleModel: 'Vespa GTS 300',
-          profilePhoto: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=256'
-        });
-        setToken(regData.access_token);
-      } else {
-        // Login succeeded
-        setDriverProfile({
-          name: data.full_name || 'Kenji Sato',
-          email: loginEmail,
-          phone: data.phone || identity || '+1 (555) 019-4444',
-          vehicleType: data.vehicle_type || 'Motorcycle',
-          vehiclePlate: data.vehicle_plate || 'NY-8849C',
-          vehicleModel: data.vehicle_model || 'Vespa GTS 300',
-          profilePhoto: data.profile_photo || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=256'
-        });
-        setToken(data.access_token);
+        throw new Error(data.error || 'Authentication failed. Please check your credentials.');
       }
+
+      // Login succeeded
+      setDriverProfile({
+        name: data.full_name || 'Kenji Sato',
+        email: loginEmail,
+        phone: data.phone || identity || '+1 (555) 019-4444',
+        vehicleType: data.vehicle_type || 'Motorcycle',
+        vehiclePlate: data.vehicle_plate || 'NY-8849C',
+        vehicleModel: data.vehicle_model || 'Vespa GTS 300',
+        profilePhoto: data.profile_photo || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=256'
+      });
+      setToken(data.access_token);
       
       setKycStatus('approved')
       setOnboarded(true)
@@ -215,8 +238,7 @@ export default function DriverAuthPage() {
       setStep(3)
     } else if (step === 3) {
       if (!photoPreview) { alert('Please upload a photo.'); return }
-      triggerMockOtp()
-      setStep(4)
+      registerDriverOnBackend();
     }
   }
 
@@ -438,18 +460,6 @@ export default function DriverAuthPage() {
                 >
                   ACCESS COURIER HUB
                 </button>
-
-                <button 
-                  type="button" 
-                  onClick={() => handleLogin()}
-                  className="w-full py-3.5 bg-bg-card-hover hover:brightness-105 text-primary font-bold uppercase text-xs tracking-wider rounded-xl transition-all cursor-pointer border border-primary/20"
-                >
-                  BYPASS LOGIN (TEST MODE)
-                </button>
-
-                <div className="text-center pt-2 text-[10px] text-text-secondary">
-                  Demo: Use any credentials to sign in.
-                </div>
               </form>
             ) : (
               <div className="space-y-5">
@@ -615,66 +625,26 @@ export default function DriverAuthPage() {
                       </button>
                       <button 
                         onClick={handleNextStep} 
-                        disabled={!photoPreview} 
+                        disabled={!photoPreview || registering} 
                         className={`flex-1 py-3.5 font-black uppercase text-xs tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 border-none ${
-                          photoPreview 
+                          photoPreview && !registering
                             ? 'bg-primary text-black hover:bg-primary-hover active:scale-[0.98] cursor-pointer' 
                             : 'bg-input-bg/50 text-text-secondary/35 cursor-not-allowed'
                         }`}
                       >
-                        SEND OTP <Smartphone size={14} />
+                        {registering ? (
+                          <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                        ) : (
+                          <>
+                            SUBMIT APPLICATION <ArrowRight size={14} />
+                          </>
+                        )}
                       </button>
                     </div>
                   </div>
                 )}
 
-                {/* Step 4: OTP Verification */}
-                {step === 4 && (
-                  <div className="space-y-4">
-                    <div className="text-center space-y-1">
-                      <h3 className="text-sm font-bold text-text-primary uppercase tracking-wider">Verify Phone</h3>
-                      <p className="text-[11px] text-text-secondary">OTP sent to <span className="text-primary font-bold">{formData.phone}</span></p>
-                    </div>
-                    {otpError && (
-                      <div className="p-3 text-xs bg-accent/10 border border-accent/20 text-accent rounded-xl text-center">
-                        {otpError}
-                      </div>
-                    )}
-                    <div className="flex justify-center gap-2 py-2">
-                      {otpCodes.map((val, idx) => (
-                        <input 
-                          key={idx} 
-                          id={`otp-${idx}`} 
-                          type="text" 
-                          maxLength={1} 
-                          value={val} 
-                          onChange={e => handleOtpChange(e.target.value, idx)} 
-                          onKeyDown={e => handleOtpKeyDown(e, idx)} 
-                          className="w-10 h-12 bg-input-bg border-none rounded-xl text-center text-lg font-bold text-text-primary focus:ring-1 focus:ring-primary outline-none transition-all" 
-                        />
-                      ))}
-                    </div>
-                    <button 
-                      onClick={handleOtpVerify} 
-                      disabled={otpCodes.join('').length < 6 || otpVerifying} 
-                      className={`w-full py-4 font-black uppercase text-xs tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 border-none ${
-                        otpCodes.join('').length === 6 && !otpVerifying 
-                          ? 'bg-primary text-black hover:bg-primary-hover active:scale-[0.98] cursor-pointer' 
-                          : 'bg-input-bg/50 text-text-secondary/35 cursor-not-allowed'
-                      }`}
-                    >
-                      {otpVerifying ? (
-                        <><div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />VERIFYING...</>
-                      ) : 'VERIFY AND FINISH'}
-                    </button>
-                    <div className="text-center pt-2">
-                      <button onClick={triggerMockOtp} disabled={otpCountdown > 0} className="bg-transparent border-none text-xs font-bold text-primary disabled:text-text-secondary cursor-pointer">
-                        {otpCountdown > 0 ? `Resend in ${otpCountdown}s` : 'Resend Code'}
-                      </button>
-                    </div>
-                    <div className="text-center text-[10px] text-text-secondary">Hint: Code is 888888</div>
-                  </div>
-                )}
+
 
                 {/* Step 5: Onboarding Completed */}
                 {step === 5 && (

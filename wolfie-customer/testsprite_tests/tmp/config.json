@@ -1,0 +1,21 @@
+{
+  "status": "commited",
+  "type": "frontend",
+  "scope": "codebase",
+  "localEndpoint": "http://localhost:3000",
+  "loginUser": "wendys@wolfie.delivery",
+  "loginPassword": "password123",
+  "executionArgs": {
+    "projectName": "wolfie-customer",
+    "projectPath": "c:\\Users\\DELL\\Desktop\\wolfie front end\\wolfie-customer",
+    "testIds": [
+      "TC016"
+    ],
+    "additionalInstruction": "Run the tests against the live website https://wolfie-platform-9hjw.vercel.app. Login credentials: customer@wolfie.nyc / wolfie123.",
+    "serverMode": "development",
+    "envs": {
+      "API_KEY": "sk-user-1r9Y3Ioy70NTm-N3LTDvgs_D7as3Olm8bGwTClvrzYdNE9uC6dW59rHI2L36UUtooQLAlipbdimXHR67IFUANudYA88D7aNusmi6CkYTbGyNeUyTK3JHhNlozSCuEB7NrdQ"
+    }
+  },
+  "serverPort": 60893
+}

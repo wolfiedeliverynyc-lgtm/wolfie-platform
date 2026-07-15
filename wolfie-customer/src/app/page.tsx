@@ -641,12 +641,7 @@ export default function HomePage() {
     });
 
     if (res.fallback) {
-      console.warn("Backend offline. Bypassing login with mock data.");
-      setWelcomeAnimation('back');
-      setTimeout(() => {
-        setWelcomeAnimation(null);
-        setCurrentView('home');
-      }, 2000);
+      alert("Failed to connect to the server. Please check your internet connection.");
       return;
     }
 
@@ -688,22 +683,40 @@ export default function HomePage() {
       return;
     }
     
-    const res = await apiRequest('/auth/otp/send', {
+    const regRes = await apiRequest('/auth/register', {
       method: 'POST',
-      body: { phone: authPhone },
+      body: {
+        email: authEmail,
+        password: authPassword,
+        full_name: authFullName,
+        phone: authPhone,
+        role: 'customer'
+      },
       skipAuth: true
     });
 
-    if (res.fallback) {
-      console.warn("Backend offline. Bypassing OTP send with mock code 123456.");
-    } else if (!res.success) {
-      alert(res.error || "Failed to send verification code.");
+    if (regRes.fallback) {
+      alert("Failed to connect to the server. Please check your internet connection.");
       return;
     }
 
-    setOtpFlowContext('register');
-    setOtpTimer(60);
-    setCurrentView('otp');
+    if (regRes.success && regRes.data) {
+      setAuthToken(regRes.data.access_token);
+      setAuthUserId(regRes.data.user_id);
+      setProfileName(authFullName);
+      setProfileEmail(authEmail);
+      setProfilePhone(authPhone);
+      
+      connectSocket();
+
+      setWelcomeAnimation('back');
+      setTimeout(() => {
+        setWelcomeAnimation(null);
+        setCurrentView('address_entry');
+      }, 2000);
+    } else {
+      alert(regRes.error || "Registration failed. Please check your credentials.");
+    }
   };
 
   const handleVerifyOtpAndRegister = async () => {
@@ -719,7 +732,7 @@ export default function HomePage() {
       skipAuth: true
     });
 
-    if (!verifyRes.success && !verifyRes.fallback) {
+    if (!verifyRes.success) {
       alert(verifyRes.error || "Invalid verification code.");
       return;
     }
@@ -737,9 +750,7 @@ export default function HomePage() {
     });
 
     if (regRes.fallback) {
-      console.warn("Backend offline. Simulating registration completion.");
-      setProfileName(authFullName);
-      setCurrentView('address_entry');
+      alert("Failed to connect to the server. Please check your internet connection.");
       return;
     }
 
@@ -796,25 +807,7 @@ export default function HomePage() {
     setIsProcessingPayment(false);
 
     if (res.fallback) {
-      console.warn("Backend offline. Fallback to simulated local checkout.");
-      setPaymentNotification({
-        type: 'success',
-        message: `Order Confirmed! ${selectedRestaurant.name} is being prepared.`
-      });
-      const newOrder: Order = {
-        id: `WOLF_${Math.floor(100000 + Math.random() * 900000)}`,
-        restaurantId: selectedRestaurant.id,
-        restaurantName: selectedRestaurant.name,
-        restaurantLogo: selectedRestaurant.logo,
-        date: 'Today, ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        items: [...cartItems],
-        totalPrice: total,
-        status: 'Placed'
-      };
-      setOrders(prev => [newOrder, ...prev]);
-      setOrderedItems([...cartItems]);
-      setCartItems([]);
-      setShowSuccessOrder(true);
+      alert("Failed to place order. Connection to the server lost.");
       return;
     }
 

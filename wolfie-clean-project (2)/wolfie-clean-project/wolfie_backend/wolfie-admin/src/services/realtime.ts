@@ -1,0 +1,23 @@
+import { io, Socket } from 'socket.io-client';
+
+// Adjust the URL to point to your backend realtime endpoint.
+const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:4000';
+
+// Create a singleton socket instance.
+export const socket: Socket = io(SOCKET_URL, {
+  autoConnect: false,
+  transports: ['websocket'],
+});
+
+// Optional helper to manually connect/disconnect.
+export const connectSocket = () => {
+  if (!socket.connected) {
+    socket.connect();
+  }
+};
+
+export const disconnectSocket = () => {
+  if (socket.connected) {
+    socket.disconnect();
+  }
+};

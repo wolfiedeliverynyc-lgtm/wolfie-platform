@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "name": "wolfie-platform",
+  "redirects": [
+    {
+      "source": "/(.*)",
+      "destination": "https://wolfie-platform-pwmt.vercel.app/$1",
+      "permanent": true
+    }
+  ]
+}

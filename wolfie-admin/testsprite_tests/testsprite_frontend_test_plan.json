@@ -1,0 +1,946 @@
+[
+  {
+    "id": "TC001",
+    "title": "Authenticate and reach the operations dashboard",
+    "description": "An admin can sign in with valid credentials and land on the operations dashboard with live KPI visibility.",
+    "category": "Admin Login",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the operations dashboard is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify live KPI metrics are displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC002",
+    "title": "Access dashboard after signing in",
+    "description": "This test verifies an authenticated admin can sign in and reach the dashboard with live operations visibility.",
+    "category": "Live Operations Dashboard",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the dashboard is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify live operations metrics are displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC003",
+    "title": "Display live operations KPIs on the dashboard",
+    "description": "A logged-in admin can review the core live operations metrics on the dashboard.",
+    "category": "Operations Dashboard",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Wait for the dashboard to load"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify active orders, on-delivery count, available drivers, revenue today, and cancelled rate are displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC004",
+    "title": "Review key dashboard operations at a glance",
+    "description": "This test verifies the dashboard shows the core live KPIs and the live orders feed needed for daily operations.",
+    "category": "Live Operations Dashboard",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify active orders, on-delivery count, available drivers, revenue today, and cancelled rate are displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the live orders table is displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC005",
+    "title": "Show the live orders feed on the dashboard",
+    "description": "A logged-in admin can see the live orders table populated with current orders.",
+    "category": "Operations Dashboard",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Wait for the dashboard to load"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify live orders are displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC006",
+    "title": "Open the full live orders experience from the dashboard",
+    "description": "A logged-in admin can open the expanded live orders view from the dashboard and continue reviewing active orders.",
+    "category": "Operations Dashboard",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Wait for the dashboard to load"
+      },
+      {
+        "type": "action",
+        "description": "Open the full live orders view"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the expanded live orders experience is displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC007",
+    "title": "Filter orders by status and search by order ID",
+    "description": "This test verifies an admin can narrow the order list by status and then find a specific order using its identifier.",
+    "category": "Orders Management",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to open the orders management page"
+      },
+      {
+        "type": "action",
+        "description": "Select an order status filter"
+      },
+      {
+        "type": "action",
+        "description": "Search for an order by order ID"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify matching orders are displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the filtered order list remains visible"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC008",
+    "title": "Search and inspect a driver profile",
+    "description": "This test verifies an admin can find a driver from the fleet list and open the driver detail or review view.",
+    "category": "Driver Fleet Management",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to open the driver management page"
+      },
+      {
+        "type": "action",
+        "description": "Search for a driver by name"
+      },
+      {
+        "type": "action",
+        "description": "Open the selected driver's reviews or profile view"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify matching driver records are displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify driver review details are displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC009",
+    "title": "Search and inspect a merchant profile",
+    "description": "This test verifies an admin can locate a merchant by name and open its reviews from the merchant management page.",
+    "category": "Merchant Management",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to open the merchant management page"
+      },
+      {
+        "type": "action",
+        "description": "Search for a merchant by name"
+      },
+      {
+        "type": "action",
+        "description": "Open the selected merchant's reviews"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify matching merchant records are displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify merchant review details are displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC010",
+    "title": "Review open and resolved support tickets",
+    "description": "This test verifies an admin can filter support tickets by status and open a ticket detail view from the support queue.",
+    "category": "Support Tickets",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to open the support tickets page"
+      },
+      {
+        "type": "action",
+        "description": "Select an open ticket filter"
+      },
+      {
+        "type": "action",
+        "description": "Open a ticket from the list"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the filtered support tickets are displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify ticket details are displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC011",
+    "title": "Reject invalid login credentials",
+    "description": "An admin entering invalid credentials sees a login error and does not gain access to the dashboard.",
+    "category": "Admin Login",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with invalid@example.com"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with incorrect-password"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a login error message is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the operations dashboard is not displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC012",
+    "title": "Toggle a driver's active status",
+    "description": "This test verifies an admin can change a driver's active state from the fleet management page and see the updated status reflected in the UI.",
+    "category": "Driver Fleet Management",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to open the driver management page"
+      },
+      {
+        "type": "action",
+        "description": "Search for a driver by name"
+      },
+      {
+        "type": "action",
+        "description": "Toggle the selected driver's active status"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the driver's status is updated in the list"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the updated status indicator remains visible"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC013",
+    "title": "Suspend and reactivate a merchant",
+    "description": "This test verifies an admin can suspend a merchant account and then restore it from the merchant management page.",
+    "category": "Merchant Management",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to open the merchant management page"
+      },
+      {
+        "type": "action",
+        "description": "Search for a merchant by name"
+      },
+      {
+        "type": "action",
+        "description": "Suspend the selected merchant"
+      },
+      {
+        "type": "action",
+        "description": "Reactivate the selected merchant"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the merchant status is updated in the list"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the merchant remains visible in the results"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC014",
+    "title": "Search and filter drivers by status",
+    "description": "A logged-in admin can narrow the driver roster by status and find matching drivers by name.",
+    "category": "Driver Fleet Management",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /drivers"
+      },
+      {
+        "type": "action",
+        "description": "Filter the driver list by a status"
+      },
+      {
+        "type": "action",
+        "description": "Search for a driver by name"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify matching driver records are displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC015",
+    "title": "Search and inspect merchants",
+    "description": "A logged-in admin can find a merchant by name and open its review information.",
+    "category": "Merchant Management",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /merchants"
+      },
+      {
+        "type": "action",
+        "description": "Search for a merchant by name"
+      },
+      {
+        "type": "action",
+        "description": "Open reviews for a merchant"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify merchant reviews are displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC016",
+    "title": "Search orders by customer name after filtering",
+    "description": "This test verifies an admin can filter orders by status and then locate orders using a customer name search.",
+    "category": "Orders Management",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to open the orders management page"
+      },
+      {
+        "type": "action",
+        "description": "Select an order status filter"
+      },
+      {
+        "type": "action",
+        "description": "Search for orders by customer name"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify matching orders are displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the customer-based search results are shown"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC017",
+    "title": "Review support tickets by status",
+    "description": "A logged-in admin can filter support tickets to open or resolved cases and review the resulting list.",
+    "category": "Support Ticket Management",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /admin/support"
+      },
+      {
+        "type": "action",
+        "description": "Filter tickets by status"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify matching support tickets are displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC018",
+    "title": "Suspend a merchant account",
+    "description": "A logged-in admin can suspend an active merchant from the merchant management page.",
+    "category": "Merchant Management",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /merchants"
+      },
+      {
+        "type": "action",
+        "description": "Suspend a merchant account"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the merchant is marked as suspended"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC019",
+    "title": "Find resolved support tickets and inspect details",
+    "description": "This test verifies an admin can switch the support ticket list to resolved items and open one for review.",
+    "category": "Support Tickets",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to open the support tickets page"
+      },
+      {
+        "type": "action",
+        "description": "Select a resolved ticket filter"
+      },
+      {
+        "type": "action",
+        "description": "Open a ticket from the list"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify resolved support tickets are displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify ticket details are displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC020",
+    "title": "Reactivate a merchant account",
+    "description": "A logged-in admin can restore a suspended merchant to active status from the merchant management page.",
+    "category": "Merchant Management",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /merchants"
+      },
+      {
+        "type": "action",
+        "description": "Activate a merchant account"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the merchant is marked as active"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC021",
+    "title": "Open a support ticket detail view",
+    "description": "A logged-in admin can drill into a support ticket from the support queue and see its details.",
+    "category": "Support Ticket Management",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /admin/support"
+      },
+      {
+        "type": "action",
+        "description": "Open a support ticket"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the ticket detail view is displayed"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC022",
+    "title": "View a driver's reviews",
+    "description": "A logged-in admin can open a driver's review history from the fleet management page.",
+    "category": "Driver Fleet Management",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /drivers"
+      },
+      {
+        "type": "action",
+        "description": "Open reviews for a driver"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify driver reviews are displayed"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC023",
+    "title": "Show an empty state when no orders match filters",
+    "description": "A logged-in admin filtering and searching orders with no match sees an empty state instead of order results.",
+    "category": "Order Management",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /admin/orders"
+      },
+      {
+        "type": "action",
+        "description": "Filter orders by a status that has no matches"
+      },
+      {
+        "type": "action",
+        "description": "Search for an unmatched order identifier or customer name"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify an empty state message is visible"
+      }
+    ],
+    "priority": "Low"
+  },
+  {
+    "id": "TC024",
+    "title": "Show an empty result when no drivers match the search",
+    "description": "A logged-in admin searching for a non-matching driver sees an empty state instead of results.",
+    "category": "Driver Fleet Management",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /drivers"
+      },
+      {
+        "type": "action",
+        "description": "Search for a driver using a unique unmatched name"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify an empty state message is visible"
+      }
+    ],
+    "priority": "Low"
+  }
+]

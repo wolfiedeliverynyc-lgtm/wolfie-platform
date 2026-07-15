@@ -96,14 +96,14 @@ const RestaurantRegister = () => {
   const labelClass = "text-[11px] font-bold text-[#94a3b8] uppercase tracking-[0.15em] block mb-2 font-['Poppins',sans-serif]";
 
   return (
-    <div className="min-h-screen w-full bg-[#000000] text-white font-['Poppins',sans-serif] flex overflow-hidden selection:bg-[#FFE100] selection:text-black">
+    <div className="min-h-screen w-full bg-[#000000] text-white font-['Poppins',sans-serif] flex overflow-y-auto selection:bg-[#FFE100] selection:text-black">
       <div className="w-full grid grid-cols-1 lg:grid-cols-2">
         {/* Left Side: Hero Panel */}
         <div className="hidden lg:flex flex-col justify-end relative overflow-hidden h-full p-16 select-none">
           {/* Background image */}
           <div className="absolute inset-0 z-0">
             <img 
-              src="/restaurant_onboarding_cover.png" 
+              src="/assets/wolf_hero.png" 
               alt="Welcome to Wolfie" 
               className="w-full h-full object-cover transform scale-105" 
             />

@@ -1,0 +1,66 @@
+version: "2"
+type: frontend
+tech_stack:
+  - TypeScript
+  - React
+  - Next.js
+  - Vanilla CSS
+routes:
+  - path: /
+    file: src/app/page.tsx
+    auth_required: false
+    description: Main application layout switcher (home, restaurant, detail, cart, checkout, tracking, chat, settings)
+  - path: /login
+    file: src/app/page.tsx
+    auth_required: false
+    description: User Login View within page switcher
+  - path: /register
+    file: src/app/page.tsx
+    auth_required: false
+    description: User Registration View within page switcher
+features:
+  - name: Restaurant Exploration
+    description: Explore restaurants, view dish categories, search dishes, and filter by criteria.
+    files:
+      - src/components/home/HomeView.tsx
+      - src/components/restaurant/RestaurantDetailView.tsx
+    entry_route: /
+    user_interactions:
+      - Click category button to filter restaurants
+      - Type search query to search dishes
+      - Click restaurant card to view details
+    auth_required: false
+  - name: Food Item Customization & Cart
+    description: Customize food item options (size, spicy, toppings) and add to cart.
+    files:
+      - src/components/restaurant/FoodItemDetailView.tsx
+      - src/components/cart/CartView.tsx
+    entry_route: /
+    user_interactions:
+      - Select spicy level slider
+      - Toggle toppings and additions
+      - Click add to cart
+      - Click cart icon to edit quantities or checkout
+    auth_required: false
+  - name: Payment & Checkout
+    description: Add payment card, select delivery address, and complete order checkout.
+    files:
+      - src/components/checkout/CheckoutView.tsx
+    entry_route: /
+    user_interactions:
+      - Add new credit card details
+      - Enter delivery details
+      - Click place order
+    auth_required: false
+  - name: Geolocation Live Tracking
+    description: Track orders in real-time with status stepper and live Mapbox map coordinates.
+    files:
+      - src/components/tracking/TrackingView.tsx
+      - src/components/tracking/TrackingMap.tsx
+    entry_route: /
+    user_interactions:
+      - View live driver marker updates on map
+      - Expand order details drawer
+      - Click chat icon to talk to courier
+    auth_required: false
+known_limitations: []

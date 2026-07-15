@@ -1,0 +1,201 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-cursive: "Pacifico", cursive;
+  --color-brand: #FF6B00;
+  --color-brand-gold: #FFCC00;
+  --color-like: #FF3040;
+  --color-surface: #0A0A0B;
+  --color-surface2: #111113;
+}
+
+/* ── Reset & Base ─────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background: #000;
+  color: #fff;
+  font-family: "Inter", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overscroll-behavior: none;
+}
+
+/* ── Scrollbars ───────────────────────────────────────── */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ── Glass ────────────────────────────────────────────── */
+.glass {
+  background: rgba(10, 10, 11, 0.82);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255,255,255,0.07);
+}
+
+.glass-light {
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.glass-dark {
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+
+/* ── Brand Gradients ──────────────────────────────────── */
+.gradient-brand {
+  background: linear-gradient(135deg, #FF6B00, #FF9A3C);
+}
+.gradient-brand-text {
+  background: linear-gradient(135deg, #FF6B00, #FFCC00);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.gradient-story-ring {
+  background: linear-gradient(45deg, #FF6B00, #FFCC00, #FF3040);
+}
+.gradient-verified {
+  background: linear-gradient(135deg, #FF6B00, #FF9A3C);
+}
+
+/* ── Like heart animation ─────────────────────────────── */
+@keyframes heartPop {
+  0%   { transform: scale(0) rotate(-15deg); opacity: 0; }
+  40%  { transform: scale(1.3) rotate(5deg); opacity: 1; }
+  70%  { transform: scale(0.9) rotate(-3deg); opacity: 1; }
+  85%  { transform: scale(1.05) rotate(1deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+.heart-pop { animation: heartPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+
+@keyframes heartOverlay {
+  0%   { transform: scale(0.5); opacity: 0.9; }
+  50%  { transform: scale(1.4); opacity: 1; }
+  100% { transform: scale(1.1); opacity: 0; }
+}
+.heart-overlay { animation: heartOverlay 0.8s ease-out forwards; }
+
+/* ── Bookmark animation ───────────────────────────────── */
+@keyframes bookmarkFill {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(0.8); }
+  70%  { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+.bookmark-pop { animation: bookmarkFill 0.3s ease-out; }
+
+/* ── Slide up ─────────────────────────────────────────── */
+@keyframes slideUp {
+  from { transform: translateY(100%); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+.slide-up { animation: slideUp 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+/* ── Fade in ──────────────────────────────────────────── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-in { animation: fadeIn 0.4s ease-out forwards; }
+
+/* ── Story progress ───────────────────────────────────── */
+@keyframes progressFill {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
+/* ── Post image zoom on double tap ───────────────────── */
+.post-image { transition: transform 0.15s ease; }
+.post-image:active { transform: scale(0.98); }
+
+/* ── Cart badge pulse ─────────────────────────────────── */
+@keyframes badgePulse {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.3); }
+}
+.badge-pulse { animation: badgePulse 0.3s ease-out; }
+
+/* ── Bottom sheet drag handle ─────────────────────────── */
+.drag-handle {
+  width: 36px;
+  height: 4px;
+  background: rgba(255,255,255,0.25);
+  border-radius: 2px;
+  margin: 0 auto 16px;
+}
+
+/* ── Story viewer gradient overlays ──────────────────── */
+.story-top-gradient {
+  background: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 40%);
+}
+.story-bottom-gradient {
+  background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 50%);
+}
+
+/* ── Feed post separator ──────────────────────────────── */
+.post-separator {
+  height: 1px;
+  background: rgba(255,255,255,0.06);
+  margin: 8px 0;
+}
+
+/* ── Category chip active glow ────────────────────────── */
+.chip-active {
+  box-shadow: 0 0 16px rgba(255, 107, 0, 0.4);
+}
+
+/* ── Add to cart button ───────────────────────────────── */
+.btn-order {
+  background: linear-gradient(135deg, #FF6B00, #FF8C3A);
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 16px rgba(255, 107, 0, 0.35);
+}
+.btn-order:hover {
+  background: linear-gradient(135deg, #E55F00, #FF7620);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(255, 107, 0, 0.45);
+}
+.btn-order:active {
+  transform: scale(0.96) translateY(0);
+}
+.btn-order-success {
+  background: linear-gradient(135deg, #16a34a, #22c55e) !important;
+  box-shadow: 0 4px 16px rgba(34, 197, 94, 0.35) !important;
+}
+
+/* ── Follow button ────────────────────────────────────── */
+.btn-follow {
+  border: 1.5px solid rgba(255,255,255,0.5);
+  transition: all 0.2s ease;
+}
+.btn-follow:hover { border-color: #FF6B00; color: #FF6B00; }
+.btn-follow.following {
+  background: rgba(255, 107, 0, 0.12);
+  border-color: #FF6B00;
+  color: #FF6B00;
+}
+
+/* ── Verified badge ───────────────────────────────────── */
+.verified-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  background: linear-gradient(135deg, #FF6B00, #FF9A3C);
+  border-radius: 50%;
+  font-size: 8px;
+}
+
+/* ── Delivery badge ───────────────────────────────────── */
+.delivery-available { color: #22c55e; }
+.delivery-unavailable { color: rgba(255,255,255,0.4); }
