@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Lustria, Poppins, Roboto, Inter } from "next/font/google";
 import "./globals.css";
+import "./service-worker-handler"; // PWA service worker handler
 import { ErrorBoundary } from "@/providers/ErrorBoundary";
 import QueryProvider from "@/providers/QueryProvider";
 import AuthProvider from "@/providers/AuthProvider";
