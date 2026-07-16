@@ -1713,10 +1713,82 @@ export default function HomePage() {
     }
   ]);
 
-  const toggleFavoriteRestaurant = (id: string) => {
-    setFavoriteRestaurants(prev =>
-      prev.includes(id) ? prev.filter(rId => rId !== id) : [...prev, id]
-    );
+  // Dynamic backend sync for user data
+  useEffect(() => {
+    const syncUserData = async () => {
+      const userId = getAuthUserId();
+      if (!userId || currentView !== 'home') return;
+
+      // 1. Fetch Orders
+      const ordersRes = await apiRequest(`/orders/customer/${userId}?limit=50`);
+      if (ordersRes.success && ordersRes.data?.orders) {
+        const mappedOrders = ordersRes.data.orders.map((o: any) => ({
+          id: o.id,
+          restaurantId: o.restaurant_id || 'rest_wendys',
+          restaurantName: o.restaurant_name || 'Restaurant',
+          restaurantLogo: o.restaurant_logo || '/assets/default_restaurant.png',
+          date: new Date(o.created_at).toLocaleDateString(),
+          status: o.status === 'delivered' ? 'Completed' : o.status,
+          totalPrice: o.total || 0,
+          items: (o.items || []).map((i: any) => ({
+            foodItem: { name: i.name },
+            quantity: i.quantity,
+            pricePerUnit: i.price,
+            size: i.size || 'M',
+            toppings: [],
+            addons: [],
+            drinks: [],
+            spicy: 0,
+            cartId: `itm_${Math.random()}`
+          })),
+        }));
+        setOrders(mappedOrders);
+      }
+
+      // 2. Fetch Addresses
+      const addrRes = await apiRequest('/addresses');
+      if (addrRes.success && addrRes.data?.addresses?.length > 0) {
+        const mappedLocations = addrRes.data.addresses.map((a: any) => ({
+          id: a.id,
+          name: a.label || 'Address',
+          address: a.full_address,
+        }));
+        setDeliveryLocations(mappedLocations);
+
+        const defaultAddr = addrRes.data.addresses.find((a: any) => a.is_default) || addrRes.data.addresses[0];
+        if (defaultAddr) {
+          setDeliveryAddress(`${defaultAddr.label}: ${defaultAddr.full_address}`);
+        }
+      }
+
+      // 3. Fetch Favorites
+      const favRes = await apiRequest('/favorites');
+      if (favRes.success && favRes.data?.favorites) {
+        setFavoriteRestaurants(favRes.data.favorites.map((f: any) => f.restaurant_id));
+      }
+    };
+    syncUserData();
+  }, [currentView]);
+
+  // Notifications setting
+  useEffect(() => {
+    const saved = localStorage.getItem('wolfie_notifications_enabled');
+    if (saved !== null) setNotificationsEnabled(saved === 'true');
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('wolfie_notifications_enabled', String(notificationsEnabled));
+  }, [notificationsEnabled]);
+
+  const toggleFavoriteRestaurant = async (id: string) => {
+    const isFav = favoriteRestaurants.includes(id);
+    if (isFav) {
+      if (getAuthToken()) await apiRequest(`/favorites/${id}`, { method: 'DELETE' });
+      setFavoriteRestaurants(prev => prev.filter(rId => rId !== id));
+    } else {
+      if (getAuthToken()) await apiRequest('/favorites', { method: 'POST', body: { restaurant_id: id } });
+      setFavoriteRestaurants(prev => [...prev, id]);
+    }
   };
 
   // Chat page states
@@ -2387,12 +2459,22 @@ export default function HomePage() {
         </div>
 
         <button 
-          onClick={() => {
+          onClick={async () => {
             if (!addressSearchInput.trim()) {
               alert('Please enter a delivery address.');
               return;
             }
-            const newLoc = { id: `loc_${Date.now()}`, name: addressSaveLabel, address: addressSearchInput };
+            let locationId = `loc_${Date.now()}`;
+            if (getAuthToken()) {
+              const res = await apiRequest('/addresses', {
+                method: 'POST',
+                body: { label: addressSaveLabel, full_address: addressSearchInput },
+              });
+              if (res.success && res.data?.id) {
+                locationId = res.data.id;
+              }
+            }
+            const newLoc = { id: locationId, name: addressSaveLabel, address: addressSearchInput };
             setDeliveryLocations(prev => [...prev, newLoc]);
             setDeliveryAddress(`${addressSaveLabel}: ${addressSearchInput}`);
             
@@ -3466,13 +3548,23 @@ export default function HomePage() {
               {/* Actions */}
               <div className="mt-6 space-y-3 shrink-0">
                 <button 
-                  onClick={() => {
+                  onClick={async () => {
                     if (!newLocationName.trim() || !newLocationAddress.trim()) {
                       alert("Please fill in both Name and Address fields.");
                       return;
                     }
+                    let locationId = `loc_${Date.now()}`;
+                    if (getAuthToken()) {
+                      const res = await apiRequest('/addresses', {
+                        method: 'POST',
+                        body: { label: newLocationName, full_address: newLocationAddress },
+                      });
+                      if (res.success && res.data?.id) {
+                        locationId = res.data.id;
+                      }
+                    }
                     const newLoc = {
-                      id: `loc_${Date.now()}`,
+                      id: locationId,
                       name: newLocationName,
                       address: newLocationAddress
                     };
@@ -4662,8 +4754,11 @@ export default function HomePage() {
                                   <span className="font-roboto text-[11px] text-[#A6A6A6] block mt-0.5 truncate">{loc.address}</span>
                                 </div>
                                 <button 
-                                  onClick={(e) => {
+                                  onClick={async (e) => {
                                     e.stopPropagation();
+                                    if (getAuthToken() && !loc.id.startsWith('loc_')) {
+                                      await apiRequest(`/addresses/${loc.id}`, { method: 'DELETE' });
+                                    }
                                     setDeliveryLocations(prev => prev.filter(l => l.id !== loc.id));
                                     setProfileMessage({ type: 'success', text: 'Location removed.' });
                                     setTimeout(() => setProfileMessage(null), 3000);
@@ -7613,13 +7708,23 @@ export default function HomePage() {
               </div>
 
               <button 
-                onClick={() => {
+                onClick={async () => {
                   if (!addressSearchInput) {
                     alert('Please choose or enter a delivery address.');
                     return;
                   }
                   // Save location, add to saved list, set deliveryAddress
-                  const newLoc = { id: `loc_${Date.now()}`, name: addressSaveLabel, address: addressSearchInput };
+                  let locationId = `loc_${Date.now()}`;
+                  if (getAuthToken()) {
+                    const res = await apiRequest('/addresses', {
+                      method: 'POST',
+                      body: { label: addressSaveLabel, full_address: addressSearchInput },
+                    });
+                    if (res.success && res.data?.id) {
+                      locationId = res.data.id;
+                    }
+                  }
+                  const newLoc = { id: locationId, name: addressSaveLabel, address: addressSearchInput };
                   setDeliveryLocations(prev => [...prev, newLoc]);
                   setDeliveryAddress(`${addressSaveLabel}: ${addressSearchInput}`);
                   
