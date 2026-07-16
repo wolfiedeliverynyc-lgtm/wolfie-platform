@@ -108,6 +108,9 @@ interface FoodItem {
 }
 
 interface Order {
+  driverName?: string;
+  driverRating?: number;
+  driverAvatar?: string;
   id: string;
   restaurantId: string;
   restaurantName: string;
@@ -1595,7 +1598,7 @@ export default function HomePage() {
       image: '/assets/hamburger_3.png',
       description: "Real Wisconsin mozzarella cheese sticks coated in seasoned Italian breadcrumbs, fried warm and melty. Served with marinara sauce.",
       price: 3.50,
-      deliveryTime: '12 mins',
+      deliveryTime: 'Calculating...',
       category: 'Sides'
     },
     {
@@ -2012,7 +2015,7 @@ export default function HomePage() {
     const slideTexts = [
       "Save your specific preferences (Healthy, Halal, Vegan) and allergy safeguards. Wolfie screens items to ensure a safe, tailored dining experience.",
       "Browse menus, read verified comments, and check out visual storefront stories modeled like your favorite social feeds.",
-      "Watch driver Kenji Sato navigate the Manhattan grid street-by-street on a live Mapbox radar screen, synced with real-time status updates."
+      "Watch driver {activeOrder?.driverName || 'Driver'} navigate the Manhattan grid street-by-street on a live Mapbox radar screen, synced with real-time status updates."
     ];
 
     return (
@@ -2495,7 +2498,7 @@ export default function HomePage() {
     const slideTexts = [
       "Save your specific preferences (Healthy, Halal, Vegan) and allergy safeguards. Wolfie screens items to ensure a safe, tailored dining experience.",
       "Browse menus, read verified comments, and check out visual storefront stories modeled like your favorite social feeds.",
-      "Watch driver Kenji Sato navigate the Manhattan grid street-by-street on a live Mapbox radar screen, synced with real-time status updates."
+      "Watch driver {activeOrder?.driverName || 'Driver'} navigate the Manhattan grid street-by-street on a live Mapbox radar screen, synced with real-time status updates."
     ];
 
     return (
@@ -2920,7 +2923,8 @@ export default function HomePage() {
   const renderDesktopChat = () => {
     const activeOrder = orders.find(o => o.status !== 'Completed');
     return (
-      <ChatView 
+      <ChatView
+        driverName={activeOrder?.driverName} 
         chatRecipient={chatRecipient}
         setChatRecipient={setChatRecipient}
         onBack={() => setCurrentView(previousView)}
@@ -3409,7 +3413,7 @@ export default function HomePage() {
               <div className="grid grid-cols-3 gap-4 flex-1">
                 {[
                   { id: 'avatar_default', name: 'Simona Takahashi', path: '/assets/avatar.png' },
-                  { id: 'avatar_driver', name: 'Kenji Sato', path: '/assets/driver_avatar.png' },
+                  { id: 'avatar_driver', name: {activeOrder?.driverName || 'Your Driver'}, path: '/assets/driver_avatar.png' },
                   { id: 'avatar_user', name: 'Standard User', path: '/assets/user.png' }
                 ].map((avatar) => (
                   <button
@@ -5435,7 +5439,7 @@ export default function HomePage() {
         {/* CHAT VIEW (DRIVER OR SUPPORT CHAT) */}
         {currentView === 'chat' && (() => {
           const messages = chatRecipient === 'support' ? supportMessages : driverMessages;
-          const recipientName = chatRecipient === 'support' ? 'Customer Support' : 'Kenji Sato';
+          const recipientName = chatRecipient === 'support' ? 'Customer Support' : {activeOrder?.driverName || 'Your Driver'};
           const recipientAvatar = chatRecipient === 'support' ? '/assets/wolf_logo.png' : '/assets/driver_avatar.png';
           
           return (
@@ -6663,7 +6667,7 @@ export default function HomePage() {
                 <div className="text-right">
                   <div className="flex items-center gap-1.5 justify-end">
                     <span className="font-roboto font-bold text-[18px] text-[#3C2F2F]">12 mins</span>
-                    <span className="font-roboto font-semibold text-[12px] text-[#EF2A39] bg-[#EF2A39]/10 px-2 py-0.5 rounded-full">Late: 18 mins</span>
+                    <span className="font-roboto font-semibold text-[12px] text-[#EF2A39] bg-[#EF2A39]/10 px-2 py-0.5 rounded-full">ETA</span>
                   </div>
                   <span className="font-roboto font-normal text-[11px] text-[#A6A6A6] block mt-0.5">Estimated Drop-off</span>
                 </div>
@@ -6677,7 +6681,7 @@ export default function HomePage() {
                     <circle cx="7" cy="17" r="2" />
                     <circle cx="16" cy="17" r="2" />
                   </svg>
-                  <span>Traffic: <strong className="text-[#3C2F2F] font-semibold">Moderate</strong></span>
+                  <span>Traffic: <strong className="text-[#3C2F2F] font-semibold">—</strong></span>
                 </div>
                 <div className="w-[1px] h-[12px] bg-gray-200" />
                 <div className="flex items-center gap-1.5 font-roboto text-[12px] text-[#6A6A6A]">
@@ -6692,7 +6696,7 @@ export default function HomePage() {
                     <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
                     <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
                   </svg>
-                  <span>Weather: <strong className="text-[#3C2F2F] font-semibold">Clear, 72°F</strong></span>
+                  <span>Weather: <strong className="text-[#3C2F2F] font-semibold">—</strong></span>
                 </div>
               </div>
 
@@ -6851,13 +6855,13 @@ export default function HomePage() {
                   <div className="w-[50px] h-[50px] rounded-[16px] overflow-hidden bg-white/10 shrink-0 border border-white/10">
                     <img 
                       src="/assets/driver_avatar.png" 
-                      alt="Kenji Sato" 
+                      alt="{activeOrder?.driverName || 'Driver'}" 
                       className="w-full h-full object-cover scale-[1.05]"
                     />
                   </div>
                   <div className="min-w-0">
-                    <span className="font-roboto font-bold text-[15px] block truncate">Kenji Sato</span>
-                    <span className="font-roboto font-medium text-[12px] text-[#FFE100] block mt-0.5">4.9 ★ • Delivery Driver</span>
+                    <span className="font-roboto font-bold text-[15px] block truncate">{activeOrder?.driverName || 'Driver'}</span>
+                    <span className="font-roboto font-medium text-[12px] text-[#FFE100] block mt-0.5">{activeOrder?.driverRating || 'N/A'} ★ • Delivery Driver</span>
                   </div>
                 </div>
                 
@@ -6879,7 +6883,7 @@ export default function HomePage() {
                   {/* Call */}
                   <button 
                     onClick={() => {
-                      alert("Call Simulator:\nConnecting secure line to Driver Kenji Sato (+1 555-019-2831)...");
+                      alert("Call Simulator:\nConnecting secure line to Driver {activeOrder?.driverName || 'Driver'} (+1 555-019-2831)...");
                     }}
                     className="w-[40px] h-[40px] bg-white/15 hover:bg-white/20 active:scale-90 transition-all rounded-[12px] flex items-center justify-center focus:outline-none"
                   >
@@ -6918,7 +6922,7 @@ export default function HomePage() {
                       />
                       <div className="absolute bottom-0 inset-x-0 bg-black/60 p-2.5 text-left text-white text-[12px] font-roboto font-medium flex items-center gap-2">
                         <span>📷</span>
-                        <span>Photo proof left by Kenji Sato</span>
+                        <span>Photo proof left by {activeOrder?.driverName || 'Driver'}</span>
                       </div>
                     </div>
                     
@@ -6961,10 +6965,10 @@ export default function HomePage() {
                     <div className="text-left space-y-2.5 pt-2 border-t border-gray-50">
                       <div className="flex items-center gap-3.5 text-left">
                         <div className="w-[44px] h-[44px] bg-gray-100 rounded-full overflow-hidden border border-gray-100 shrink-0">
-                          <img src="/assets/driver_avatar.png" alt="Kenji Sato" className="w-full h-full object-cover scale-[1.05]" />
+                          <img src="/assets/driver_avatar.png" alt="{activeOrder?.driverName || 'Driver'}" className="w-full h-full object-cover scale-[1.05]" />
                         </div>
                         <div>
-                          <h4 className="font-roboto font-bold text-[15px] text-[#3C2F2F]">Kenji Sato (Driver)</h4>
+                          <h4 className="font-roboto font-bold text-[15px] text-[#3C2F2F]">{activeOrder?.driverName || 'Driver'} (Driver)</h4>
                           <span className="font-roboto text-[11px] text-[#A6A6A6] block mt-0.5">Rate the delivery service</span>
                         </div>
                       </div>
@@ -7186,7 +7190,7 @@ export default function HomePage() {
                     Precision Radar Tracking
                   </h2>
                   <p className="font-roboto font-normal text-[14.5px] text-[#A6A6A6] leading-relaxed">
-                    Watch driver Kenji Sato navigate the Manhattan grid street-by-street on a live Mapbox radar screen, synced with real-time status updates.
+                    Watch driver {activeOrder?.driverName || 'Driver'} navigate the Manhattan grid street-by-street on a live Mapbox radar screen, synced with real-time status updates.
                   </p>
                 </div>
               )}

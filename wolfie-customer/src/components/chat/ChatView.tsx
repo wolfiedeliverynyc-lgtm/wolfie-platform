@@ -12,6 +12,7 @@ export interface ChatMessage {
 }
 
 interface ChatViewProps {
+  driverName?: string;
   chatRecipient: 'driver' | 'support';
   setChatRecipient: (val: 'driver' | 'support') => void;
   onBack: () => void;
@@ -20,6 +21,7 @@ interface ChatViewProps {
 }
 
 export default function ChatView({
+  driverName = 'Driver',
   chatRecipient,
   setChatRecipient,
   onBack,
@@ -120,7 +122,7 @@ export default function ChatView({
   };
 
   const messages = chatRecipient === 'support' ? supportMessages : driverMessages;
-  const recipientName = chatRecipient === 'support' ? 'Customer Support' : 'Kenji Sato';
+  const recipientName = chatRecipient === 'support' ? 'Customer Support' : driverName;
   const recipientAvatar = chatRecipient === 'support' ? '/assets/wolf_logo.png' : '/assets/driver_avatar.png';
   const recipientStatus = chatRecipient === 'support' ? 'Online • 24/7 Support Desk' : 'Active • Courier On Road';
 
@@ -166,7 +168,7 @@ export default function ChatView({
               <img src="/assets/driver_avatar.png" alt="Driver Kenji" className="w-full h-full object-cover" />
             </div>
             <div className="min-w-0 flex-1">
-              <span className="font-poppins font-bold text-[13.5px] block truncate">Kenji Sato (Courier)</span>
+              <span className="font-poppins font-bold text-[13.5px] block truncate">{driverName} (Courier)</span>
               <span className={`font-roboto text-[11px] block mt-0.5 truncate ${chatRecipient === 'driver' ? 'text-[#EF2A39]/85' : 'text-[#A6A6A6]'}`}>
                 On active delivery route
               </span>

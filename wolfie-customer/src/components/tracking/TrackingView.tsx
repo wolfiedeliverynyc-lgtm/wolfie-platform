@@ -214,12 +214,12 @@ export default function TrackingView({
               <div className="text-left">
                 <span className="text-[11px] font-bold text-[#A6A6A6] uppercase tracking-wider block">Estimated Delivery</span>
                 <span className="text-[24px] font-poppins font-black text-[#3C2F2F] mt-1 block">
-                  {trackingStatus === 'arrived' ? 'Delivered' : '12 Minutes'}
+                  {trackingStatus === 'arrived' ? 'Delivered' : 'Calculating...'}
                 </span>
               </div>
               <div className="text-right">
                 <span className="text-[11px] font-bold text-[#A6A6A6] uppercase tracking-wider block">Late Target</span>
-                <span className="text-[14px] font-roboto font-bold text-[#EF2A39] mt-1.5 block">18 Mins Max</span>
+                <span className="text-[14px] font-roboto font-bold text-[#EF2A39] mt-1.5 block">ETA</span>
               </div>
             </div>
 
@@ -332,11 +332,11 @@ export default function TrackingView({
         <div className="bg-white border border-gray-100 rounded-[28px] p-6 shadow-sm space-y-4">
           <div className="flex items-center gap-4">
             <div className="w-[60px] h-[60px] rounded-full overflow-hidden bg-gray-100 border border-gray-200 shrink-0">
-              <img src="/assets/driver_avatar.png" alt="Kenji Sato" className="w-full h-full object-cover" />
+              <img src="/assets/driver_avatar.png" alt="{driverName || 'Driver'}" className="w-full h-full object-cover" />
             </div>
             
             <div className="text-left flex-1 min-w-0">
-              <h4 className="font-poppins font-bold text-[15.5px] text-[#3C2F2F] truncate">Kenji Sato</h4>
+              <h4 className="font-poppins font-bold text-[15.5px] text-[#3C2F2F] truncate">{driverName || 'Driver'}</h4>
               <div className="flex items-center gap-2 mt-0.5">
                 <span className="font-roboto text-[12px] font-bold text-yellow-500">★ 4.9 Rating</span>
                 <span className="text-gray-300">•</span>
@@ -357,7 +357,7 @@ export default function TrackingView({
               </button>
               
               <button 
-                onClick={() => alert("Calling driver Kenji Sato at +1 (555) 019-3829...")}
+                onClick={() => alert("Calling driver {driverName || 'Driver'} at +1 (555) 019-3829...")}
                 className="w-10 h-10 bg-gray-50 hover:bg-gray-100 border border-gray-150 rounded-full flex items-center justify-center text-[#3C2F2F] shadow-xs active:scale-90 transition-all cursor-pointer focus:outline-none"
                 title="Call Kenji"
               >
@@ -370,9 +370,9 @@ export default function TrackingView({
 
           {/* Traffic info */}
           <div className="flex gap-4 border-t border-gray-50 pt-4 text-[12.5px] font-roboto font-bold text-[#6A6A6A]">
-            <span>Traffic density: <span className="text-[#3C2F2F]">Moderate 🚗</span></span>
+            <span>Traffic density: <span className="text-[#3C2F2F]">— 🚗</span></span>
             <span>•</span>
-            <span>Weather: <span className="text-blue-500">Clear, 72°F ☀️</span></span>
+            <span>Weather: <span className="text-blue-500">— ☀️</span></span>
           </div>
         </div>
       </div>
