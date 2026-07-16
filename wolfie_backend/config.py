@@ -70,7 +70,7 @@ class BaseConfig:
     # ── CORS ──────────────────────────────────
     ALLOWED_ORIGINS = os.getenv(
         "ALLOWED_ORIGINS",
-        "http://localhost:3000,http://localhost:5173,https://wolfiedelivery.com,https://wolfie-customer-wolfiedeliverynyc-8378s-projects.vercel.app,https://wolfie-restaurant-wolfiedeliverynyc-8378s-projects.vercel.app,https://wolfie-admin-wolfiedeliverynyc-8378s-projects.vercel.app,https://wolfie-driver-new-wolfiedeliverynyc-8378s-projects.vercel.app"
+        "http://localhost:3000,http://localhost:5173,https://wolfiedelivery.com,https://wolfie-customer-wolfiedeliverynyc-8378s-projects.vercel.app,https://wolfie-restaurant-wolfiedeliverynyc-8378s-projects.vercel.app,https://wolfie-admin-wolfiedeliverynyc-8378s-projects.vercel.app,https://wolfie-driver-new-wolfiedeliverynyc-8378s-projects.vercel.app,https://wolfie-customer.vercel.app,https://wolfie-restaurant.vercel.app,https://wolfie-admin.vercel.app,https://wolfie-driver-new.vercel.app"
     ).split(",")
 
     # ── Misc ──────────────────────────────────
