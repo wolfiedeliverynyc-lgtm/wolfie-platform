@@ -278,7 +278,7 @@ export default function HomePage() {
   const [showSuccessOrder, setShowSuccessOrder] = useState(false);
   const [addedToCartFeedback, setAddedToCartFeedback] = useState(false);
   const [previousView, setPreviousView] = useState<'onboarding' | 'login' | 'register' | 'otp' | 'forgot' | 'reset' | 'address_entry' | 'home' | 'detail' | 'cart' | 'checkout' | 'tracking' | 'restaurant' | 'chat'>('home');
-  const [deliveryAddress, setDeliveryAddress] = useState('M. Takahashi, 123 Main St, NY');
+  const [deliveryAddress, setDeliveryAddress] = useState('');
   const [isEditingAddress, setIsEditingAddress] = useState(false);
   const [paymentCards, setPaymentCards] = useState([
     { id: 'card_mastercard', type: 'credit', name: 'Credit card', number: '5105 **** **** 0505', logo: '/assets/logo_mastercard.png' },
@@ -308,18 +308,15 @@ export default function HomePage() {
 
   // User Profile and Account States
   const [profilePicture, setProfilePicture] = useState('/assets/avatar.png');
-  const [profileName, setProfileName] = useState('M. Takahashi');
-  const [profileEmail, setProfileEmail] = useState('takahashi@wolfie.nyc');
-  const [profilePhone, setProfilePhone] = useState('+1 (555) 019-2831');
-  const [profilePreferFood, setProfilePreferFood] = useState<string[]>(['healthy', 'halal']);
-  const [profileAllergies, setProfileAllergies] = useState<string[]>(['peanuts', 'gluten']);
-  const [currentPassword, setCurrentPassword] = useState('password123');
+  const [profileName, setProfileName] = useState('');
+  const [profileEmail, setProfileEmail] = useState('');
+  const [profilePhone, setProfilePhone] = useState('');
+  const [profilePreferFood, setProfilePreferFood] = useState<string[]>([]);
+  const [profileAllergies, setProfileAllergies] = useState<string[]>([]);
+  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [deliveryLocations, setDeliveryLocations] = useState([
-    { id: 'loc_home', name: 'Home', address: '123 Main St, NY' },
-    { id: 'loc_work', name: 'Work', address: '500 5th Ave, NY' }
-  ]);
+  const [deliveryLocations, setDeliveryLocations] = useState<{id: string; name: string; address: string}[]>([]);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [newLocationName, setNewLocationName] = useState('');
@@ -365,15 +362,11 @@ export default function HomePage() {
       if (token && userId) {
         const res = await apiRequest('/auth/me');
         if (res.success && res.data) {
-          setProfileName(res.data.full_name || 'M. Takahashi');
-          setProfileEmail(res.data.email || 'takahashi@wolfie.nyc');
-          setProfilePhone(res.data.phone || '+1 (555) 019-2831');
-          if (res.data.dietary_preferences) {
-            setProfilePreferFood(res.data.dietary_preferences);
-          }
-          if (res.data.allergy_preferences) {
-            setProfileAllergies(res.data.allergy_preferences);
-          }
+          setProfileName(res.data.full_name || '');
+          setProfileEmail(res.data.email || '');
+          setProfilePhone(res.data.phone || '');
+          setProfilePreferFood(res.data.dietary_preferences || []);
+          setProfileAllergies(res.data.allergy_preferences || []);
           
           // Connect WebSocket
           connectSocket();
@@ -651,15 +644,11 @@ export default function HomePage() {
       
       const profileRes = await apiRequest('/auth/me');
       if (profileRes.success && profileRes.data) {
-        setProfileName(profileRes.data.full_name || 'M. Takahashi');
+        setProfileName(profileRes.data.full_name || '');
         setProfileEmail(profileRes.data.email || email);
-        setProfilePhone(profileRes.data.phone || '+1 (555) 019-2831');
-        if (profileRes.data.dietary_preferences) {
-          setProfilePreferFood(profileRes.data.dietary_preferences);
-        }
-        if (profileRes.data.allergy_preferences) {
-          setProfileAllergies(profileRes.data.allergy_preferences);
-        }
+        setProfilePhone(profileRes.data.phone || '');
+        setProfilePreferFood(profileRes.data.dietary_preferences || []);
+        setProfileAllergies(profileRes.data.allergy_preferences || []);
       } else {
         setProfileName(res.data.full_name || res.data.email || email);
         setProfileEmail(email);
@@ -3616,12 +3605,22 @@ export default function HomePage() {
               <div className="space-y-2.5">
                 <button 
                   onClick={() => {
+                    // Reset ALL user profile data on logout
+                    setProfileName('');
+                    setProfileEmail('');
+                    setProfilePhone('');
                     setProfilePicture('/assets/avatar.png');
-                    setProfilePhone('+1 (555) 019-2831');
-                    setProfilePreferFood(['healthy', 'halal']);
-                    setProfileAllergies(['peanuts', 'gluten']);
+                    setProfilePreferFood([]);
+                    setProfileAllergies([]);
+                    setDeliveryAddress('');
+                    setDeliveryLocations([]);
+                    setFavoriteRestaurants([]);
+                    setOrders([]);
                     setCartItems([]);
                     setActiveTab('home');
+                    // Reset auth & view
+                    setAuthToken(null);
+                    setAuthUserId(null);
                     setCurrentView('onboarding');
                     setOnboardingSlide(0);
                     setAuthEmail('');
@@ -3630,8 +3629,6 @@ export default function HomePage() {
                     setAuthPhone('');
                     setAuthConfirmPassword('');
                     setShowLogoutModal(false);
-                    setAuthToken(null);
-                    setAuthUserId(null);
                   }}
                   className="w-full h-[48px] bg-[#EF2A39] hover:bg-[#EF2A39]/90 active:scale-95 transition-all text-white rounded-[16px] font-roboto font-bold text-[14.5px] cursor-pointer focus:outline-none text-center"
                 >
