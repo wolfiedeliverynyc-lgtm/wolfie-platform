@@ -3,7 +3,8 @@ import withPWA from "@ducanh2912/next-pwa";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  swcMinify: true,
+  // Turbopack config (empty, but required when webpack plugins are used like next-pwa)
+  turbopack: {},
 };
 
 export default withPWA({
