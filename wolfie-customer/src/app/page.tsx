@@ -5439,7 +5439,7 @@ export default function HomePage() {
         {/* CHAT VIEW (DRIVER OR SUPPORT CHAT) */}
         {currentView === 'chat' && (() => {
           const messages = chatRecipient === 'support' ? supportMessages : driverMessages;
-          const recipientName = chatRecipient === 'support' ? 'Customer Support' : {activeOrder?.driverName || 'Your Driver'};
+          const recipientName = chatRecipient === 'support' ? 'Customer Support' : 'Your Driver';
           const recipientAvatar = chatRecipient === 'support' ? '/assets/wolf_logo.png' : '/assets/driver_avatar.png';
           
           return (
