@@ -3413,7 +3413,7 @@ export default function HomePage() {
               <div className="grid grid-cols-3 gap-4 flex-1">
                 {[
                   { id: 'avatar_default', name: 'Simona Takahashi', path: '/assets/avatar.png' },
-                  { id: 'avatar_driver', name: {activeOrder?.driverName || 'Your Driver'}, path: '/assets/driver_avatar.png' },
+                  { id: 'avatar_driver', name: 'Your Driver', path: '/assets/driver_avatar.png' },
                   { id: 'avatar_user', name: 'Standard User', path: '/assets/user.png' }
                 ].map((avatar) => (
                   <button
