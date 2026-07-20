@@ -96,9 +96,12 @@ export default function App() {
   useGPS({
     onLocation: async (lat, lng, heading) => {
       if (store.token) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
         try {
           await fetch(`${API_BASE}/drivers/location`, {
             method: 'POST',
+            signal: controller.signal,
             headers: {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${store.token}`
@@ -112,6 +115,8 @@ export default function App() {
           });
         } catch (e) {
           // Silent catch for frequent GPS updates
+        } finally {
+          clearTimeout(timeoutId);
         }
       }
     }
@@ -232,10 +237,13 @@ export default function App() {
       store.setPendingOffer(null);
     }
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
     try {
       if (store.token) {
         await fetch(`${API_BASE}/drivers/status`, {
           method: 'PATCH',
+          signal: controller.signal,
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${store.token}`
@@ -247,6 +255,8 @@ export default function App() {
       console.error("Failed to sync online status with backend", err);
       // Revert if failed
       setOnline(!status);
+    } finally {
+      clearTimeout(timeoutId);
     }
   };
 
@@ -255,10 +265,13 @@ export default function App() {
     if (soundEnabled) playBeep('CLICK');
 
     // Make backend call to decline
+    const declineController = new AbortController();
+    const declineTimeoutId = setTimeout(() => declineController.abort(), 15000);
     try {
       if (store.token) {
         await fetch(`${API_BASE}/orders/${orderId}/status`, {
           method: 'PATCH',
+          signal: declineController.signal,
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${store.token}`
@@ -268,6 +281,8 @@ export default function App() {
       }
     } catch (e) {
       console.error("Failed to decline order on backend", e);
+    } finally {
+      clearTimeout(declineTimeoutId);
     }
     store.updatePerformance({
       acceptanceRate: Math.max(15, store.performance.acceptanceRate - 2)
@@ -278,10 +293,13 @@ export default function App() {
   const handleAcceptOffer = async (order: Order) => {
     if (soundEnabled) playBeep('CLICK');
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
     try {
       if (store.token) {
         await fetch(`${API_BASE}/orders/${order.id}/status`, {
           method: 'PATCH',
+          signal: controller.signal,
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${store.token}`
@@ -291,6 +309,8 @@ export default function App() {
       }
     } catch (e) {
       console.error("Failed to accept order on backend", e);
+    } finally {
+      clearTimeout(timeoutId);
     }
     
     const newActive: any = {
@@ -330,6 +350,8 @@ export default function App() {
     if (!activeOrder) return;
 
     if (nextStatus === 'NAV_TO_CUSTOMER') {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
       try {
         if (store.token) {
           const headers = {
@@ -341,6 +363,7 @@ export default function App() {
           // Send picked_up
           await fetch(`${API_BASE}/orders/${activeOrder.id}/status`, {
             method: 'PATCH',
+            signal: controller.signal,
             headers,
             body: JSON.stringify({ status: 'picked_up', lat: loc[0], lng: loc[1] })
           });
@@ -348,6 +371,7 @@ export default function App() {
           // Send on_the_way
           await fetch(`${API_BASE}/orders/${activeOrder.id}/status`, {
             method: 'PATCH',
+            signal: controller.signal,
             headers,
             body: JSON.stringify({ status: 'on_the_way', lat: loc[0], lng: loc[1] })
           });
@@ -355,6 +379,8 @@ export default function App() {
       } catch (e) {
         console.error("Failed to advance order status on backend", e);
         return; // Don't advance locally if backend fails
+      } finally {
+        clearTimeout(timeoutId);
       }
     }
 
@@ -386,11 +412,14 @@ export default function App() {
 
     if (soundEnabled) playBeep('SUCCESS');
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
     try {
       if (store.token) {
         const loc = store.currentLocation || [0,0];
         await fetch(`${API_BASE}/orders/${activeOrder.id}/status`, {
           method: 'PATCH',
+          signal: controller.signal,
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${store.token}`
@@ -407,6 +436,8 @@ export default function App() {
     } catch (e) {
       console.error("Failed to complete delivery on backend", e);
       return; // Don't complete locally if backend fails
+    } finally {
+      clearTimeout(timeoutId);
     }
 
     // Build finalized order record

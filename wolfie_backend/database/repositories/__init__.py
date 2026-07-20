@@ -6,6 +6,7 @@ from database.repositories.rating  import RatingRepository, DriverLocationReposi
 from database.repositories.sync_agent import SyncAgentRepository, KitchenMetricRepository, RestaurantScoreRepository, ScoreHistoryRepository
 from database.repositories.wap import WAPPredictionRepository, WAPFeedbackRepository, WAPModelMetricsRepository
 from database.repositories.admin_repo import SupportTicketRepository, RefundRequestRepository, FraudFlagRepository, SupportLogRepository
+from database.repositories.password_reset_otp import PasswordResetOTPRepository
 
 __all__ = [
     "BaseRepository",
@@ -27,4 +28,6 @@ __all__ = [
     "RefundRequestRepository",
     "FraudFlagRepository",
     "SupportLogRepository",
+    "PasswordResetOTPRepository",
 ]
+

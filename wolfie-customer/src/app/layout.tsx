@@ -34,7 +34,16 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Wolfie NYC - Build for New Yorkers!",
   description: "Wolfie NYC delivery service. Built for New Yorkers.",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Wolfie",
+  },
+  formatDetection: {
+    telephone: false,
+  },
 };
+
 
 export default function RootLayout({
   children,

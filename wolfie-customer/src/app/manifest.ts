@@ -67,7 +67,7 @@ export default function manifest(): MetadataRoute.Manifest {
         name: 'Track Order',
         short_name: 'Track',
         description: 'Track your current order in real-time',
-        url: '/tracking',
+        url: '/?view=tracking',
         icons: [
           {
             src: '/icon-192x192.png',

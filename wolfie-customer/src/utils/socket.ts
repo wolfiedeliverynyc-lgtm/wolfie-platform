@@ -17,6 +17,11 @@ export const connectSocket = (): Socket => {
     },
     transports: ['websocket'],
     autoConnect: false,
+    reconnection: true,
+    reconnectionAttempts: 5,
+    reconnectionDelay: 2000,
+    reconnectionDelayMax: 10000,
+    timeout: 20000,
   });
 
   socket.on('connect', () => {

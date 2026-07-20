@@ -7,6 +7,7 @@
 import os
 import random
 import string
+import uuid
 import logging
 from datetime import datetime, timezone, timedelta
 from functools import wraps
@@ -24,19 +25,28 @@ UTC     = timezone.utc
 
 # ── Token helpers ─────────────────────────────────────────────
 
-def _generate_tokens(user_id: str, role: str, secret: str, admin_type: str = None) -> dict:
+def _generate_tokens(user_id: str, role: str, secret: str, admin_type: str = None,
+                      redis=None) -> dict:
     now = datetime.now(UTC)
+    jti = uuid.uuid4().hex   # shared id for this login session (access + refresh)
     access_payload = {
         "sub": user_id, "role": role, "iat": now,
-        "exp": now + timedelta(hours=24), "type": "access",
+        "exp": now + timedelta(hours=24), "type": "access", "jti": jti,
     }
     refresh_payload = {
         "sub": user_id, "role": role, "iat": now,
-        "exp": now + timedelta(days=30), "type": "refresh",
+        "exp": now + timedelta(days=30), "type": "refresh", "jti": jti,
     }
     if admin_type:
         access_payload["admin_type"] = admin_type
         refresh_payload["admin_type"] = admin_type
+
+    # Register the session so it can be revoked on logout (fail-open if Redis is down).
+    if redis:
+        try:
+            redis.sessions.store(jti, user_id, role, ttl=30 * 24 * 3600)
+        except Exception as e:
+            logger.warning(f"Session store failed for user {user_id}: {e}")
 
     return {
         "access_token": jwt.encode(access_payload, secret, algorithm="HS256"),
@@ -66,6 +76,15 @@ def require_auth(roles: list[str] | None = None, admin_types: list[str] | None =
                 return jsonify({"error": "Token expired or invalid"}), 401
             if payload.get("type") != "access":
                 return jsonify({"error": "Refresh token cannot be used here"}), 401
+
+            # Reject revoked/logged-out sessions. Tokens issued before this change
+            # have no "jti" claim and are left to expire naturally (fail-open).
+            jti = payload.get("jti")
+            if jti:
+                redis = getattr(current_app, "redis", None)
+                if redis and not redis.sessions.is_valid(jti):
+                    return jsonify({"error": "Session has been revoked. Please log in again."}), 401
+
             if roles and payload.get("role") not in roles:
                 return jsonify({"error": "Insufficient permissions"}), 403
             
@@ -133,7 +152,8 @@ def register():
                 extra     = {k: v for k, v in data.items()
                              if k not in {"email","password","full_name","name","phone","role"}},
             )
-            tokens  = _generate_tokens(user.id, user.role, current_app.config["JWT_SECRET_KEY"])
+            tokens  = _generate_tokens(user.id, user.role, current_app.config["JWT_SECRET_KEY"],
+                                        redis=getattr(current_app, "redis", None))
             user_id = user.id
             role    = user.role
             email_val = user.email
@@ -183,7 +203,9 @@ def login():
             if not user.is_active:
                 return jsonify({"error": "Account deactivated. Contact support."}), 403
             repo.record_login(user)
-            tokens    = _generate_tokens(user.id, user.role, current_app.config["JWT_SECRET_KEY"], getattr(user, 'admin_type', None))
+            tokens    = _generate_tokens(user.id, user.role, current_app.config["JWT_SECRET_KEY"],
+                                          getattr(user, 'admin_type', None),
+                                          redis=getattr(current_app, "redis", None))
             user_data = {
                 "user": {
                     "id": user.id,
@@ -215,11 +237,23 @@ def refresh_token():
         return jsonify({"error": "Invalid or expired refresh token"}), 401
     if payload.get("type") != "refresh":
         return jsonify({"error": "Not a refresh token"}), 401
-    return jsonify(_generate_tokens(payload["sub"], payload["role"], secret, payload.get("admin_type"))), 200
+    return jsonify(_generate_tokens(payload["sub"], payload["role"], secret, payload.get("admin_type"),
+                                     redis=getattr(current_app, "redis", None))), 200
 
 
 @auth_bp.route("/logout", methods=["POST"])
 def logout():
+    raw = request.headers.get("Authorization", "")
+    if raw.startswith("Bearer "):
+        payload = _decode_token(raw[7:], current_app.config["JWT_SECRET_KEY"])
+        jti = payload.get("jti") if payload else None
+        if jti:
+            redis = getattr(current_app, "redis", None)
+            if redis:
+                try:
+                    redis.sessions.revoke(jti)
+                except Exception as e:
+                    logger.warning(f"Session revoke failed: {e}")
     logger.info("Logout requested")
     return jsonify({"message": "Logged out successfully"}), 200
 
@@ -348,3 +382,157 @@ def verify_otp():
         return jsonify({"verified": True, "message": "OTP verified"}), 200
 
     return jsonify({"verified": False, "error": "Invalid or expired OTP"}), 400
+
+
+# ── Password Recovery (Email OTP / Resend) ─────────────────────
+
+def forgot_password_handler(user_type: str):
+    data = request.get_json(silent=True) or {}
+    email = (data.get("email") or "").lower().strip()
+    if not email:
+        return jsonify({"error": "email required"}), 400
+
+    # Rate Limit Check: max 3 requests per 15 minutes per email
+    redis_inst = getattr(current_app, "redis", None)
+    if redis_inst:
+        rate_key = f"otp_request:{email}"
+        allowed, remaining = redis_inst.limiter.check(rate_key, limit=3, window=900)
+        if not allowed:
+            return jsonify({"error": "Too many requests. Please wait before requesting another code."}), 429
+
+    success_response = jsonify({"message": "If the email exists, a verification code has been sent."}), 200
+
+    try:
+        with transaction() as session:
+            repo = UserRepository(session)
+            user = repo.find_by_email(email)
+            if not user or user.role != user_type:
+                return success_response
+
+            if not user.is_active:
+                return success_response
+
+            from services.email_otp_service import EmailOTPService
+            EmailOTPService.create_reset_otp(session, email, user.id, user_type)
+    except Exception as e:
+        logger.error(f"forgot_password_handler ({user_type}) failed: {e}")
+        return success_response
+
+    return success_response
+
+
+def verify_reset_otp_handler(user_type: str):
+    data = request.get_json(silent=True) or {}
+    email = (data.get("email") or "").lower().strip()
+    otp   = (data.get("otp") or "").strip()
+
+    if not email or not otp:
+        return jsonify({"error": "email and otp required"}), 400
+
+    try:
+        with transaction() as session:
+            from services.email_otp_service import EmailOTPService
+            success, err_msg = EmailOTPService.verify_otp_code(session, email, otp)
+            if not success:
+                return jsonify({"error": err_msg}), 400
+            
+            return jsonify({"verified": True, "message": "Code verified successfully."}), 200
+    except Exception as e:
+        logger.error(f"verify_reset_otp_handler ({user_type}) failed: {e}")
+        return jsonify({"error": "An error occurred during verification. Please try again."}), 500
+
+
+def reset_password_handler(user_type: str):
+    data = request.get_json(silent=True) or {}
+    email = (data.get("email") or "").lower().strip()
+    otp   = (data.get("otp") or "").strip()
+    new_pw = data.get("new_password") or ""
+
+    if not email or not otp or not new_pw:
+        return jsonify({"error": "email, otp, and new_password required"}), 400
+
+    if len(new_pw) < 8:
+        return jsonify({"error": "Password must be at least 8 characters"}), 400
+
+    try:
+        with transaction() as session:
+            from services.email_otp_service import EmailOTPService
+            success, err_msg = EmailOTPService.verify_otp_code(session, email, otp)
+            if not success:
+                return jsonify({"error": err_msg}), 400
+
+            repo = UserRepository(session)
+            user = repo.find_by_email(email)
+            if not user or user.role != user_type:
+                return jsonify({"error": "Invalid account or role."}), 400
+
+            repo.update_password(user, new_pw)
+
+            redis_inst = getattr(current_app, "redis", None)
+            if redis_inst:
+                try:
+                    redis_inst.sessions.revoke_all(user.id)
+                except Exception as ex:
+                    logger.warning(f"Redis session revocation failed: {ex}")
+
+            from services.audit_logger import log_admin_action
+            log_admin_action(
+                session,
+                actor_id=user.id,
+                actor_role=user.role,
+                action="password_reset_success",
+                target_type="user",
+                target_id=user.id,
+                metadata={"email": email},
+                ip_address=request.remote_addr
+            )
+
+            EmailOTPService.invalidate_otp(session, email)
+
+            return jsonify({"success": True, "message": "Password reset successfully. Please log in with your new credentials."}), 200
+    except Exception as e:
+        logger.error(f"reset_password_handler ({user_type}) failed: {e}")
+        return jsonify({"error": "An error occurred while resetting your password. Please try again."}), 500
+
+
+# Customer Recovery Endpoints
+@auth_bp.route("/customer/forgot-password", methods=["POST"])
+def customer_forgot_password():
+    return forgot_password_handler("customer")
+
+@auth_bp.route("/customer/verify-reset-otp", methods=["POST"])
+def customer_verify_reset_otp():
+    return verify_reset_otp_handler("customer")
+
+@auth_bp.route("/customer/reset-password", methods=["POST"])
+def customer_reset_password():
+    return reset_password_handler("customer")
+
+
+# Driver Recovery Endpoints
+@auth_bp.route("/driver/forgot-password", methods=["POST"])
+def driver_forgot_password():
+    return forgot_password_handler("driver")
+
+@auth_bp.route("/driver/verify-reset-otp", methods=["POST"])
+def driver_verify_reset_otp():
+    return verify_reset_otp_handler("driver")
+
+@auth_bp.route("/driver/reset-password", methods=["POST"])
+def driver_reset_password():
+    return reset_password_handler("driver")
+
+
+# Restaurant Recovery Endpoints
+@auth_bp.route("/restaurant/forgot-password", methods=["POST"])
+def restaurant_forgot_password():
+    return forgot_password_handler("restaurant")
+
+@auth_bp.route("/restaurant/verify-reset-otp", methods=["POST"])
+def restaurant_verify_reset_otp():
+    return verify_reset_otp_handler("restaurant")
+
+@auth_bp.route("/restaurant/reset-password", methods=["POST"])
+def restaurant_reset_password():
+    return reset_password_handler("restaurant")
+

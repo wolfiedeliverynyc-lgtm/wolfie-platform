@@ -26,9 +26,138 @@ const onboardingSlides = [
 
 export default function DriverAuthPage() {
   const { theme, setOnline, setDriverProfile, setKycStatus, setOnboarded, setToken } = useDriverStore()
-  const [activeTab, setActiveTab] = useState<'login' | 'register'>('login')
+  const [activeTab, setActiveTab] = useState<'login' | 'register' | 'forgot'>('login')
   const [currentSlide, setCurrentSlide] = React.useState(0)
   const [registering, setRegistering] = useState(false)
+
+  // Forgot password flow states
+  const [forgotStep, setForgotStep] = useState<'email' | 'otp' | 'reset' | 'success'>('email');
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotOtp, setForgotOtp] = useState(['', '', '', '', '', '']);
+  const [forgotNewPass, setForgotNewPass] = useState('');
+  const [forgotConfirmPass, setForgotConfirmPass] = useState('');
+  const [forgotError, setForgotError] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotTimer, setForgotTimer] = useState(600);
+  const [forgotResendTimer, setForgotResendTimer] = useState(0);
+
+  React.useEffect(() => {
+    let timerInterval: NodeJS.Timeout;
+    if (activeTab === 'forgot' && forgotStep === 'otp') {
+      timerInterval = setInterval(() => {
+        setForgotTimer((prev) => (prev > 0 ? prev - 1 : 0));
+        setForgotResendTimer((prev) => (prev > 0 ? prev - 1 : 0));
+      }, 1000);
+    }
+    return () => clearInterval(timerInterval);
+  }, [activeTab, forgotStep]);
+
+  const handleForgotSendOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotError('');
+    if (!forgotEmail) {
+      setForgotError('Please enter your email address.');
+      return;
+    }
+    setForgotLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/auth/driver/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: forgotEmail })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to send verification code.');
+      setForgotStep('otp');
+      setForgotTimer(600);
+      setForgotResendTimer(60);
+      setTimeout(() => document.getElementById('forgot-otp-0')?.focus(), 100);
+    } catch (err: any) {
+      setForgotError(err.message || 'Error occurred.');
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
+  const handleForgotVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotError('');
+    const code = forgotOtp.join('');
+    if (code.length < 6) {
+      setForgotError('Please enter the complete 6-digit code.');
+      return;
+    }
+    if (forgotTimer === 0) {
+      setForgotError('Verification code has expired. Please request a new one.');
+      return;
+    }
+    setForgotLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/auth/driver/verify-reset-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: forgotEmail, otp: code })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Invalid or expired verification code.');
+      setForgotStep('reset');
+    } catch (err: any) {
+      setForgotError(err.message || 'Error occurred.');
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
+  const handleForgotResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotError('');
+    if (forgotNewPass.length < 8) {
+      setForgotError('Password must be at least 8 characters.');
+      return;
+    }
+    if (forgotNewPass !== forgotConfirmPass) {
+      setForgotError('Passwords do not match.');
+      return;
+    }
+    setForgotLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/auth/driver/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: forgotEmail, otp: forgotOtp.join(''), new_password: forgotNewPass })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to reset password.');
+      setForgotStep('success');
+    } catch (err: any) {
+      setForgotError(err.message || 'Error occurred.');
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
+  const handleForgotResendOtp = async () => {
+    if (forgotResendTimer > 0) return;
+    setForgotError('');
+    setForgotLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/auth/driver/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: forgotEmail })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to resend code.');
+      setForgotTimer(600);
+      setForgotResendTimer(60);
+      setForgotOtp(['', '', '', '', '', '']);
+      setTimeout(() => document.getElementById('forgot-otp-0')?.focus(), 100);
+    } catch (err: any) {
+      setForgotError(err.message || 'Error occurred.');
+    } finally {
+      setForgotLoading(false);
+    }
+  };
 
   React.useEffect(() => {
     const interval = setInterval(() => {
@@ -41,7 +170,7 @@ export default function DriverAuthPage() {
   const [loginPass, setLoginPass] = useState('')
   const [showPass, setShowPass] = useState(false)
   const [loginError, setLoginError] = useState('')
-
+  
   const [step, setStep] = useState(1)
   const [formData, setFormData] = useState({
     name: '',
@@ -382,15 +511,23 @@ export default function DriverAuthPage() {
           {/* Header section */}
           <div>
             <h1 className="text-3xl font-extrabold tracking-tight text-text-primary mb-2">
-              {activeTab === 'login' ? 'Courier Hub Login' : 'Courier Application'}
+              {activeTab === 'login' 
+                ? 'Courier Hub Login' 
+                : activeTab === 'forgot' 
+                  ? 'Recover Password' 
+                  : 'Courier Application'}
             </h1>
             <p className="text-[13px] uppercase tracking-[0.15em] text-text-secondary">
-              {activeTab === 'login' ? 'Ecosystem dispatch & live maps' : 'Sign up to deliver in Manhattan'}
+              {activeTab === 'login' 
+                ? 'Ecosystem dispatch & live maps' 
+                : activeTab === 'forgot' 
+                  ? 'Verify your courier credentials' 
+                  : 'Sign up to deliver in Manhattan'}
             </p>
           </div>
 
           {/* Tab Selection */}
-          {step < 4 && (
+          {step < 4 && activeTab !== 'forgot' && (
             <div className="flex border-b border-bg-card-hover">
               <button 
                 onClick={() => { setActiveTab('login'); setStep(1); }} 
@@ -454,6 +591,20 @@ export default function DriverAuthPage() {
                   </div>
                 </div>
 
+                <div className="flex justify-end">
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      setActiveTab('forgot');
+                      setForgotStep('email');
+                      setForgotError('');
+                    }}
+                    className="text-[11px] text-primary hover:underline font-bold uppercase tracking-[0.1em] cursor-pointer bg-transparent border-0"
+                  >
+                    Forgot Password?
+                  </button>
+                </div>
+
                 <button 
                   type="submit" 
                   className="w-full py-4.5 mt-2 bg-primary hover:bg-primary-hover text-black font-black uppercase text-xs tracking-wider rounded-xl transition-all cursor-pointer border-none"
@@ -461,6 +612,189 @@ export default function DriverAuthPage() {
                   ACCESS COURIER HUB
                 </button>
               </form>
+            ) : activeTab === 'forgot' ? (
+              <div className="space-y-5">
+                {forgotError && (
+                  <div className="p-3 text-xs bg-accent/10 border border-accent/20 text-accent rounded-xl text-center">
+                    {forgotError}
+                  </div>
+                )}
+
+                {forgotStep === 'email' && (
+                  <form onSubmit={handleForgotSendOtp} className="space-y-5">
+                    <div>
+                      <label className={labelClass}>Email Address</label>
+                      <div className="relative">
+                        <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary" />
+                        <input 
+                          type="email" 
+                          placeholder="driver@example.com" 
+                          value={forgotEmail} 
+                          onChange={e => setForgotEmail(e.target.value)} 
+                          className={`${inputClass} pl-11`}
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <button 
+                      type="submit" 
+                      disabled={forgotLoading}
+                      className="w-full py-4 bg-primary hover:bg-primary-hover text-black font-black uppercase text-xs tracking-wider rounded-xl transition-all cursor-pointer border-none flex items-center justify-center disabled:opacity-50"
+                    >
+                      {forgotLoading ? 'SENDING CODE...' : 'SEND RECOVERY CODE'}
+                    </button>
+
+                    <button 
+                      type="button" 
+                      onClick={() => setActiveTab('login')}
+                      className="w-full py-4 bg-input-bg text-text-primary font-bold uppercase text-xs tracking-wider rounded-xl hover:bg-bg-card-hover transition-all cursor-pointer border-none flex items-center justify-center"
+                    >
+                      BACK TO SIGN IN
+                    </button>
+                  </form>
+                )}
+
+                {forgotStep === 'otp' && (
+                  <form onSubmit={handleForgotVerifyOtp} className="space-y-5">
+                    <div className="text-center space-y-1">
+                      <p className="text-xs text-text-secondary leading-normal">
+                        We sent a code to your email. Expiring in: <strong className="text-primary">
+                          {Math.floor(forgotTimer / 60)}:{(forgotTimer % 60).toString().padStart(2, '0')}
+                        </strong>
+                      </p>
+                    </div>
+
+                    <div className="flex justify-between gap-2.5">
+                      {forgotOtp.map((digit, idx) => (
+                        <input
+                          key={idx}
+                          id={`forgot-otp-${idx}`}
+                          type="text"
+                          maxLength={1}
+                          value={digit}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/[^0-9]/g, '');
+                            const newOtp = [...forgotOtp];
+                            newOtp[idx] = val;
+                            setForgotOtp(newOtp);
+                            if (val && idx < 5) {
+                              document.getElementById(`forgot-otp-${idx + 1}`)?.focus();
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Backspace' && !forgotOtp[idx] && idx > 0) {
+                              document.getElementById(`forgot-otp-${idx - 1}`)?.focus();
+                            }
+                          }}
+                          disabled={forgotLoading}
+                          className="w-12 h-12 bg-input-bg border-none text-center font-bold text-lg rounded-xl text-text-primary outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+                        />
+                      ))}
+                    </div>
+
+                    <button 
+                      type="submit" 
+                      disabled={forgotLoading}
+                      className="w-full py-4 bg-primary hover:bg-primary-hover text-black font-black uppercase text-xs tracking-wider rounded-xl transition-all cursor-pointer border-none flex items-center justify-center disabled:opacity-50"
+                    >
+                      {forgotLoading ? 'VERIFYING...' : 'VERIFY CODE'}
+                    </button>
+
+                    <div className="flex justify-between items-center text-[11px] font-bold">
+                      <button
+                        type="button"
+                        onClick={() => setForgotStep('email')}
+                        className="text-text-secondary hover:text-text-primary bg-transparent border-0 cursor-pointer"
+                      >
+                        CHANGE EMAIL
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={forgotResendTimer > 0 || forgotLoading}
+                        onClick={handleForgotResendOtp}
+                        className={`${
+                          forgotResendTimer > 0 
+                            ? 'text-text-secondary/50 cursor-not-allowed' 
+                            : 'text-primary hover:underline cursor-pointer'
+                        } bg-transparent border-0`}
+                      >
+                        {forgotResendTimer > 0 ? `RESEND IN ${forgotResendTimer}s` : 'RESEND CODE'}
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                {forgotStep === 'reset' && (
+                  <form onSubmit={handleForgotResetPassword} className="space-y-5">
+                    <div>
+                      <label className={labelClass}>New Password</label>
+                      <div className="relative">
+                        <Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary" />
+                        <input 
+                          type="password" 
+                          placeholder="••••••••" 
+                          value={forgotNewPass} 
+                          onChange={e => setForgotNewPass(e.target.value)} 
+                          className={`${inputClass} pl-11`}
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className={labelClass}>Confirm New Password</label>
+                      <div className="relative">
+                        <Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary" />
+                        <input 
+                          type="password" 
+                          placeholder="••••••••" 
+                          value={forgotConfirmPass} 
+                          onChange={e => setForgotConfirmPass(e.target.value)} 
+                          className={`${inputClass} pl-11`}
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <button 
+                      type="submit" 
+                      disabled={forgotLoading}
+                      className="w-full py-4 bg-primary hover:bg-primary-hover text-black font-black uppercase text-xs tracking-wider rounded-xl transition-all cursor-pointer border-none flex items-center justify-center disabled:opacity-50"
+                    >
+                      {forgotLoading ? 'SAVING...' : 'SAVE PASSWORD'}
+                    </button>
+                  </form>
+                )}
+
+                {forgotStep === 'success' && (
+                  <div className="text-center py-4 space-y-5">
+                    <div className="w-16 h-16 rounded-full bg-primary/10 border border-primary/20 mx-auto flex items-center justify-center text-primary text-2xl animate-bounce">
+                      <Check size={28} />
+                    </div>
+                    <div className="space-y-1">
+                      <h3 className="text-base font-bold text-text-primary uppercase tracking-wider">Password Reset!</h3>
+                      <p className="text-xs text-text-secondary leading-normal max-w-[280px] mx-auto">
+                        Your password was successfully updated. You can now sign in.
+                      </p>
+                    </div>
+                    <button 
+                      onClick={() => {
+                        setActiveTab('login');
+                        setForgotStep('email');
+                        setForgotEmail('');
+                        setForgotOtp(['', '', '', '', '', '']);
+                        setForgotNewPass('');
+                        setForgotConfirmPass('');
+                      }} 
+                      className="w-full py-4 bg-primary hover:bg-primary-hover text-black font-black uppercase text-xs tracking-wider rounded-xl hover:scale-[0.99] transition-all flex items-center justify-center gap-1.5 cursor-pointer border-none"
+                    >
+                      GO TO SIGN IN <ArrowRight size={14} />
+                    </button>
+                  </div>
+                )}
+              </div>
             ) : (
               <div className="space-y-5">
                 {/* Step indicators inside form container */}

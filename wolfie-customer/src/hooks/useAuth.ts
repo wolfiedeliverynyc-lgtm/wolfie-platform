@@ -3,11 +3,29 @@ import { authService, RegisterPayload } from '@/services/authService';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useRouter } from 'next/navigation';
 import { logger } from '@/utils/logger';
+import { useEffect } from 'react';
 
 export function useAuth() {
   const queryClient = useQueryClient();
   const router = useRouter();
   const { setAuth, logout: logoutStore, user, isAuthenticated, token, updateUser } = useAuthStore();
+
+  const { data: profileData } = useQuery({
+    queryKey: ['currentUser'],
+    queryFn: async () => {
+      const profile = await authService.getCurrentUser();
+      // Handle nested data structures if needed
+      return profile?.data || profile;
+    },
+    enabled: isAuthenticated && !!token,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  useEffect(() => {
+    if (profileData) {
+      updateUser(profileData);
+    }
+  }, [profileData, updateUser]);
 
   const loginMutation = useMutation({
     mutationFn: async ({ email, password }: { email: string; password?: string }) => {

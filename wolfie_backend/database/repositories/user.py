@@ -8,7 +8,7 @@ import uuid, hashlib, hmac, os
 from datetime import datetime, timezone, timedelta
 from sqlalchemy import select
 from database.repositories.base import BaseRepository
-from database.schemas import User
+from database.schemas import User, Order
 
 UTC = timezone.utc
 VALID_ROLES = {"customer", "driver", "restaurant", "admin"}
@@ -31,12 +31,23 @@ class UserRepository(BaseRepository[User]):
         return self.list(filters={"role": role}, order_by="created_at",
                          limit=limit, offset=offset)
 
+    # Order statuses where a driver is still tied up with a delivery.
+    # "pending" is excluded because it has no driver_id assigned yet.
+    _ACTIVE_DRIVER_ORDER_STATUSES = (
+        "assigned", "accepted", "preparing", "ready", "picked_up", "on_the_way",
+    )
+
     def find_available_drivers(self) -> list[User]:
+        busy_driver_ids = select(Order.driver_id).where(
+            Order.driver_id.isnot(None),
+            Order.status.in_(self._ACTIVE_DRIVER_ORDER_STATUSES),
+        )
         return self.session.scalars(
             select(User).where(
                 User.role == "driver",
                 User.is_active == True,
                 User.is_available == True,
+                User.id.notin_(busy_driver_ids),
             )
         ).all()
 

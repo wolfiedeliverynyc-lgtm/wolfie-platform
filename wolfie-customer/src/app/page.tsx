@@ -4,14 +4,19 @@
 import { useState, useEffect, useRef } from 'react';
 import { apiRequest, setAuthToken, getAuthToken, setAuthUserId, getAuthUserId } from '@/utils/api';
 import { connectSocket, disconnectSocket, getSocket } from '@/utils/socket';
+import dynamic from 'next/dynamic';
 import HomeView from '@/components/home/HomeView';
-import RestaurantDetailView from '@/components/restaurant/RestaurantDetailView';
 import FoodItemDetailView from '@/components/restaurant/FoodItemDetailView';
-import CartView from '@/components/cart/CartView';
-import CheckoutView from '@/components/checkout/CheckoutView';
-import TrackingView from '@/components/tracking/TrackingView';
-import ChatView from '@/components/chat/ChatView';
-import ProfileView from '@/components/profile/ProfileView';
+import { useAuth } from '@/hooks/useAuth';
+import { useRestaurants } from '@/hooks/useRestaurants';
+import { useRestaurantMenu } from '@/hooks/useRestaurantMenu';
+
+const RestaurantDetailView = dynamic(() => import('@/components/restaurant/RestaurantDetailView'), { ssr: false });
+const CartView = dynamic(() => import('@/components/cart/CartView'), { ssr: false });
+const CheckoutView = dynamic(() => import('@/components/checkout/CheckoutView'), { ssr: false });
+const TrackingView = dynamic(() => import('@/components/tracking/TrackingView'), { ssr: false });
+const ChatView = dynamic(() => import('@/components/chat/ChatView'), { ssr: false });
+const ProfileView = dynamic(() => import('@/components/profile/ProfileView'), { ssr: false });
 
 
 
@@ -262,6 +267,11 @@ export default function HomePage() {
   const [otpCode, setOtpCode] = useState(['', '', '', '']);
   const [otpTimer, setOtpTimer] = useState(0);
   const [otpFlowContext, setOtpFlowContext] = useState<'register' | 'forgot'>('register');
+  const [forgotOtpCode, setForgotOtpCode] = useState(['', '', '', '', '', '']);
+  const [forgotNewPassword, setForgotNewPassword] = useState('');
+  const [forgotConfirmPassword, setForgotConfirmPassword] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotError, setForgotError] = useState('');
   const [addressSearchInput, setAddressSearchInput] = useState('');
   const [addressSaveLabel, setAddressSaveLabel] = useState('Home');
   const [isFetchingGPS, setIsFetchingGPS] = useState(false);
@@ -357,150 +367,100 @@ export default function HomePage() {
   const [dishes, setDishes] = useState<FoodItem[]>([]);
   const [restaurantMenuItems, setRestaurantMenuItems] = useState<any[]>(staticRestaurantMenuItems);
 
-  // Auto login on mount
+  // React Query Hooks
+  const { user, isAuthenticated, updateProfile } = useAuth();
+  const { restaurants: fetchedRestaurants } = useRestaurants();
+  const { menuItems: fetchedMenuItems } = useRestaurantMenu(selectedRestaurant?.id, selectedRestaurant?.name);
+
+  // Sync profile data to local state variables
   useEffect(() => {
-    const autoLogin = async () => {
-      const token = getAuthToken();
-      const userId = getAuthUserId();
-      if (token && userId) {
-        const res = await apiRequest('/auth/me');
-        if (res.success && res.data) {
-          setProfileName(res.data.full_name || '');
-          setProfileEmail(res.data.email || '');
-          setProfilePhone(res.data.phone || '');
-          setProfilePreferFood(res.data.dietary_preferences || []);
-          setProfileAllergies(res.data.allergy_preferences || []);
-          
-          // Connect WebSocket
-          connectSocket();
-          
-          setCurrentView('home');
-        } else {
-          // Token expired or invalid
-          setAuthToken(null);
-          setAuthUserId(null);
-        }
+    if (user) {
+      setProfileName(user.full_name || '');
+      setProfileEmail(user.email || '');
+      setProfilePhone(user.phone || '');
+      setProfilePreferFood(user.dietary_preferences || []);
+      setProfileAllergies(user.allergy_preferences || []);
+    } else {
+      setProfileName('');
+      setProfileEmail('');
+      setProfilePhone('');
+      setProfilePreferFood([]);
+      setProfileAllergies([]);
+    }
+  }, [user]);
+
+  // Handle route view parameter and socket connectivity on mount/auth state change
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const viewParam = params.get('view');
+      if (viewParam === 'tracking') {
+        setCurrentView('tracking');
+      } else if (isAuthenticated && !params.get('view')) {
+        setCurrentView('home');
       }
-    };
-    autoLogin();
-  }, []);
+    }
+
+    if (isAuthenticated) {
+      connectSocket();
+    } else {
+      disconnectSocket();
+    }
+  }, [isAuthenticated]);
 
   const handleToggleDietary = async (dietId: string) => {
-    setProfilePreferFood((prev) => {
-      const updated = prev.includes(dietId)
-        ? prev.filter((x) => x !== dietId)
-        : [...prev, dietId];
+    const updated = profilePreferFood.includes(dietId)
+      ? profilePreferFood.filter((x) => x !== dietId)
+      : [...profilePreferFood, dietId];
 
-      if (getAuthToken()) {
-        apiRequest('/auth/me', {
-          method: 'PATCH',
-          body: { dietary_preferences: updated }
-        });
+    setProfilePreferFood(updated);
+    if (isAuthenticated) {
+      try {
+        await updateProfile({ dietary_preferences: updated });
+      } catch (err) {
+        console.error(err);
       }
-      return updated;
-    });
+    }
   };
 
   const handleToggleAllergy = async (allergyId: string) => {
-    setProfileAllergies((prev) => {
-      const updated = prev.includes(allergyId)
-        ? prev.filter((x) => x !== allergyId)
-        : [...prev, allergyId];
+    const updated = profileAllergies.includes(allergyId)
+      ? profileAllergies.filter((x) => x !== allergyId)
+      : [...profileAllergies, allergyId];
 
-      if (getAuthToken()) {
-        apiRequest('/auth/me', {
-          method: 'PATCH',
-          body: { allergy_preferences: updated }
-        });
+    setProfileAllergies(updated);
+    if (isAuthenticated) {
+      try {
+        await updateProfile({ allergy_preferences: updated });
+      } catch (err) {
+        console.error(err);
       }
-      return updated;
-    });
+    }
   };
 
-  // Fetch restaurants from live backend database
+  // Sync fetched restaurants with state
   useEffect(() => {
-    const fetchRestaurants = async () => {
-      const token = getAuthToken();
-      if (!token) return;
+    if (fetchedRestaurants && fetchedRestaurants.length > 0) {
+      setRestaurants(fetchedRestaurants as any);
 
-      const res = await apiRequest('/restaurants/');
-      if (res.success && res.data && res.data.restaurants) {
-        const mapped: Restaurant[] = res.data.restaurants.map((r: any) => ({
-          id: r.id,
-          name: r.restaurant_name,
-          logo: r.logo_image || '/assets/restaurant_logo_wendys.png',
-          cover: r.hero_image || '/assets/restaurant_cover_wendys.png',
-          rating: 4.8,
-          reviewsCount: '1.2K',
-          deliveryTime: `${r.delivery_time_min || 25} mins`,
-          deliveryFee: r.delivery_fee || 0.99,
-          minOrder: 10.00,
-          tags: r.category ? [r.category] : ['Fast Food'],
-          distance: 0.4,
-          isBestSeller: true,
-          description: r.bio || r.story || '',
-          address: r.address || '123 Main St, New York, NY'
-        }));
-        setRestaurants(mapped);
-        
-        // Auto-update selectedRestaurant to use the database UUID if it has a static ID
-        setSelectedRestaurant(current => {
-          const match = mapped.find(r => 
-            r.name.toLowerCase() === current.name.toLowerCase() || 
-            current.name.toLowerCase().includes(r.name.toLowerCase()) ||
-            r.name.toLowerCase().includes(current.name.toLowerCase())
-          );
-          return match || mapped[0] || current;
-        });
-      }
-    };
-    if (currentView === 'home' && getAuthToken()) {
-      fetchRestaurants();
+      // Auto-update selectedRestaurant to use the database UUID if it has a static ID
+      setSelectedRestaurant(current => {
+        const match = fetchedRestaurants.find(r => 
+          r.name.toLowerCase() === current.name.toLowerCase() || 
+          current.name.toLowerCase().includes(r.name.toLowerCase()) ||
+          r.name.toLowerCase().includes(current.name.toLowerCase())
+        );
+        return (match || fetchedRestaurants[0] || current) as any;
+      });
     }
-  }, [currentView]);
+  }, [fetchedRestaurants]);
 
-  // Fetch restaurant menu from live database
+  // Sync fetched menu items with state
   useEffect(() => {
-    const fetchMenu = async () => {
-      if (!selectedRestaurant) return;
-      
-      if (!getAuthToken()) {
-        const staticItems = [
-          { id: `${selectedRestaurant.id}_1`, name: 'Classic Burger', brand: selectedRestaurant.name, price: 8.24, image: '/assets/hamburger_1.png', category: 'Burgers', description: 'Our signature beef patty with lettuce, tomato, cheese and special sauce.' },
-          { id: `${selectedRestaurant.id}_2`, name: 'Veggie Deluxe Burger', brand: selectedRestaurant.name, price: 7.49, image: '/assets/hamburger_2.png', category: 'Burgers', description: 'Delicious plant-based patty with fresh vegetables, cheese, and pickles.' },
-          { id: `${selectedRestaurant.id}_3`, name: 'Spicy Crispy Chicken', brand: selectedRestaurant.name, price: 8.49, image: '/assets/hamburger_3.png', category: 'Burgers', description: 'Crispy fried chicken breast, spicy seasoning, lettuce and mayo.' },
-          { id: `${selectedRestaurant.id}_4`, name: 'Double Stack Burger', brand: selectedRestaurant.name, price: 9.99, image: '/assets/hamburger_4.png', category: 'Burgers', description: 'Double beef patties, double cheese, and fresh pickles on a toasted bun.' },
-          { id: `${selectedRestaurant.id}_5`, name: 'Chicken Nuggets (6 pcs)', brand: selectedRestaurant.name, price: 5.49, image: '/assets/hamburger_details.png', category: 'Chicken', description: 'Tender all-white meat chicken nuggets fried to a perfect golden crisp.' }
-        ];
-        setRestaurantMenuItems(staticItems);
-        return;
-      }
-
-      const res = await apiRequest(`/restaurants/menu?restaurant_id=${selectedRestaurant.id}`);
-      if (res.success && res.data && res.data.menu && res.data.menu.length > 0) {
-        const mapped = res.data.menu.map((item: any) => ({
-          id: item.id,
-          name: item.name,
-          brand: selectedRestaurant.name,
-          price: item.price,
-          image: item.image_url || '/assets/hamburger_1.png',
-          category: item.category,
-          description: item.description
-        }));
-        setRestaurantMenuItems(mapped);
-      } else {
-        const staticItems = [
-          { id: `${selectedRestaurant.id}_1`, name: 'Classic Burger', brand: selectedRestaurant.name, price: 8.24, image: '/assets/hamburger_1.png', category: 'Burgers', description: 'Our signature beef patty with lettuce, tomato, cheese and special sauce.' },
-          { id: `${selectedRestaurant.id}_2`, name: 'Veggie Deluxe Burger', brand: selectedRestaurant.name, price: 7.49, image: '/assets/hamburger_2.png', category: 'Burgers', description: 'Delicious plant-based patty with fresh vegetables, cheese, and pickles.' },
-          { id: `${selectedRestaurant.id}_3`, name: 'Spicy Crispy Chicken', brand: selectedRestaurant.name, price: 8.49, image: '/assets/hamburger_3.png', category: 'Burgers', description: 'Crispy fried chicken breast, spicy seasoning, lettuce and mayo.' },
-          { id: `${selectedRestaurant.id}_4`, name: 'Double Stack Burger', brand: selectedRestaurant.name, price: 9.99, image: '/assets/hamburger_4.png', category: 'Burgers', description: 'Double beef patties, double cheese, and fresh pickles on a toasted bun.' },
-          { id: `${selectedRestaurant.id}_5`, name: 'Chicken Nuggets (6 pcs)', brand: selectedRestaurant.name, price: 5.49, image: '/assets/hamburger_details.png', category: 'Chicken', description: 'Tender all-white meat chicken nuggets fried to a perfect golden crisp.' }
-        ];
-        setRestaurantMenuItems(staticItems);
-      }
-    };
-    fetchMenu();
-  }, [selectedRestaurant]);
+    if (fetchedMenuItems && fetchedMenuItems.length > 0) {
+      setRestaurantMenuItems(fetchedMenuItems);
+    }
+  }, [fetchedMenuItems]);
 
   // Load all dishes dynamically
   useEffect(() => {
@@ -2199,62 +2159,115 @@ export default function HomePage() {
   };
 
   const renderDesktopOtpForm = () => {
+    const isForgot = otpFlowContext === 'forgot';
+    const codeArray = isForgot ? forgotOtpCode : otpCode;
+    const setCodeArray = isForgot ? setForgotOtpCode : setOtpCode;
+    const numDigits = isForgot ? 6 : 4;
+
+    const handleVerify = async () => {
+      setForgotError('');
+      if (isForgot) {
+        const codeStr = forgotOtpCode.join('');
+        if (codeStr.length < 6) {
+          setForgotError("Please enter the complete 6-digit verification code.");
+          return;
+        }
+        setForgotLoading(true);
+        const res = await apiRequest('/auth/customer/verify-reset-otp', {
+          method: 'POST',
+          body: { email: authEmail, otp: codeStr },
+          skipAuth: true
+        });
+        setForgotLoading(false);
+        if (res.success) {
+          setCurrentView('reset');
+        } else {
+          setForgotError(res.error || "Invalid or expired code.");
+        }
+      } else {
+        handleVerifyOtpAndRegister();
+      }
+    };
+
+    const handleResend = async () => {
+      if (otpTimer > 0) return;
+      setForgotError('');
+      setForgotLoading(true);
+      const res = await apiRequest(isForgot ? '/auth/customer/forgot-password' : '/auth/otp/send', {
+        method: 'POST',
+        body: isForgot ? { email: authEmail } : { phone: authPhone },
+        skipAuth: true
+      });
+      setForgotLoading(false);
+      if (res.success) {
+        setOtpTimer(60);
+        if (isForgot) setForgotOtpCode(['', '', '', '', '', '']);
+        else setOtpCode(['', '', '', '']);
+        alert("A new verification code has been sent.");
+      } else {
+        setForgotError(res.error || "Failed to resend code.");
+      }
+    };
+
     return (
       <div className="flex flex-col text-left animate-fadeIn">
-        <h2 className="font-poppins font-bold text-[32px] text-[#3C2F2F] mb-1">Verify Phone</h2>
-        <p className="font-roboto text-[15px] text-[#A6A6A6] mb-8">We sent a 4-digit code to your phone number.</p>
+        <h2 className="font-poppins font-bold text-[32px] text-[#3C2F2F] mb-1">
+          {isForgot ? 'Verify Email' : 'Verify Phone'}
+        </h2>
+        <p className="font-roboto text-[15px] text-[#A6A6A6] mb-8">
+          {isForgot 
+            ? 'We sent a 6-digit code to your email address.' 
+            : 'We sent a 4-digit code to your phone number.'}
+        </p>
+
+        {forgotError && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-[12px] text-red-600 font-roboto text-[14px]">
+            ⚠️ {forgotError}
+          </div>
+        )}
 
         <div className="flex justify-between gap-4 mb-8">
-          {[0, 1, 2, 3].map((idx) => (
+          {Array.from({ length: numDigits }).map((_, idx) => (
             <input 
               key={idx}
               type="text"
               maxLength={1}
-              value={otpCode[idx]}
+              value={codeArray[idx]}
+              disabled={forgotLoading}
               onChange={(e) => {
                 const val = e.target.value.replace(/[^0-9]/g, '');
-                const updated = [...otpCode];
+                const updated = [...codeArray];
                 updated[idx] = val;
-                setOtpCode(updated);
+                setCodeArray(updated);
                 
-                if (val && idx < 3) {
+                if (val && idx < numDigits - 1) {
                   const nextInput = document.getElementById(`d-otp-${idx + 1}`);
                   if (nextInput) nextInput.focus();
                 }
               }}
               onKeyDown={(e) => {
-                if (e.key === 'Backspace' && !otpCode[idx] && idx > 0) {
+                if (e.key === 'Backspace' && !codeArray[idx] && idx > 0) {
                   const prevInput = document.getElementById(`d-otp-${idx - 1}`);
                   if (prevInput) {
                     prevInput.focus();
-                    const updated = [...otpCode];
+                    const updated = [...codeArray];
                     updated[idx - 1] = '';
-                    setOtpCode(updated);
+                    setCodeArray(updated);
                   }
                 }
               }}
               id={`d-otp-${idx}`}
-              className="w-16 h-16 border-2 border-gray-200 focus:border-[#EF2A39] text-center font-roboto font-bold text-[28px] rounded-[16px] outline-none transition-colors"
+              className="w-16 h-16 border-2 border-gray-200 focus:border-[#EF2A39] text-center font-roboto font-bold text-[28px] rounded-[16px] outline-none transition-colors disabled:opacity-50"
             />
           ))}
         </div>
 
         <button 
-          onClick={() => {
-            if (otpFlowContext === 'register') {
-              handleVerifyOtpAndRegister();
-            } else {
-              const codeStr = otpCode.join('');
-              if (codeStr.length < 4) {
-                alert("Please enter the complete 4-digit verification code.");
-                return;
-              }
-              setCurrentView('reset');
-            }
-          }}
-          className="w-full h-[58px] bg-[#FFE100] hover:brightness-95 active:scale-98 text-[#3C2F2F] font-roboto font-bold text-[16px] rounded-[18px] transition-all cursor-pointer focus:outline-none shadow-sm mb-6"
+          onClick={handleVerify}
+          disabled={forgotLoading}
+          className="w-full h-[58px] bg-[#FFE100] hover:brightness-95 active:scale-98 text-[#3C2F2F] font-roboto font-bold text-[16px] rounded-[18px] transition-all cursor-pointer focus:outline-none shadow-sm mb-6 flex items-center justify-center disabled:opacity-50"
         >
-          Verify Code
+          {forgotLoading ? 'Verifying...' : 'Verify Code'}
         </button>
 
         <p className="text-center font-roboto text-[14px] text-[#A6A6A6]">
@@ -2262,8 +2275,9 @@ export default function HomePage() {
             `Resend code in ${otpTimer}s`
           ) : (
             <button 
-              onClick={() => setOtpTimer(60)}
-              className="font-bold text-[#EF2A39] hover:underline focus:outline-none cursor-pointer"
+              onClick={handleResend}
+              disabled={forgotLoading}
+              className="font-bold text-[#EF2A39] hover:underline focus:outline-none cursor-pointer disabled:opacity-50"
             >
               Resend Code
             </button>
@@ -2274,6 +2288,29 @@ export default function HomePage() {
   };
 
   const renderDesktopForgotForm = () => {
+    const handleSendForgot = async () => {
+      if (!authEmail) {
+        alert("Please enter your email address.");
+        return;
+      }
+      setForgotError('');
+      setForgotLoading(true);
+      const res = await apiRequest('/auth/customer/forgot-password', {
+        method: 'POST',
+        body: { email: authEmail },
+        skipAuth: true
+      });
+      setForgotLoading(false);
+      if (res.success) {
+        setOtpFlowContext('forgot');
+        setOtpTimer(60);
+        setForgotOtpCode(['', '', '', '', '', '']);
+        setCurrentView('otp');
+      } else {
+        alert(res.error || "Failed to initiate recovery. Please try again.");
+      }
+    };
+
     return (
       <div className="flex flex-col text-left animate-fadeIn">
         <h2 className="font-poppins font-bold text-[32px] text-[#3C2F2F] mb-1">Recover Password</h2>
@@ -2287,29 +2324,24 @@ export default function HomePage() {
               placeholder="e.g. takahashi@wolfie.nyc"
               value={authEmail}
               onChange={(e) => setAuthEmail(e.target.value)}
-              className="w-full h-[54px] border border-gray-200 rounded-[16px] px-4 font-roboto text-[14px] outline-none focus:border-[#EF2A39] transition-colors"
+              disabled={forgotLoading}
+              className="w-full h-[54px] border border-gray-200 rounded-[16px] px-4 font-roboto text-[14px] outline-none focus:border-[#EF2A39] transition-colors disabled:opacity-50"
             />
           </div>
         </div>
 
         <button 
-          onClick={() => {
-            if (!authEmail) {
-              alert("Please enter your email address.");
-              return;
-            }
-            setOtpFlowContext('forgot');
-            setOtpTimer(60);
-            setCurrentView('otp');
-          }}
-          className="w-full h-[58px] bg-[#FFE100] hover:brightness-95 active:scale-98 text-[#3C2F2F] font-roboto font-bold text-[16px] rounded-[18px] transition-all cursor-pointer focus:outline-none shadow-sm mb-6"
+          onClick={handleSendForgot}
+          disabled={forgotLoading}
+          className="w-full h-[58px] bg-[#FFE100] hover:brightness-95 active:scale-98 text-[#3C2F2F] font-roboto font-bold text-[16px] rounded-[18px] transition-all cursor-pointer focus:outline-none shadow-sm mb-6 flex items-center justify-center disabled:opacity-50"
         >
-          Send Code
+          {forgotLoading ? 'Sending...' : 'Send Code'}
         </button>
 
         <button 
           onClick={() => setCurrentView('login')}
-          className="w-full h-[58px] bg-white border border-gray-200 hover:bg-gray-50 text-[#3C2F2F] font-roboto font-bold text-[15px] rounded-[18px] transition-all cursor-pointer focus:outline-none shadow-sm"
+          disabled={forgotLoading}
+          className="w-full h-[58px] bg-white border border-gray-200 hover:bg-gray-50 text-[#3C2F2F] font-roboto font-bold text-[15px] rounded-[18px] transition-all cursor-pointer focus:outline-none shadow-sm disabled:opacity-50"
         >
           Cancel
         </button>
@@ -2318,10 +2350,42 @@ export default function HomePage() {
   };
 
   const renderDesktopResetForm = () => {
+    const handleReset = async () => {
+      setForgotError('');
+      if (forgotNewPassword.length < 8) {
+        setForgotError("Password must be at least 8 characters.");
+        return;
+      }
+      if (forgotNewPassword !== forgotConfirmPassword) {
+        setForgotError("Passwords do not match.");
+        return;
+      }
+      setForgotLoading(true);
+      const codeStr = forgotOtpCode.join('');
+      const res = await apiRequest('/auth/customer/reset-password', {
+        method: 'POST',
+        body: { email: authEmail, otp: codeStr, new_password: forgotNewPassword },
+        skipAuth: true
+      });
+      setForgotLoading(false);
+      if (res.success) {
+        alert("Password reset successfully. Please log in.");
+        setCurrentView('login');
+      } else {
+        setForgotError(res.error || "Failed to reset password. Please try again.");
+      }
+    };
+
     return (
       <div className="flex flex-col text-left animate-fadeIn">
         <h2 className="font-poppins font-bold text-[32px] text-[#3C2F2F] mb-1">Reset Password</h2>
         <p className="font-roboto text-[15px] text-[#A6A6A6] mb-8">Set your new account credentials</p>
+
+        {forgotError && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-[12px] text-red-600 font-roboto text-[14px]">
+            ⚠️ {forgotError}
+          </div>
+        )}
 
         <div className="space-y-4 mb-6">
           <div>
@@ -2329,7 +2393,10 @@ export default function HomePage() {
             <input 
               type="password" 
               placeholder="••••••••"
-              className="w-full h-[54px] border border-gray-200 rounded-[16px] px-4 font-roboto text-[14px] outline-none focus:border-[#EF2A39] transition-colors"
+              value={forgotNewPassword}
+              disabled={forgotLoading}
+              onChange={(e) => setForgotNewPassword(e.target.value)}
+              className="w-full h-[54px] border border-gray-200 rounded-[16px] px-4 font-roboto text-[14px] outline-none focus:border-[#EF2A39] transition-colors disabled:opacity-50"
             />
           </div>
           <div>
@@ -2337,19 +2404,20 @@ export default function HomePage() {
             <input 
               type="password" 
               placeholder="••••••••"
-              className="w-full h-[54px] border border-gray-200 rounded-[16px] px-4 font-roboto text-[14px] outline-none focus:border-[#EF2A39] transition-colors"
+              value={forgotConfirmPassword}
+              disabled={forgotLoading}
+              onChange={(e) => setForgotConfirmPassword(e.target.value)}
+              className="w-full h-[54px] border border-gray-200 rounded-[16px] px-4 font-roboto text-[14px] outline-none focus:border-[#EF2A39] transition-colors disabled:opacity-50"
             />
           </div>
         </div>
 
         <button 
-          onClick={() => {
-            alert("Password reset successfully. Please log in.");
-            setCurrentView('login');
-          }}
-          className="w-full h-[58px] bg-[#FFE100] hover:brightness-95 active:scale-98 text-[#3C2F2F] font-roboto font-bold text-[16px] rounded-[18px] transition-all cursor-pointer focus:outline-none shadow-sm"
+          onClick={handleReset}
+          disabled={forgotLoading}
+          className="w-full h-[58px] bg-[#FFE100] hover:brightness-95 active:scale-98 text-[#3C2F2F] font-roboto font-bold text-[16px] rounded-[18px] transition-all cursor-pointer focus:outline-none shadow-sm flex items-center justify-center disabled:opacity-50"
         >
-          Save Password
+          {forgotLoading ? 'Saving...' : 'Save Password'}
         </button>
       </div>
     );
@@ -4820,11 +4888,25 @@ export default function HomePage() {
                               setPasswordError('Password must be at least 6 characters.');
                               return;
                             }
-                            setCurrentPassword(newPassword);
-                            setNewPassword('');
-                            setConfirmPassword('');
-                            setPasswordSuccess('Password successfully updated!');
-                            setTimeout(() => setPasswordSuccess(''), 3000);
+                            const token = getAuthToken();
+                            if (token) {
+                              apiRequest('/auth/change-password', {
+                                method: 'POST',
+                                body: { new_password: newPassword }
+                              }).then((res) => {
+                                if (res.success) {
+                                  setCurrentPassword(newPassword);
+                                  setNewPassword('');
+                                  setConfirmPassword('');
+                                  setPasswordSuccess('Password successfully updated!');
+                                  setTimeout(() => setPasswordSuccess(''), 3000);
+                                } else {
+                                  setPasswordError(res.error || 'Failed to update password.');
+                                }
+                              });
+                            } else {
+                              setPasswordError('Authentication required.');
+                            }
                           }}
                           className="w-full h-[46px] bg-[#FFE100] hover:brightness-95 active:scale-95 transition-all rounded-[16px] font-roboto font-bold text-[14px] text-[#3C2F2F] shadow-[0_4px_12px_rgba(255,225,0,0.15)] cursor-pointer"
                         >

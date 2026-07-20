@@ -14,6 +14,7 @@ const API_URL = formatApiUrl(process.env.NEXT_PUBLIC_API_URL, 'http://localhost:
 
 export const api = axios.create({
   baseURL: formatApiUrl(process.env.NEXT_PUBLIC_API_URL, 'http://localhost:5000/api/v1'),
+  timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
     'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -59,8 +60,30 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
+    // Handle timeout error specifically to give a clearer error message
+    if (error.code === 'ECONNABORTED' && error.message.includes('timeout')) {
+      console.warn('[Axios Admin] Request timed out:', originalRequest.url);
+    }
+
     // Avoid loops and only retry on 401s
     if (error.response?.status === 401 && !originalRequest._retry) {
+      if (originalRequest._retryCount === undefined) {
+        originalRequest._retryCount = 0;
+      }
+
+      if (originalRequest._retryCount >= 2) {
+        console.error('[Axios Admin] Max token refresh retry limit reached (2).');
+        isRefreshing = false;
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
+          window.dispatchEvent(new Event('auth_session_expired'));
+        }
+        return Promise.reject(error);
+      }
+
+      originalRequest._retryCount += 1;
+
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });

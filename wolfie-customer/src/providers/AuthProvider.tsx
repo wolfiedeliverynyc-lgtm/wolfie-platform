@@ -8,13 +8,17 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Wait for Zustand persist to hydrate
-    useAuthStore.persist.onFinishHydration(() => {
+    const unsub = useAuthStore.persist.onFinishHydration(() => {
       setIsHydrated(true);
     });
     
     if (useAuthStore.persist.hasHydrated()) {
       setIsHydrated(true);
     }
+
+    return () => {
+      unsub();
+    };
   }, []);
 
   // Prevent rendering until hydration is complete to avoid hydration mismatch

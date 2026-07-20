@@ -25,6 +25,7 @@ from database.repositories import (
     BaseRepository,
     UserRepository,
     OrderRepository,
+    PasswordResetOTPRepository,
 )
 
 from database import schemas
@@ -35,7 +36,8 @@ __all__ = [
     "get_session", "transaction", "nested_transaction",
     "get_db_session", "health_check",
     # repositories
-    "BaseRepository", "UserRepository", "OrderRepository",
+    "BaseRepository", "UserRepository", "OrderRepository", "PasswordResetOTPRepository",
     # schemas
     "schemas",
 ]
+

@@ -26,18 +26,30 @@ async function request(path, options = {}) {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...options.headers,
   }
-  const res = await fetch(`${BASE}${path}`, { ...options, headers })
-  const data = await res.json().catch(() => ({}))
-  if (!res.ok) {
-    if (res.status === 401) {
-      clearToken();
-      if (typeof window !== 'undefined' && window.location.hash !== '#/login' && window.location.hash !== '#/register') {
-        window.location.hash = '#/login';
+  
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  
+  try {
+    const res = await fetch(`${BASE}${path}`, { 
+      ...options, 
+      headers,
+      signal: controller.signal
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      if (res.status === 401) {
+        clearToken();
+        if (typeof window !== 'undefined' && window.location.hash !== '#/login' && window.location.hash !== '#/register') {
+          window.location.hash = '#/login';
+        }
       }
+      throw { status: res.status, message: data.error || 'Request failed', data }
     }
-    throw { status: res.status, message: data.error || 'Request failed', data }
+    return data
+  } finally {
+    clearTimeout(timeoutId);
   }
-  return data
 }
 
 
@@ -47,6 +59,9 @@ export const restaurantAuth = {
   register: (body) => request('/auth/register', { method: 'POST', body: JSON.stringify(body) }),
   me:       ()     => request('/auth/me'),
   logout:   ()     => { clearToken(); return Promise.resolve() },
+  forgotPassword: (email) => request('/auth/restaurant/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
+  verifyOtp: (email, otp) => request('/auth/restaurant/verify-reset-otp', { method: 'POST', body: JSON.stringify({ email, otp }) }),
+  resetPassword: (email, otp, newPassword) => request('/auth/restaurant/reset-password', { method: 'POST', body: JSON.stringify({ email, otp, new_password: newPassword }) }),
 }
 
 // ── Restaurant Management ─────────────────────

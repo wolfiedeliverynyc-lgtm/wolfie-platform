@@ -733,3 +733,20 @@ class Favorite(Base):
     restaurant = relationship("User", foreign_keys=[restaurant_id])
 
 
+class PasswordResetOTP(Base):
+    __tablename__ = "password_reset_otps"
+
+    id         = Column(String(36), primary_key=True, default=_uuid)
+    user_id    = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_type  = Column(String(50), nullable=False)
+    email      = Column(String(255), nullable=False, index=True)
+    otp_hash   = Column(String(512), nullable=False)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    attempts   = Column(Integer, default=0, nullable=False)
+    is_used    = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=_now, nullable=False)
+
+    user = relationship("User", foreign_keys=[user_id])
+
+
+

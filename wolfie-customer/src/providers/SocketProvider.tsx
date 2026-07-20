@@ -37,12 +37,24 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
   }, [token]);
 
   useEffect(() => {
-    // Force disconnect previous instance to ensure fresh initialization with current token
-    disconnectSocket();
-
-    logger.info(`Connecting to Socket server (Authenticated: ${!!token})`);
-    
     const socketInstance = connectSocket();
+
+    // Update socket auth token dynamically and reconnect only if the token actually changed
+    const currentSocketToken = (socketInstance.auth as any)?.token;
+    const targetToken = token || undefined;
+
+    if (currentSocketToken !== targetToken) {
+      logger.info(`Updating socket token & reconnecting (Authenticated: ${!!token})`);
+      (socketInstance.auth as any).token = targetToken;
+      if (socketInstance.connected) {
+        socketInstance.disconnect().connect();
+      } else {
+        socketInstance.connect();
+      }
+    } else if (!socketInstance.connected) {
+      logger.info('Socket not connected, connecting...');
+      socketInstance.connect();
+    }
 
     setIsConnected(socketInstance.connected);
 

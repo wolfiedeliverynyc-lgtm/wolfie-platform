@@ -86,9 +86,21 @@ def upgrade() -> None:
     op.create_index(op.f('ix_driver_decline_logs_order_id'), 'driver_decline_logs', ['order_id'], unique=False)
     op.add_column('orders', sa.Column('driver_accepted_at', sa.DateTime(timezone=True), nullable=True))
     op.add_column('orders', sa.Column('restaurant_accepted_at', sa.DateTime(timezone=True), nullable=True))
-    op.drop_index(op.f('ix_reviews_order_id'), table_name='reviews')
-    op.create_index(op.f('ix_reviews_order_id'), 'reviews', ['order_id'], unique=False)
-    op.create_unique_constraint('uq_order_reviewee', 'reviews', ['order_id', 'reviewee_id'])
+    try:
+        op.drop_index(op.f('ix_reviews_order_id'), table_name='reviews')
+    except Exception as e:
+        if 'no such index' not in str(e).lower():
+            raise
+    try:
+        op.create_index(op.f('ix_reviews_order_id'), 'reviews', ['order_id'], unique=False)
+    except Exception as e:
+        if 'already exists' not in str(e).lower():
+            raise
+    try:
+        op.create_unique_constraint('uq_order_reviewee', 'reviews', ['order_id', 'reviewee_id'])
+    except Exception as e:
+        if 'already exists' not in str(e).lower():
+            raise
     # ### end Alembic commands ###
 
 
