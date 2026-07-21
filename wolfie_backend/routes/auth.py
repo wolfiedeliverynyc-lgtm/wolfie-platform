@@ -17,6 +17,7 @@ from flask import Blueprint, request, jsonify, current_app
 from database import transaction, get_db_session
 from services.redis_service import rate_limit
 from database.repositories import UserRepository
+from validation import validate_request, UserRegisterSchema, UserLoginSchema
 
 auth_bp = Blueprint("auth", __name__)
 logger  = logging.getLogger("wolfie")
@@ -123,22 +124,11 @@ def require_auth(roles: list[str] | None = None, admin_types: list[str] | None =
 
 @auth_bp.route("/register", methods=["POST"])
 @rate_limit(limit=5, window=300)   # 5 registrations per 5 min per IP
+@validate_request(UserRegisterSchema)
 def register():
     data    = request.get_json(silent=True) or {}
-    full_name = data.get("full_name") or data.get("name")
-    role = data.get("role") or "customer"
-    
-    payload_data = {
-        "email": data.get("email"),
-        "password": data.get("password"),
-        "full_name": full_name,
-        "phone": data.get("phone"),
-        "role": role
-    }
-    
-    missing = [f for f in ["email","password","full_name","phone","role"] if not payload_data.get(f)]
-    if missing:
-        return jsonify({"error": f"Missing fields: {missing}"}), 400
+    payload_data = request.validated_data.model_dump()
+
 
     try:
         with transaction() as session:
@@ -187,12 +177,11 @@ def register():
 
 @auth_bp.route("/login", methods=["POST"])
 @rate_limit(limit=10, window=60)   # 10 login attempts per minute per IP
+@validate_request(UserLoginSchema)
 def login():
-    data     = request.get_json(silent=True) or {}
-    email    = (data.get("email") or "").lower().strip()
-    password = data.get("password") or ""
-    if not email or not password:
-        return jsonify({"error": "email and password required"}), 400
+    payload_data = request.validated_data
+    email    = payload_data.email.lower().strip()
+    password = payload_data.password
 
     try:
         with transaction() as session:

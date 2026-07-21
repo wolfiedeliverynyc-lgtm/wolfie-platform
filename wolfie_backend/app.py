@@ -222,11 +222,13 @@ def _register_blueprints(app: Flask):
     from routes.admin_ai_wap import admin_ai_wap_bp
     from routes.uploads import uploads_bp
     from routes.addresses import addresses_bp
-    from routes.chat import chat_bp
-    from routes.favorites import favorites_bp
     from routes.driver_kyc import driver_kyc_bp
     from routes.legal import legal_bp
     from routes.testing import testing_bp
+    from routes.ai_support import ai_support_bp
+    from routes.chat import chat_bp
+    from routes.favorites import favorites_bp
+
 
     app.register_blueprint(auth_bp,         url_prefix="/api/v1/auth")
     app.register_blueprint(legal_bp,        url_prefix="/api/v1/legal")
@@ -245,6 +247,8 @@ def _register_blueprints(app: Flask):
     app.register_blueprint(addresses_bp,    url_prefix="/api/v1/addresses")
     app.register_blueprint(chat_bp,         url_prefix="/api/v1/chat")
     app.register_blueprint(favorites_bp,    url_prefix="/api/v1/favorites")
+    app.register_blueprint(ai_support_bp,   url_prefix="/api/v1/support")
+
     app.register_blueprint(admin_bp,        url_prefix="/api/v1/admin")
     app.register_blueprint(admin_orders_bp, url_prefix="/api/v1/admin")
     app.register_blueprint(admin_refunds_bp,url_prefix="/api/v1/admin")

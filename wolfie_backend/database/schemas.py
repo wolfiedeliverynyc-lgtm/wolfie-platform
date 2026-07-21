@@ -652,6 +652,45 @@ class SupportLog(Base):
     ip_address  = Column(String(45))
     created_at  = Column(DateTime(timezone=True), default=_now, nullable=False)
 
+
+# ══════════════════════════════════════════════════════════════
+# AI SUPPORT & CONVERSATIONS
+# ══════════════════════════════════════════════════════════════
+
+class AIConversation(Base):
+    __tablename__ = "ai_conversations"
+
+    id           = Column(String(36), primary_key=True, default=_uuid)
+    user_id      = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_role    = Column(String(20), nullable=False)  # customer, driver, restaurant
+    session_id   = Column(String(100), nullable=False, unique=True, index=True)
+    summary      = Column(Text, default="")
+    is_escalated = Column(Boolean, default=False, nullable=False)
+    rating       = Column(Integer)  # 1 = positive, -1 = negative
+    created_at   = Column(DateTime(timezone=True), default=_now, nullable=False)
+    updated_at   = Column(DateTime(timezone=True), default=_now, onupdate=_now, nullable=False)
+
+    user = relationship("User", foreign_keys=[user_id])
+    messages = relationship("AIMessage", back_populates="conversation", cascade="all, delete-orphan")
+
+
+class AIMessage(Base):
+    __tablename__ = "ai_messages"
+
+    id               = Column(String(36), primary_key=True, default=_uuid)
+    conversation_id  = Column(String(36), ForeignKey("ai_conversations.id", ondelete="CASCADE"), nullable=False, index=True)
+    role             = Column(String(20), nullable=False)  # user, assistant
+    message_encrypted = Column(Text, nullable=False)       # Encrypted text
+    intent           = Column(String(100))
+    model_used       = Column(String(50))
+    tokens_used      = Column(Integer, default=0)
+    latency_ms       = Column(Integer, default=0)
+    confidence_score = Column(Float, default=1.0)
+    created_at       = Column(DateTime(timezone=True), default=_now, nullable=False)
+
+    conversation = relationship("AIConversation", back_populates="messages")
+
+
 # ══════════════════════════════════════════════════════════════
 # MERCHANT ONBOARDING & FINANCE MODELS
 # ══════════════════════════════════════════════════════════════

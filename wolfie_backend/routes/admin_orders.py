@@ -21,6 +21,20 @@ def list_orders():
         user_repo = UserRepository(session)
         orders = repo.find_by_status(status, limit, offset) if status else repo.list(limit=limit, offset=offset)
         
+        # Collect all user IDs to avoid N+1 query pattern
+        user_ids = set()
+        for o in orders:
+            if getattr(o, "customer_id", None):
+                user_ids.add(o.customer_id)
+            if getattr(o, "restaurant_id", None):
+                user_ids.add(o.restaurant_id)
+            if getattr(o, "driver_id", None):
+                user_ids.add(o.driver_id)
+
+        # Batch fetch all required users in 1 query
+        users = user_repo.get_many(user_ids)
+        users_by_id = {u.id: u for u in users}
+        
         result = []
         for o in orders:
             o_dict = repo.to_dict(o)
@@ -29,13 +43,13 @@ def list_orders():
             
             # Fetch customer
             if getattr(o, "customer_id", None):
-                cust = user_repo.get(o.customer_id)
+                cust = users_by_id.get(o.customer_id)
                 if cust:
                     o_dict["customer_name"] = cust.full_name
             
             # Fetch merchant
             if getattr(o, "restaurant_id", None):
-                merch = user_repo.get(o.restaurant_id)
+                merch = users_by_id.get(o.restaurant_id)
                 if merch:
                     o_dict["merchant_name"] = getattr(merch, "restaurant_name", None) or merch.full_name
                     o_dict["merchant_address"] = getattr(merch, "address", None) or merch.phone
@@ -46,7 +60,7 @@ def list_orders():
                     
             # Fetch driver
             if getattr(o, "driver_id", None):
-                driver = user_repo.get(o.driver_id)
+                driver = users_by_id.get(o.driver_id)
                 if driver:
                     o_dict["driver_name"] = driver.full_name
 

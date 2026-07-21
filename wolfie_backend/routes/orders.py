@@ -12,6 +12,7 @@ from routes.auth import require_auth
 from database import transaction, get_db_session
 from database.repositories import OrderRepository, UserRepository
 from database.schemas import IdempotencyKey, User, MenuItem
+from validation import validate_request, OrderCreateSchema
 
 orders_bp = Blueprint("orders", __name__)
 logger    = logging.getLogger("wolfie")
@@ -124,8 +125,9 @@ def get_price_quote():
 
 @orders_bp.route("/", methods=["POST"])
 @idempotent
+@validate_request(OrderCreateSchema)
 def create_order():
-    data    = request.get_json(silent=True) or {}
+    data    = request.validated_data.model_dump(by_alias=True)
     
     # 1. Resolve customer_id from token if not in body
     customer_id = data.get("customer_id")

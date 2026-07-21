@@ -52,6 +52,12 @@ class BaseRepository(Generic[T]):
         stmt = select(self.model).filter_by(**kwargs)
         return list(self.session.scalars(stmt).all())
 
+    def get_many(self, record_ids: list[str] | set[str]) -> list[T]:
+        if not record_ids:
+            return []
+        stmt = select(self.model).where(self.model.id.in_(list(record_ids)))
+        return list(self.session.scalars(stmt).all())
+
     def list(
         self,
         filters: dict = None,
@@ -59,8 +65,12 @@ class BaseRepository(Generic[T]):
         desc: bool = True,
         limit: int = 50,
         offset: int = 0,
+        options: list = None,
     ) -> list[T]:
         stmt = select(self.model)
+
+        if options:
+            stmt = stmt.options(*options)
 
         if filters:
             for attr, value in filters.items():

@@ -1,0 +1,364 @@
+import json
+import time
+import requests
+import os
+from database import get_session
+from database.schemas import AIConversation, AIMessage, User, Order
+from services.ai_support_prompts import get_combined_prompt
+from services.ai_prepared_responses import AIPreparedResponses
+from services.ai_safety_guard import AISafetyGuard
+from services.ai_cost_monitor import AICostMonitor
+from services.ai_encryption import AIEncryption
+from services.ai_support_tools import (
+    get_order_details, get_recent_user_orders,
+    get_driver_stats, get_restaurant_status,
+    verify_refund_eligibility, escalate_support_ticket
+)
+
+class AISupportService:
+    
+    @classmethod
+    def get_api_key(cls) -> str:
+        """Fetch the Gemini API key from environment config."""
+        from app import app
+        return app.config.get("GEMINI_API_KEY") or os.getenv("GEMINI_API_KEY")
+
+    @classmethod
+    def call_gemini_api(cls, model_name: str, system_instruction: str, prompt: str, schema: dict = None) -> dict:
+        """Call Gemini REST API with schema and key. Fallback-safe HTTP client."""
+        api_key = cls.get_api_key()
+        if not api_key or api_key == "your_gemini_api_key_here":
+            return {"error": "Gemini API key is not configured. Please add it to your .env file."}
+            
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
+        
+        headers = {"Content-Type": "application/json"}
+        
+        contents = [{"parts": [{"text": prompt}]}]
+        
+        payload = {
+            "contents": contents,
+            "systemInstruction": {"parts": [{"text": system_instruction}]}
+        }
+        
+        # If a structured output schema is requested
+        if schema:
+            payload["generationConfig"] = {
+                "responseMimeType": "application/json",
+                "responseSchema": schema
+            }
+            
+        try:
+            response = requests.post(url, headers=headers, json=payload, timeout=15)
+            if response.status_code != 200:
+                return {"error": f"API Error {response.status_code}: {response.text}"}
+                
+            res_data = response.json()
+            
+            # Record tokens
+            usage = res_data.get("usageMetadata", {})
+            input_tokens = usage.get("promptTokenCount", 0)
+            output_tokens = usage.get("candidatesTokenCount", 0)
+            
+            AICostMonitor.record_transaction(model_name, input_tokens, output_tokens)
+            
+            # Extract output text
+            candidates = res_data.get("candidates", [])
+            if not candidates:
+                return {"error": "No generation candidates returned from API"}
+                
+            part_text = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "")
+            return {
+                "text": part_text,
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens
+            }
+        except Exception as e:
+            return {"error": str(e)}
+
+    @classmethod
+    def detect_language(cls, text: str) -> str:
+        """Basic character-set language detector (Arabic vs English)."""
+        arabic_characters = re_match = any(u'\u0600' <= char <= u'\u06FF' for char in text)
+        return "ar" if arabic_characters else "en"
+
+    @classmethod
+    def classify_intent(cls, message: str) -> str:
+        """Call Gemini Flash-Lite to classify support intent."""
+        system_instruction = (
+            "You are a routing classification agent. Classify the user's intent into exactly one of these labels:\n"
+            "- refund_request (refunds, cancellations, disputes, cashback)\n"
+            "- payout_issue (failed payouts, bank details, wallet)\n"
+            "- registration_help (registration, sign up, application document upload)\n"
+            "- login_issues (password reset, account login, OTP codes)\n"
+            "- fees_policy (delivery fee, service fee, sales tax query)\n"
+            "- general (anything else)"
+        )
+        
+        schema = {
+            "type": "object",
+            "properties": {
+                "intent": {"type": "string"},
+                "confidence": {"type": "number"}
+            },
+            "required": ["intent", "confidence"]
+        }
+        
+        res = cls.call_gemini_api(
+            model_name="gemini-2.5-flash-lite",
+            system_instruction=system_instruction,
+            prompt=f"Classify this message: '{message}'",
+            schema=schema
+        )
+        
+        if "error" in res:
+            return "general"
+            
+        try:
+            data = json.loads(res["text"])
+            return data.get("intent", "general")
+        except Exception:
+            return "general"
+
+    @classmethod
+    def build_memory(cls, session_id: str, db) -> tuple:
+        """Load DB history, return summary and last 5 messages."""
+        conv = db.query(AIConversation).filter(AIConversation.session_id == session_id).first()
+        if not conv:
+            return "", []
+            
+        # Get last 5 messages
+        msgs = db.query(AIMessage).filter(AIMessage.conversation_id == conv.id).order_by(AIMessage.created_at.desc()).limit(5).all()
+        msgs.reverse() # Restore chronological order
+        
+        formatted_msgs = []
+        for m in msgs:
+            decrypted = AIEncryption.decrypt(m.message_encrypted)
+            formatted_msgs.append({
+                "role": m.role,
+                "content": decrypted
+            })
+            
+        return conv.summary or "", formatted_msgs
+
+    @classmethod
+    def update_summarization(cls, session_id: str, new_user_msg: str, new_ai_msg: str, db):
+        """Update conversation summary in the DB if history is growing."""
+        conv = db.query(AIConversation).filter(AIConversation.session_id == session_id).first()
+        if not conv:
+            return
+            
+        # Count messages
+        count = db.query(AIMessage).filter(AIMessage.conversation_id == conv.id).count()
+        if count < 4:
+            return # Only summarize for longer conversations
+            
+        # Build context of past messages
+        msgs = db.query(AIMessage).filter(AIMessage.conversation_id == conv.id).order_by(AIMessage.created_at.asc()).all()
+        history_text = ""
+        for m in msgs:
+            decrypted = AIEncryption.decrypt(m.message_encrypted)
+            history_text += f"{m.role}: {decrypted}\n"
+            
+        system_instruction = "Summarize the key events and resolution status of the support conversation in a single short paragraph."
+        res = cls.call_gemini_api(
+            model_name="gemini-2.5-flash-lite",
+            system_instruction=system_instruction,
+            prompt=f"Summarize this conversation so far:\n{history_text}"
+        )
+        
+        if "text" in res:
+            conv.summary = res["text"]
+            db.commit()
+
+    @classmethod
+    def process_message(cls, user_id: str, user_role: str, session_id: str, user_message: str) -> dict:
+        """Process user message through full AI support pipeline."""
+        start_time = time.time()
+        
+        try:
+            with get_session() as db:
+                # 1. Budget check
+                if AICostMonitor.is_budget_exceeded():
+                    return {
+                        "response": "Our AI service is currently under maintenance due to high budget limits. Please contact our support team directly or wait for assistance.",
+                        "escalate": True
+                    }
+                    
+                # 2. Safety filter (Prompt Injection)
+                if AISafetyGuard.detect_prompt_injection(user_message):
+                    return {
+                        "response": "I apologize, but I cannot perform that request. How can I help you with your order status or account today?",
+                        "escalate": False
+                    }
+                    
+                # 3. Language & Intent Classification
+                lang = cls.detect_language(user_message)
+                intent = cls.classify_intent(user_message)
+                
+                # 4. Check Prepared Cache
+                cached_response = AIPreparedResponses.get_response(intent, lang)
+                if cached_response:
+                    # Save to DB even on cache hit
+                    cls.persist_interaction(
+                        db, user_id, user_role, session_id, user_message, 
+                        cached_response, intent, "cache", 0, int((time.time() - start_time) * 1000)
+                    )
+                    return {"response": cached_response, "escalate": False}
+                    
+                # 5. Load memory
+                summary, recent_msgs = cls.build_memory(session_id, db)
+                
+                # 6. Model selection
+                if intent == "refund_request":
+                    model_name = "gemini-2.5-pro"
+                else:
+                    model_name = "gemini-2.5-flash-lite"
+                    
+                # 7. Context building (Function simulation / context tools)
+                # Retrieve relevant contextual details based on intent
+                context_data = ""
+                if "order" in user_message.lower() or intent == "refund_request":
+                    orders_res = get_recent_user_orders(user_id, user_role, limit=1)
+                    orders_list = orders_res.get("orders", [])
+                    if orders_list:
+                        latest_order_id = orders_list[0]["order_id"]
+                        context_data = f"\nLatest Order Data: {json.dumps(get_order_details(latest_order_id))}"
+                        if intent == "refund_request":
+                            context_data += f"\nRefund Eligibility: {json.dumps(verify_refund_eligibility(latest_order_id))}"
+                elif user_role == "driver" and intent == "payout_issue":
+                    context_data = f"\nDriver Stats: {json.dumps(get_driver_stats(user_id))}"
+                elif user_role == "restaurant":
+                    context_data = f"\nRestaurant Status: {json.dumps(get_restaurant_status(user_id))}"
+                    
+                # 8. Prompt building
+                system_instruction = get_combined_prompt(user_role, intent)
+                
+                # Combine history, context, and message
+                prompt = ""
+                if summary:
+                    prompt += f"Summary of conversation so far: {summary}\n\n"
+                
+                for m in recent_msgs:
+                    prompt += f"{m['role']}: {m['content']}\n"
+                    
+                prompt += f"Context: {context_data}\n\n"
+                prompt += f"User: {user_message}\n"
+                prompt += (
+                    "Please respond as Wolfie Support. Format your output strictly in JSON:\n"
+                    "{\n"
+                    "  \"response_text\": \"your reply to the user (keep it concise and helpful)\",\n"
+                    "  \"confidence_score\": 0.95,\n"
+                    "  \"escalate\": false\n"
+                    "}"
+                )
+                
+                schema = {
+                    "type": "object",
+                    "properties": {
+                        "response_text": {"type": "string"},
+                        "confidence_score": {"type": "number"},
+                        "escalate": {"type": "boolean"}
+                    },
+                    "required": ["response_text", "confidence_score", "escalate"]
+                }
+                
+                # 9. Call Gemini
+                res = cls.call_gemini_api(
+                    model_name=model_name,
+                    system_instruction=system_instruction,
+                    prompt=prompt,
+                    schema=schema
+                )
+                
+                if "error" in res:
+                    return {"response": "I'm experiencing connectivity issues right now. Let me escalate you to an agent.", "escalate": True}
+                    
+                # 10. Process response
+                try:
+                    ai_data = json.loads(res["text"])
+                    response_text = ai_data.get("response_text", "")
+                    confidence = ai_data.get("confidence_score", 1.0)
+                    escalate = ai_data.get("escalate", False)
+                    
+                    # Check confidence threshold
+                    if confidence < 0.70:
+                        escalate = True
+                        
+                    # Escalate if needed
+                    if escalate:
+                        escalate_support_ticket(user_id, "N/A", intent or "General", f"Escalated from AI Support. Last query: {user_message}")
+                        response_text += " (I have escalated this issue to our human support admin team. They will contact you shortly.)"
+                        
+                    # Clean/Scrub response
+                    clean_response = AISafetyGuard.validate_response(response_text)
+                    
+                    # Save to DB
+                    cls.persist_interaction(
+                        db, user_id, user_role, session_id, user_message, 
+                        clean_response, intent, model_name, res.get("output_tokens", 0), 
+                        int((time.time() - start_time) * 1000), confidence, escalate
+                    )
+                    
+                    # Async-like summary update
+                    cls.update_summarization(session_id, user_message, clean_response, db)
+                    
+                    return {"response": clean_response, "escalate": escalate}
+                except Exception as e:
+                    # Return raw if JSON parsing failed
+                    raw_text = AISafetyGuard.validate_response(res["text"])
+                    return {"response": raw_text, "escalate": False}
+        except Exception as e:
+            return {"response": f"System error occurred: {str(e)}", "escalate": True}
+
+    @classmethod
+    def persist_interaction(cls, db, user_id: str, user_role: str, session_id: str, user_msg: str, ai_msg: str, intent: str, model_name: str, tokens: int, latency_ms: int, confidence: float = 1.0, escalated: bool = False):
+        """Save conversation record and encrypted messages to SQL database."""
+        try:
+            conv = db.query(AIConversation).filter(AIConversation.session_id == session_id).first()
+            if not conv:
+                conv = AIConversation(
+                    user_id=user_id,
+                    user_role=user_role,
+                    session_id=session_id,
+                    is_escalated=escalated
+                )
+                db.add(conv)
+                db.flush()
+                
+            if escalated:
+                conv.is_escalated = True
+                
+            # Encrypt messages
+            encrypted_user = AIEncryption.encrypt(user_msg)
+            encrypted_ai = AIEncryption.encrypt(ai_msg)
+            
+            # Save User Message
+            user_db_msg = AIMessage(
+                conversation_id=conv.id,
+                role="user",
+                message_encrypted=encrypted_user,
+                intent=intent,
+                model_used="client",
+                confidence_score=1.0
+            )
+            
+            # Save AI Message
+            ai_db_msg = AIMessage(
+                conversation_id=conv.id,
+                role="assistant",
+                message_encrypted=encrypted_ai,
+                intent=intent,
+                model_used=model_name,
+                tokens_used=tokens,
+                latency_ms=latency_ms,
+                confidence_score=confidence
+            )
+            
+            db.add(user_db_msg)
+            db.add(ai_db_msg)
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            # Log error
+            print(f"Error persisting AI interaction: {str(e)}")

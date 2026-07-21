@@ -12,6 +12,7 @@ from database.repositories import OrderRepository
 from database.repositories.payment import (
     PaymentRepository, DriverPayoutRepository, RestaurantPayoutRepository
 )
+from validation import validate_request, CreateIntentSchema, RefundPaymentSchema
 
 payments_bp = Blueprint("payments", __name__)
 logger      = logging.getLogger("wolfie")
@@ -29,11 +30,12 @@ def _stripe():
 
 @payments_bp.route("/create-intent", methods=["POST"])
 @require_auth(["customer"])
+@validate_request(CreateIntentSchema)
 def create_payment_intent():
-    data     = request.get_json(silent=True) or {}
-    order_id = data.get("order_id")
-    amount   = data.get("amount")
-    currency = data.get("currency", "usd")
+    payload_data = request.validated_data
+    order_id = payload_data.order_id
+    amount   = payload_data.amount
+    currency = payload_data.currency or "usd"
     
     if not order_id and not amount:
         return jsonify({"error": "order_id or amount required"}), 400
@@ -91,11 +93,9 @@ def create_payment_intent():
 
 @payments_bp.route("/confirm-cash", methods=["POST"])
 @require_auth(["driver"])
+@validate_request(RefundPaymentSchema)
 def confirm_cash_payment():
-    data     = request.get_json(silent=True) or {}
-    order_id = data.get("order_id")
-    if not order_id:
-        return jsonify({"error": "order_id required"}), 400
+    order_id = request.validated_data.order_id
 
     try:
         with transaction() as session:
@@ -278,11 +278,9 @@ def stripe_webhook():
 
 @payments_bp.route("/refund", methods=["POST"])
 @require_auth(["admin"])
+@validate_request(RefundPaymentSchema)
 def refund_payment():
-    data     = request.get_json(silent=True) or {}
-    order_id = data.get("order_id")
-    if not order_id:
-        return jsonify({"error": "order_id required"}), 400
+    order_id = request.validated_data.order_id
 
     try:
         with transaction() as session:

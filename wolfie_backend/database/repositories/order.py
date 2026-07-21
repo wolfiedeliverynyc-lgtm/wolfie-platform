@@ -155,6 +155,30 @@ class OrderRepository(BaseRepository[Order]):
         return updated_order, side_effects
 
     def assign_driver(self, order: Order, driver_id: str) -> Order:
+        from database.schemas import User
+        # 1. SELECT FOR UPDATE on the driver row (ignored on SQLite, active on PostgreSQL)
+        stmt = select(User).where(User.id == driver_id).with_for_update()
+        driver = self.session.scalar(stmt)
+
+        if not driver:
+            raise ValueError(f"Driver {driver_id} not found")
+
+        # 2. Check if driver is available and active
+        if not driver.is_available or not driver.is_active:
+            raise ValueError(f"Driver {driver_id} is no longer available")
+
+        # 3. Check for double booking (any other order with active delivery status)
+        active_statuses = ["assigned", "accepted", "preparing", "ready", "picked_up", "on_the_way"]
+        active_order_exists = self.session.scalar(
+            select(func.count(Order.id)).where(
+                Order.driver_id == driver_id,
+                Order.id != order.id,
+                Order.status.in_(active_statuses)
+            )
+        )
+        if active_order_exists > 0:
+            raise ValueError(f"Driver {driver_id} is already assigned to another active order")
+
         updated_order, _ = self.transition(order, "assigned", driver_id=driver_id)
         return updated_order
 

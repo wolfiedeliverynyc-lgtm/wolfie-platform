@@ -77,6 +77,15 @@ class BaseConfig:
     MAX_CONTENT_LENGTH   = 16 * 1024 * 1024   # 16 MB upload limit
     PROPAGATE_EXCEPTIONS = True
 
+    # ── AI Support ────────────────────────────
+    GEMINI_API_KEY          = os.getenv("GEMINI_API_KEY")
+    AI_ENCRYPTION_KEY       = os.getenv("AI_ENCRYPTION_KEY", "wolfie-default-encryption-key-32b!")
+    AI_SUPPORT_RATE_LIMIT   = int(os.getenv("AI_SUPPORT_RATE_LIMIT", "30"))
+    AI_SUPPORT_SESSION_TTL  = int(os.getenv("AI_SUPPORT_SESSION_TTL", "7200"))
+    AI_SUPPORT_MAX_HISTORY  = int(os.getenv("AI_SUPPORT_MAX_HISTORY", "5"))
+    AI_SUPPORT_DAILY_BUDGET = float(os.getenv("AI_SUPPORT_DAILY_BUDGET", "10.00"))
+
+
 
 class DevelopmentConfig(BaseConfig):
     DEBUG   = True

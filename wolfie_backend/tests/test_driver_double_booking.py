@@ -95,3 +95,38 @@ def test_driver_double_booking(client):
                 # Driver should be available again
                 available = user_repo.find_available_drivers()
                 assert any(d.id == d_id for d in available)
+
+
+def test_driver_double_booking_prevention(client):
+    with client.application.app_context():
+        with transaction() as tx_session:
+            uid = str(uuid.uuid4())[:8]
+            
+            customer = User(email=f"c_{uid}@test.com", password_hash="hash", full_name="Cust", role="customer", phone="+1234567890", is_active=True)
+            driver = User(email=f"d_{uid}@test.com", password_hash="hash", full_name="Driver", role="driver", phone="+1234567890", is_active=True, is_available=True)
+            restaurant = User(email=f"r_{uid}@test.com", password_hash="hash", full_name="Rest", role="restaurant", phone="+1234567890", is_active=True)
+            
+            tx_session.add_all([customer, driver, restaurant])
+            tx_session.flush()
+            
+            order_repo = OrderRepository(tx_session)
+            
+            order1 = order_repo.create(
+                customer_id=customer.id, restaurant_id=restaurant.id, items=[{"name": "Burger", "price": 15, "quantity": 1}],
+                pickup_address="123 Street", delivery_address="456 Ave", payment_method="cash",
+                pricing={"total": 15}, route_info={}
+            )
+            order2 = order_repo.create(
+                customer_id=customer.id, restaurant_id=restaurant.id, items=[{"name": "Soda", "price": 3, "quantity": 1}],
+                pickup_address="123 Street", delivery_address="456 Ave", payment_method="cash",
+                pricing={"total": 3}, route_info={}
+            )
+            
+            # 1. Assign driver to order1
+            order_repo.assign_driver(order1, driver.id)
+            tx_session.flush()
+            
+            # 2. Attempt to assign the same driver to order2 - should raise ValueError
+            import pytest
+            with pytest.raises(ValueError, match="already assigned to another active order"):
+                order_repo.assign_driver(order2, driver.id)

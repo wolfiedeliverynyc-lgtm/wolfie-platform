@@ -11,7 +11,7 @@ def test_order_repository_queries(client):
             
             # Setup Users
             customer = User(email=f"c_{uid}@test.com", password_hash="hash", full_name="Cust", role="customer", phone="+1234567890", is_active=True)
-            driver = User(email=f"d_{uid}@test.com", password_hash="hash", full_name="Driver", role="driver", phone="+1234567890", is_active=True)
+            driver = User(email=f"d_{uid}@test.com", password_hash="hash", full_name="Driver", role="driver", phone="+1234567890", is_active=True, is_available=True)
             restaurant = User(email=f"r_{uid}@test.com", password_hash="hash", full_name="Rest", role="restaurant", phone="+1234567890", is_active=True)
             
             tx_session.add_all([customer, driver, restaurant])

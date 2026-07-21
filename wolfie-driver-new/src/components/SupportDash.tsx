@@ -3,6 +3,7 @@ import {
   ArrowLeft, ChevronRight, Headphones, MessageSquare, Send, CheckCircle, AlertTriangle, MapPin, UtensilsCrossed, DollarSign
 } from 'lucide-react';
 import { useDriverStore } from '../store/useDriverStore';
+import { API_BASE } from '../lib/api';
 
 interface SupportDashProps {
   onBack: () => void;
@@ -13,7 +14,7 @@ export default function SupportDash({
   onBack,
   playBeep
 }: SupportDashProps) {
-  const { driverProfile, supportTickets, addSupportTicket } = useDriverStore();
+  const { driverProfile, supportTickets, addSupportTicket, token } = useDriverStore();
   const [activeView, setActiveView] = useState<'MAIN' | 'CHAT'>('MAIN');
   const [inputText, setInputText] = useState<string>('');
   const [isTyping, setIsTyping] = useState<boolean>(false);
@@ -50,8 +51,9 @@ export default function SupportDash({
     setSelectedTopic(topicTitle);
     
     const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const ticketId = `tick-${Date.now()}`;
     const newTicket = {
-      id: `tick-${Date.now()}`,
+      id: ticketId,
       subject: topicTitle,
       message: responseText,
       level: 'ai_agent' as const,
@@ -64,7 +66,7 @@ export default function SupportDash({
     };
     
     addSupportTicket(newTicket);
-    setActiveTicketId(newTicket.id);
+    setActiveTicketId(ticketId);
     setActiveView('CHAT');
   };
 
@@ -73,8 +75,9 @@ export default function SupportDash({
     setSelectedTopic('General Agent Support');
     
     const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const ticketId = `tick-${Date.now()}`;
     const newTicket = {
-      id: `tick-${Date.now()}`,
+      id: ticketId,
       subject: 'General Support',
       message: 'Courier Helpdesk connected.',
       level: 'ai_agent' as const,
@@ -86,7 +89,7 @@ export default function SupportDash({
     };
 
     addSupportTicket(newTicket);
-    setActiveTicketId(newTicket.id);
+    setActiveTicketId(ticketId);
     setActiveView('CHAT');
   };
 
@@ -107,32 +110,40 @@ export default function SupportDash({
     setIsTyping(true);
     setAiInteractionCount(prev => prev + 1);
 
-    setTimeout(() => {
-      let botResponse = "I've received your request! Let me coordinate with our backend system. If you are current on a delivery slot, transit times won't count against your dispatcher ratings metrics. Hold on briefly.";
-
-      const textLower = userText.toLowerCase();
-      if (textLower.includes('delay') || textLower.includes('wait')) {
-        botResponse = "If you're experiencing a long merchant line wait, click the 'Report Store Wait' status inside the app. This updates the eta and protects your rating stats.";
-      } else if (textLower.includes('missing') || textLower.includes('wrong')) {
-        botResponse = "Please contact the customer immediately using the app call option to verify. If a core dish is missing, ask the merchant's staff to re-bag or report the item list adjustment.";
-      } else if (textLower.includes('cancel') || textLower.includes('stop')) {
-        botResponse = "If you can't complete the transit slot, select 'Unassign Order' under active options. This will re-add your route slots to the driver pool so another courier can grab it.";
-      } else if (textLower.includes('cash') || textLower.includes('money') || textLower.includes('payout') || textLower.includes('wallet')) {
-        botResponse = "Your balance can be deposited instantly through Zelle from your Wallet page! Daily completions automatically increment your balance ledger immediately.";
-      } else if (textLower.includes('hello') || textLower.includes('hi')) {
-        botResponse = `Hello ${driverProfile?.name?.split(' ')[0] || 'Driver'}! How's your current delivery sprint going? Let me know how I can make your dispatch simpler.`;
-      } else if (textLower.includes('human')) {
-        botResponse = "I'm escalating your ticket to a Human Admin right away. Please hold...";
-        useDriverStore.getState().updateSupportTicket(activeTicketId, { level: 'human_admin', status: 'escalated' });
-      }
-
-      useDriverStore.getState().updateSupportTicket(activeTicketId, {
-        responses: [...(useDriverStore.getState().supportTickets.find(t => t.id === activeTicketId)?.responses || []), { from: 'SUPPORT', message: botResponse, timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]
+    fetch(`${API_BASE}/support/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        session_id: activeTicketId,
+        message: userText
+      })
+    })
+      .then(res => res.json())
+      .then(data => {
+        const botResponse = data.response || "I've received your request! Let me coordinate with our backend system. If you are currently on a delivery slot, transit times won't count against your dispatcher ratings metrics. Hold on briefly.";
+        
+        useDriverStore.getState().updateSupportTicket(activeTicketId, {
+          responses: [...(useDriverStore.getState().supportTickets.find(t => t.id === activeTicketId)?.responses || []), { from: 'SUPPORT', message: botResponse, timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]
+        });
+        
+        if (data.escalated) {
+          useDriverStore.getState().updateSupportTicket(activeTicketId, { level: 'human_admin', status: 'escalated' });
+        }
+        triggerSound('SUCCESS');
+      })
+      .catch(err => {
+        console.error("AI support error:", err);
+        const errorMsg = "Sorry, I am having trouble connecting right now. Please try again or ask for human support.";
+        useDriverStore.getState().updateSupportTicket(activeTicketId, {
+          responses: [...(useDriverStore.getState().supportTickets.find(t => t.id === activeTicketId)?.responses || []), { from: 'SUPPORT', message: errorMsg, timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]
+        });
+      })
+      .finally(() => {
+        setIsTyping(false);
       });
-
-      setIsTyping(false);
-      triggerSound('SUCCESS');
-    }, 1500);
   };
 
   const handleEscalate = (level: 'human_admin' | 'owner_review') => {
@@ -144,6 +155,7 @@ export default function SupportDash({
       responses: [...(supportTickets.find(t => t.id === activeTicketId)?.responses || []), { from: 'SUPPORT', message: `Ticket escalated to ${level === 'human_admin' ? 'Human Admin' : 'Owner Review'}. Please hold for assistance.`, timestamp: timeStr }]
     });
   };
+
 
   const activeTicket = supportTickets.find(t => t.id === activeTicketId);
   const chatMessages = activeTicket?.responses || [];

@@ -7,6 +7,7 @@ from routes.auth import require_auth
 from database import transaction, get_db_session
 from database.repositories import RefundRequestRepository
 from services.audit_logger import log_admin_action
+from validation import validate_request, PartialRefundSchema
 
 admin_refunds_bp = Blueprint("admin_refunds", __name__)
 logger = logging.getLogger("wolfie")
@@ -68,11 +69,9 @@ def deny_refund(refund_id):
 
 @admin_refunds_bp.route("/refunds/<refund_id>/partial", methods=["POST"])
 @require_auth(["admin"], admin_types=["super_admin", "finance_admin"])
+@validate_request(PartialRefundSchema)
 def partial_refund(refund_id):
-    data = request.get_json(silent=True) or {}
-    amount = float(data.get("amount", 0))
-    if amount <= 0:
-        return jsonify({"error": "amount required"}), 400
+    amount = request.validated_data.amount
 
     try:
         with transaction() as session:
