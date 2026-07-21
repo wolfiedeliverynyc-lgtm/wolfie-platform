@@ -16,26 +16,4 @@ out/
 venv/
 *.log
 *.bak
-added_success.png
-checkout_details_fixed.png
-customizer_modal.png
-customizer_view.png
-detail_view.png
-explore_hydrated.png
-home_page_footer.png
-privacy_page.png
-terms_page.png
-tracking_page.png
-ChatGPT Image 12 mai 2026, 21_06_25.png
-ORDER PAGE.png
-inspect_out.txt
-check_db.py
-check_deploy.py
-clean.py
-get_mapbox_token.py
-inspect_render.py
-update_render.py
-update_vercel.py
-landing RESTAURANT.html
-ezgif-238b15af1c360435-jpg/
-section 2 to 3 IMAGES/
+juin files clean/
