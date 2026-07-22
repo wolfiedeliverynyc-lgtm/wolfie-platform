@@ -1843,6 +1843,8 @@ export default function HomePage() {
     setCurrentView('tracking');
   };
 
+  const activeOrder = orders.find(o => o.status !== 'Completed');
+
   const navItems = [
     { id: 'home', icon: '/assets/icon_home.svg', left: 'left-[10%]', dotLeft: 'left-[10%]' },
     { id: 'user', icon: '/assets/icon_user.svg', left: 'left-[29.07%]', dotLeft: 'left-[29.07%]' },
@@ -2985,6 +2987,9 @@ export default function HomePage() {
         restaurantName={activeOrder ? activeOrder.restaurantName : undefined}
         restaurantLogo={activeOrder ? activeOrder.restaurantLogo : undefined}
         initialStatus={activeOrder ? activeOrder.status : undefined}
+        driverName={activeOrder?.driverName}
+        driverRating={activeOrder?.driverRating}
+        driverAvatar={activeOrder?.driverAvatar}
         onBackToHome={() => {
           setCurrentView('home');
           setActiveTab('home');
@@ -6754,12 +6759,20 @@ export default function HomePage() {
               <div className="flex items-center justify-between">
                 <div className="text-left">
                   <span className="font-roboto font-normal text-[12px] text-[#A6A6A6]">Order ID</span>
-                  <span className="font-roboto font-bold text-[16px] text-[#3C2F2F] block mt-0.5">#WLF-8942-05</span>
+                  <span className="font-roboto font-bold text-[16px] text-[#3C2F2F] block mt-0.5">#{activeOrder?.id || ''}</span>
                 </div>
                 <div className="text-right">
                   <div className="flex items-center gap-1.5 justify-end">
-                    <span className="font-roboto font-bold text-[18px] text-[#3C2F2F]">12 mins</span>
-                    <span className="font-roboto font-semibold text-[12px] text-[#EF2A39] bg-[#EF2A39]/10 px-2 py-0.5 rounded-full">ETA</span>
+                    <span className="font-roboto font-bold text-[18px] text-[#3C2F2F]">
+                      {trackingStatus === 'arrived' ? 'Delivered' : 
+                       trackingStatus === 'ontheway' ? '7 mins' : 
+                       trackingStatus === 'preparing' ? '15 mins' : '20 mins'}
+                    </span>
+                    <span className="font-roboto font-semibold text-[12px] text-[#EF2A39] bg-[#EF2A39]/10 px-2 py-0.5 rounded-full">
+                      {trackingStatus === 'arrived' ? 'Completed' : 
+                       trackingStatus === 'ontheway' ? 'Late: 12m' : 
+                       trackingStatus === 'preparing' ? 'Late: 22m' : 'Late: 25m'}
+                    </span>
                   </div>
                   <span className="font-roboto font-normal text-[11px] text-[#A6A6A6] block mt-0.5">Estimated Drop-off</span>
                 </div>
@@ -6880,8 +6893,9 @@ export default function HomePage() {
 
               {/* Row 3: Expandable Order Summary */}
               {(() => {
-                const itemsCount = orderedItems.reduce((sum, item) => sum + item.quantity, 0) || 2;
-                const itemsTotal = orderedItems.reduce((sum, item) => sum + (item.pricePerUnit * item.quantity), 0) || 18.19;
+                const currentItems = orderedItems.length > 0 ? orderedItems : (activeOrder ? activeOrder.items : []);
+                const itemsCount = currentItems.reduce((sum, item) => sum + item.quantity, 0);
+                const itemsTotal = currentItems.reduce((sum, item) => sum + (item.pricePerUnit * item.quantity), 0);
                 
                 return (
                   <div className="bg-gray-50/50 rounded-[20px] border border-gray-100/50 p-3.5 mb-4 shrink-0">
@@ -6903,8 +6917,8 @@ export default function HomePage() {
                     {/* Inline list of items when expanded */}
                     {showTrackingDetails && (
                       <div className="mt-3.5 pt-3.5 border-t border-gray-100 space-y-3 max-h-[160px] overflow-y-auto scrollbar-hide text-left">
-                        {orderedItems.length > 0 ? (
-                          orderedItems.map((item) => (
+                        {currentItems.length > 0 ? (
+                          currentItems.map((item) => (
                             <div key={item.cartId} className="flex justify-between items-start text-[13px]">
                               <div className="min-w-0 flex-1 pr-3">
                                 <span className="font-roboto font-semibold text-[#3C2F2F] block">
@@ -6924,16 +6938,7 @@ export default function HomePage() {
                             </div>
                           ))
                         ) : (
-                          /* Fallback mock list */
-                          <div className="space-y-3">
-                            <div className="flex justify-between items-start text-[13px]">
-                              <div className="min-w-0 flex-1">
-                                <span className="font-roboto font-semibold text-[#3C2F2F] block">2x Cheeseburger (M)</span>
-                                <span className="font-roboto font-normal text-[11px] text-[#A6A6A6] block mt-0.5">Spicy: 57% • Cheddar Cheese, Crispy Bacon, French Fries, Coca Cola</span>
-                              </div>
-                              <span className="font-roboto font-bold text-[#3C2F2F]">$18.19</span>
-                            </div>
-                          </div>
+                          <div className="text-[13px] text-[#A6A6A6] text-center font-roboto">No active order items found.</div>
                         )}
                       </div>
                     )}
@@ -6946,14 +6951,14 @@ export default function HomePage() {
                 <div className="flex items-center gap-3.5 text-left min-w-0">
                   <div className="w-[50px] h-[50px] rounded-[16px] overflow-hidden bg-white/10 shrink-0 border border-white/10">
                     <img 
-                      src="/assets/driver_avatar.png" 
-                      alt="{activeOrder?.driverName || 'Driver'}" 
+                      src={activeOrder?.driverAvatar || "/assets/driver_avatar.png"} 
+                      alt={activeOrder?.driverName || 'Driver'} 
                       className="w-full h-full object-cover scale-[1.05]"
                     />
                   </div>
                   <div className="min-w-0">
-                    <span className="font-roboto font-bold text-[15px] block truncate">{activeOrder?.driverName || 'Driver'}</span>
-                    <span className="font-roboto font-medium text-[12px] text-[#FFE100] block mt-0.5">{activeOrder?.driverRating || 'N/A'} ★ • Delivery Driver</span>
+                    <span className="font-roboto font-bold text-[15px] block truncate">{activeOrder?.driverName || 'Kenji Sato'}</span>
+                    <span className="font-roboto font-medium text-[12px] text-[#FFE100] block mt-0.5">{activeOrder?.driverRating || '4.9'} ★ • Delivery Driver</span>
                   </div>
                 </div>
                 
@@ -6975,7 +6980,7 @@ export default function HomePage() {
                   {/* Call */}
                   <button 
                     onClick={() => {
-                      alert("Call Simulator:\nConnecting secure line to Driver {activeOrder?.driverName || 'Driver'} (+1 555-019-2831)...");
+                      alert(`Call Simulator:\nConnecting secure line to Driver ${activeOrder?.driverName || 'Kenji Sato'} (+1 555-019-2831)...`);
                     }}
                     className="w-[40px] h-[40px] bg-white/15 hover:bg-white/20 active:scale-90 transition-all rounded-[12px] flex items-center justify-center focus:outline-none"
                   >
@@ -7057,10 +7062,10 @@ export default function HomePage() {
                     <div className="text-left space-y-2.5 pt-2 border-t border-gray-50">
                       <div className="flex items-center gap-3.5 text-left">
                         <div className="w-[44px] h-[44px] bg-gray-100 rounded-full overflow-hidden border border-gray-100 shrink-0">
-                          <img src="/assets/driver_avatar.png" alt="{activeOrder?.driverName || 'Driver'}" className="w-full h-full object-cover scale-[1.05]" />
+                          <img src={activeOrder?.driverAvatar || "/assets/driver_avatar.png"} alt={activeOrder?.driverName || 'Driver'} className="w-full h-full object-cover scale-[1.05]" />
                         </div>
                         <div>
-                          <h4 className="font-roboto font-bold text-[15px] text-[#3C2F2F]">{activeOrder?.driverName || 'Driver'} (Driver)</h4>
+                          <h4 className="font-roboto font-bold text-[15px] text-[#3C2F2F]">{activeOrder?.driverName || 'Kenji Sato'} (Driver)</h4>
                           <span className="font-roboto text-[11px] text-[#A6A6A6] block mt-0.5">Rate the delivery service</span>
                         </div>
                       </div>

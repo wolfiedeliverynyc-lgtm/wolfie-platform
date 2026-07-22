@@ -16,6 +16,9 @@ interface TrackingViewProps {
   restaurantLogo?: string;
   restaurantName?: string;
   initialStatus?: string;
+  driverName?: string;
+  driverRating?: number;
+  driverAvatar?: string;
 }
 
 export default function TrackingView({
@@ -27,6 +30,9 @@ export default function TrackingView({
   restaurantLogo = '/assets/logo_wendys.png',
   restaurantName = "Wendy's Burgers",
   initialStatus,
+  driverName = "Kenji Sato",
+  driverRating = 4.9,
+  driverAvatar = "/assets/driver_avatar.png",
 }: TrackingViewProps) {
   const { socket } = useSocket();
 
@@ -332,13 +338,13 @@ export default function TrackingView({
         <div className="bg-white border border-gray-100 rounded-[28px] p-6 shadow-sm space-y-4">
           <div className="flex items-center gap-4">
             <div className="w-[60px] h-[60px] rounded-full overflow-hidden bg-gray-100 border border-gray-200 shrink-0">
-              <img src="/assets/driver_avatar.png" alt="{driverName || 'Driver'}" className="w-full h-full object-cover" />
+              <img src={driverAvatar} alt={driverName} className="w-full h-full object-cover" />
             </div>
             
             <div className="text-left flex-1 min-w-0">
-              <h4 className="font-poppins font-bold text-[15.5px] text-[#3C2F2F] truncate">{driverName || 'Driver'}</h4>
+              <h4 className="font-poppins font-bold text-[15.5px] text-[#3C2F2F] truncate">{driverName}</h4>
               <div className="flex items-center gap-2 mt-0.5">
-                <span className="font-roboto text-[12px] font-bold text-yellow-500">★ 4.9 Rating</span>
+                <span className="font-roboto text-[12px] font-bold text-yellow-500">★ {driverRating} Rating</span>
                 <span className="text-gray-300">•</span>
                 <span className="font-roboto text-[12px] text-[#A6A6A6]">Wolfie Courier</span>
               </div>
@@ -349,7 +355,7 @@ export default function TrackingView({
               <button 
                 onClick={onOpenChat}
                 className="w-10 h-10 bg-gray-50 hover:bg-gray-100 border border-gray-150 rounded-full flex items-center justify-center text-[#3C2F2F] shadow-xs active:scale-90 transition-all cursor-pointer focus:outline-none"
-                title="Chat with Kenji"
+                title={`Chat with ${driverName}`}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
@@ -357,9 +363,9 @@ export default function TrackingView({
               </button>
               
               <button 
-                onClick={() => alert("Calling driver {driverName || 'Driver'} at +1 (555) 019-3829...")}
+                onClick={() => alert(`Calling driver ${driverName} at +1 (555) 019-3829...`)}
                 className="w-10 h-10 bg-gray-50 hover:bg-gray-100 border border-gray-150 rounded-full flex items-center justify-center text-[#3C2F2F] shadow-xs active:scale-90 transition-all cursor-pointer focus:outline-none"
-                title="Call Kenji"
+                title={`Call ${driverName}`}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />

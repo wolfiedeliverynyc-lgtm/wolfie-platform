@@ -91,7 +91,7 @@ export default function RegisterPage() {
     );
   };
 
-  // Step 1 Submit: Request OTP
+  // Step 1 Submit: Register directly (Skip OTP)
   const handleRequestOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -102,43 +102,7 @@ export default function RegisterPage() {
     }
 
     try {
-      await sendOtp(phone);
-      setOtpTimer(60);
-      setStep('otp');
-    } catch (err: any) {
-      const errMsg = err.response?.data?.error || err.message || 'Failed to send verification code.';
-      // Fallback fallback warning bypass similar to legacy code
-      if (err.message === 'Network connection failed' || err.response?.status >= 500) {
-        logger.warn('Simulating OTP send due to backend offline/connection issue.');
-        setOtpTimer(60);
-        setStep('otp');
-      } else {
-        setError(errMsg);
-      }
-    }
-  };
-
-  // Step 2 Submit: Verify OTP & Register
-  const handleVerifyOtpAndRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-
-    const codeStr = otpCode.join('');
-    if (codeStr.length < 4) {
-      setError('Please enter the complete 4-digit verification code.');
-      return;
-    }
-
-    try {
-      // Verify OTP
-      try {
-        await verifyOtp({ phone, code: codeStr });
-      } catch (err) {
-        // Fallback for demo/offline: bypass if network failure
-        logger.warn('Bypassing OTP validation check for local/offline testing');
-      }
-
-      // Complete Registration
+      // Complete Registration directly
       await register({
         email,
         password,
@@ -151,8 +115,7 @@ export default function RegisterPage() {
     } catch (err: any) {
       const errMsg = err.response?.data?.error || err.message || 'Registration failed.';
       if (err.message === 'Network connection failed' || err.response?.status >= 500) {
-        logger.warn('Bypassing registration endpoint due to network constraints.');
-        setStep('address');
+        setError('Failed to connect to the server. Please check your internet connection.');
       } else {
         setError(errMsg);
       }

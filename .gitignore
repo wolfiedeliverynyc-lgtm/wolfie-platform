@@ -17,3 +17,6 @@ venv/
 *.log
 *.bak
 juin files clean/
+
+.vercel
+.env*
