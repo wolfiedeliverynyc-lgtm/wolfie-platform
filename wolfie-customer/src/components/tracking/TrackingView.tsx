@@ -40,17 +40,14 @@ export default function TrackingView({
   const [showTrackingDetails, setShowTrackingDetails] = useState(false);
   const [driverProgress, setDriverProgress] = useState(0);
 
-  const restaurantCoords = [8.4410, 36.8990];
-  const clientCoords = [8.4433, 36.8956];
-  const routeCoordinates = [
-    [8.4410, 36.8990],
-    [8.4415, 36.8980],
-    [8.4420, 36.8970],
-    [8.4428, 36.8962],
-    [8.4433, 36.8956]
-  ];
+  const [restaurantCoords, setRestaurantCoords] = useState<number[]>([-73.9876, 40.7580]);
+  const [clientCoords, setClientCoords] = useState<number[]>([-73.9850, 40.7484]);
+  const [routeCoordinates, setRouteCoordinates] = useState<number[][]>([
+    [-73.9876, 40.7580],
+    [-73.9850, 40.7484]
+  ]);
 
-  const [driverCoords, setDriverCoords] = useState<number[]>([8.4410, 36.8990]);
+  const [driverCoords, setDriverCoords] = useState<number[]>([-73.9876, 40.7580]);
 
   const getInterpolatedCoordinates = (points: number[][], progress: number): number[] => {
     if (points.length === 0) return [0, 0];
@@ -102,6 +99,15 @@ export default function TrackingView({
         if (data.lat && data.lng) {
           setDriverCoords([data.lng, data.lat]);
         }
+        if (data.restaurant_lat && data.restaurant_lng) {
+          setRestaurantCoords([data.restaurant_lng, data.restaurant_lat]);
+        }
+        if (data.client_lat && data.client_lng) {
+          setClientCoords([data.client_lng, data.client_lat]);
+        }
+        if (data.route) {
+          setRouteCoordinates(data.route);
+        }
       });
 
       socket.on('order_status_update', (data: any) => {
@@ -131,47 +137,7 @@ export default function TrackingView({
     }
   }, [socket, orderId]);
 
-  // Interpolation simulation loop (runs ONLY if it's the fallback mock order)
-  useEffect(() => {
-    if (orderId && orderId !== 'WOLF_983210') {
-      return;
-    }
-
-    let startTime = Date.now();
-    const duration = 24000; // 24 seconds loop
-    
-    const interval = setInterval(() => {
-      const elapsed = Date.now() - startTime;
-      const progress = (elapsed % duration) / duration; // 0 to 1
-      
-      let status: 'received' | 'preparing' | 'ontheway' | 'arrived' = 'received';
-      let currentDriverCoords = [...restaurantCoords];
-      
-      if (progress < 0.15) {
-        status = 'received';
-      } else if (progress < 0.4) {
-        status = 'preparing';
-      } else if (progress < 0.9) {
-        status = 'ontheway';
-        const driveProgress = (progress - 0.4) / 0.5; // scale from 0 to 1
-        currentDriverCoords = getInterpolatedCoordinates(routeCoordinates, driveProgress);
-      } else {
-        status = 'arrived';
-        currentDriverCoords = [...clientCoords];
-        setTrackingStatus('arrived');
-        setDriverProgress(100);
-        setDriverCoords(currentDriverCoords);
-        clearInterval(interval);
-        return;
-      }
-      
-      setTrackingStatus(status);
-      setDriverProgress(progress * 100);
-      setDriverCoords(currentDriverCoords);
-    }, 100);
-    
-    return () => clearInterval(interval);
-  }, [orderId]);
+  // All updates come from Socket.IO - mock interpolation loop removed
 
   // Show "No Active Orders" view if there is no order
   if (!orderId || !orderedItems || orderedItems.length === 0) {

@@ -71,10 +71,33 @@ export default function RootLayout({
               if ('serviceWorker' in navigator) {
                 window.addEventListener('load', function() {
                   navigator.serviceWorker.register('/sw.js').then(function(registration) {
-                    console.log('ServiceWorker registration successful with scope: ', registration.scope);
-                  }, function(err) {
+                    console.log('ServiceWorker registered:', registration.scope);
+                    
+                    // Check for updates periodically or on reload
+                    registration.addEventListener('updatefound', () => {
+                      const newWorker = registration.installing;
+                      if (newWorker) {
+                        newWorker.addEventListener('statechange', () => {
+                          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                            console.log('New content is available; please refresh.');
+                            // Trigger instant page refresh to reload cache and display updated app
+                            window.location.reload();
+                          }
+                        });
+                      }
+                    });
+                  }).catch(function(err) {
                     console.log('ServiceWorker registration failed: ', err);
                   });
+                });
+
+                // Auto reload pages when the controller changes
+                let refreshing = false;
+                navigator.serviceWorker.addEventListener('controllerchange', () => {
+                  if (!refreshing) {
+                    refreshing = true;
+                    window.location.reload();
+                  }
                 });
               }
             `,
