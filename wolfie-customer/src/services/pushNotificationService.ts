@@ -44,7 +44,7 @@ export async function subscribeToPushNotifications(): Promise<boolean> {
       // Subscribe to push
       subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY!),
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY!) as any,
       });
 
       // Send subscription to backend
@@ -115,7 +115,7 @@ export async function isPushSubscribed(): Promise<boolean> {
 /**
  * Send push subscription to backend
  */
-async function sendSubscriptionToBackend(subscription: PushSubscription): Promise<void> {
+async function sendSubscriptionToBackend(subscription: any): Promise<void> {
   const endpoint = `${API_BASE}/api/v1/notifications/subscribe`;
 
   const response = await fetch(endpoint, {

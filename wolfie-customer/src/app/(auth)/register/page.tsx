@@ -222,71 +222,7 @@ export default function RegisterPage() {
             </form>
           )}
 
-          {step === 'otp' && (
-            <form onSubmit={handleVerifyOtpAndRegister} className="animate-fadeIn">
-              <h2 className="font-poppins font-bold text-[32px] text-[#3C2F2F] mb-1">Verify Phone</h2>
-              <p className="font-roboto text-[15px] text-[#A6A6A6] mb-8">We sent a 4-digit code to your phone number.</p>
 
-              <div className="flex justify-between gap-4 mb-8">
-                {[0, 1, 2, 3].map((idx) => (
-                  <input 
-                    key={idx}
-                    type="text"
-                    maxLength={1}
-                    value={otpCode[idx]}
-                    id={`d-otp-${idx}`}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/[^0-9]/g, '');
-                      const updated = [...otpCode];
-                      updated[idx] = val;
-                      setOtpCode(updated);
-                      
-                      if (val && idx < 3) {
-                        const nextInput = document.getElementById(`d-otp-${idx + 1}`);
-                        if (nextInput) nextInput.focus();
-                      }
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Backspace' && !otpCode[idx] && idx > 0) {
-                        const prevInput = document.getElementById(`d-otp-${idx - 1}`);
-                        if (prevInput) {
-                          prevInput.focus();
-                          const updated = [...otpCode];
-                          updated[idx - 1] = '';
-                          setOtpCode(updated);
-                        }
-                      }
-                    }}
-                    className="w-16 h-16 border-2 border-gray-200 focus:border-[#EF2A39] text-center font-roboto font-bold text-[28px] rounded-[16px] outline-none transition-colors"
-                  />
-                ))}
-              </div>
-
-              <button 
-                type="submit"
-                className="w-full h-[58px] bg-[#FFE100] hover:brightness-95 active:scale-98 text-[#3C2F2F] font-roboto font-bold text-[16px] rounded-[18px] transition-all cursor-pointer focus:outline-none shadow-sm mb-6"
-              >
-                Verify Code
-              </button>
-
-              <p className="text-center font-roboto text-[14px] text-[#A6A6A6]">
-                {otpTimer > 0 ? (
-                  `Resend code in ${otpTimer}s`
-                ) : (
-                  <button 
-                    type="button"
-                    onClick={() => {
-                      setOtpTimer(60);
-                      sendOtp(phone).catch(err => logger.error('OTP resend failed', err));
-                    }}
-                    className="font-bold text-[#EF2A39] hover:underline focus:outline-none cursor-pointer"
-                  >
-                    Resend Code
-                  </button>
-                )}
-              </p>
-            </form>
-          )}
 
           {step === 'address' && (
             <div className="animate-fadeIn select-none">

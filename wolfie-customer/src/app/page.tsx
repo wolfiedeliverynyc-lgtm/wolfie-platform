@@ -395,7 +395,16 @@ export default function HomePage() {
       const params = new URLSearchParams(window.location.search);
       const viewParam = params.get('view');
       if (viewParam === 'tracking') {
-        setCurrentView('tracking');
+        // Check if there is actually an active order in the orders array
+        const hasActiveOrder = orders.some(o => o.status !== 'Completed');
+        if (hasActiveOrder) {
+          setCurrentView('tracking');
+        } else {
+          // If no active orders, redirect back to home and clear query param
+          setCurrentView('home');
+          const newUrl = window.location.pathname;
+          window.history.replaceState({}, document.title, newUrl);
+        }
       } else if (isAuthenticated && !params.get('view')) {
         setCurrentView('home');
       }
@@ -406,7 +415,7 @@ export default function HomePage() {
     } else {
       disconnectSocket();
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, orders]);
 
   const handleToggleDietary = async (dietId: string) => {
     const updated = profilePreferFood.includes(dietId)
