@@ -7123,7 +7123,7 @@ export default function HomePage() {
                         // Display premium simulator notification
                         setPaymentNotification({
                           type: 'success',
-                          message: 'Review published to Wendy\'s landing page and saved in Kenji\'s profile driver files!'
+                          message: 'Review published to Wendy\'s landing page and saved in the driver\'s profile!'
                         });
                         setTimeout(() => setPaymentNotification(null), 4000);
                         

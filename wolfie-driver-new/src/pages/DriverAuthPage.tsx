@@ -284,13 +284,13 @@ export default function DriverAuthPage() {
 
       // Login succeeded
       setDriverProfile({
-        name: data.full_name || 'Kenji Sato',
+        name: data.full_name || 'Driver',
         email: loginEmail,
-        phone: data.phone || identity || '+1 (555) 019-4444',
-        vehicleType: data.vehicle_type || 'Motorcycle',
-        vehiclePlate: data.vehicle_plate || 'NY-8849C',
-        vehicleModel: data.vehicle_model || 'Vespa GTS 300',
-        profilePhoto: data.profile_photo || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=256'
+        phone: data.phone || identity || '+1-XXX-XXX-XXXX',
+        vehicleType: data.vehicle_type || 'Vehicle',
+        vehiclePlate: data.vehicle_plate || 'TBD',
+        vehicleModel: data.vehicle_model || 'Not specified',
+        profilePhoto: data.profile_photo || '/assets/default_driver_avatar.png'
       });
       setToken(data.access_token);
       

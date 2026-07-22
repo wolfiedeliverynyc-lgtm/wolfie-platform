@@ -474,7 +474,7 @@ export default function ProfileView({
             <div className="flex items-center justify-between border border-gray-100 rounded-[24px] p-6 shadow-sm bg-gray-50/50">
               <div className="text-left">
                 <span className="font-poppins font-bold text-[15.5px] text-[#3C2F2F] block">Push Alerts</span>
-                <span className="font-roboto text-[13px] text-[#A6A6A6] block mt-0.5">Real-time status updates from driver Kenji Sato</span>
+                <span className="font-roboto text-[13px] text-[#A6A6A6] block mt-0.5">Real-time status updates from your driver</span>
               </div>
               <button 
                 onClick={() => setNotificationsEnabled(prev => !prev)}

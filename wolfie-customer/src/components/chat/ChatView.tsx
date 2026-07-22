@@ -240,7 +240,7 @@ export default function ChatView({
             }`}
           >
             <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-100 border border-gray-200 shrink-0">
-              <img src="/assets/driver_avatar.png" alt="Driver Kenji" className="w-full h-full object-cover" />
+              <img src="/assets/driver_avatar.png" alt={driverName} className="w-full h-full object-cover" />
             </div>
             <div className="min-w-0 flex-1">
               <span className="font-poppins font-bold text-[13.5px] block truncate">{driverName} (Courier)</span>

@@ -15,7 +15,7 @@ const slideTitles = [
 const slideTexts = [
   "Save your specific preferences (Healthy, Halal, Vegan) and allergy safeguards. Wolfie screens items to ensure a safe, tailored dining experience.",
   "Browse menus, read verified comments, and check out visual storefront stories modeled like your favorite social feeds.",
-  "Watch driver Kenji Sato navigate the Manhattan grid street-by-street on a live Mapbox radar screen, synced with real-time status updates."
+  "Watch your driver navigate the Manhattan grid street-by-street on a live Mapbox radar screen, synced with real-time status updates."
 ];
 
 export default function AuthCarousel() {
