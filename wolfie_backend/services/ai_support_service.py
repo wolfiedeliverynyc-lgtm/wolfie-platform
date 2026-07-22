@@ -20,8 +20,11 @@ class AISupportService:
     @classmethod
     def get_api_key(cls) -> str:
         """Fetch the Gemini API key from environment config."""
-        from app import app
-        return app.config.get("GEMINI_API_KEY") or os.getenv("GEMINI_API_KEY")
+        from flask import current_app
+        try:
+            return current_app.config.get("GEMINI_API_KEY") or os.getenv("GEMINI_API_KEY")
+        except RuntimeError:
+            return os.getenv("GEMINI_API_KEY")
 
     @classmethod
     def call_gemini_api(cls, model_name: str, system_instruction: str, prompt: str, schema: dict = None) -> dict:
