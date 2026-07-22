@@ -114,11 +114,15 @@ class WAPEngine:
         # 1. Get restaurant profile
         restaurant_profile = self._get_restaurant_profile(restaurant_id)
 
-        # 2. Calculate prep time
+        # 2. Analyze Menu & Ingredients
+        # Calculate dynamic complexity and check availability of ingredients
+        complexity, availability_penalty = self._analyze_order_items(order)
+
+        # 3. Calculate prep time
         prep_time = self._predict_prep_time(
             restaurant_id=restaurant_id,
             item_count=order.item_count if hasattr(order, 'item_count') else 3,
-            complexity=self._estimate_complexity(order),
+            complexity=complexity,
             rush_hour=self._is_rush_hour(now),
             profile=restaurant_profile
         )
@@ -130,14 +134,16 @@ class WAPEngine:
             traffic_factor=self._get_traffic_factor(now)
         )
 
-        # 4. Calculate buffer
+        # 5. Calculate buffer
         buffer = self._calculate_buffer(
             restaurant_profile=restaurant_profile,
             rush_hour=self._is_rush_hour(now),
             weather="clear"  # TODO: integrate weather API
         )
+        # Add penalty if ingredients are low or require fresh prep
+        buffer += availability_penalty
 
-        # 5. Calculate confidence
+        # 6. Calculate confidence
         confidence = self._calculate_confidence(
             restaurant_profile=restaurant_profile,
             has_ml_model=self._model_trained,
@@ -158,7 +164,7 @@ class WAPEngine:
                 "prep": {
                     "base": restaurant_profile.get('avg_prep_time', 15.0),
                     "rush_adjustment": BUFFER_RUSH_HOUR if self._is_rush_hour(now) else 0,
-                    "complexity_adjustment": self._estimate_complexity(order) * 2,
+                    "complexity_adjustment": complexity * 2,
                     "final": round(prep_time, 1)
                 },
                 "drive": {
@@ -168,9 +174,10 @@ class WAPEngine:
                     "final": round(drive_time, 1)
                 },
                 "buffer": {
-                    "restaurant_variance": buffer * 0.4,
-                    "traffic_safety": buffer * 0.3,
-                    "weather_safety": buffer * 0.3,
+                    "restaurant_variance": (buffer - availability_penalty) * 0.4,
+                    "traffic_safety": (buffer - availability_penalty) * 0.3,
+                    "weather_safety": (buffer - availability_penalty) * 0.3,
+                    "availability_penalty": availability_penalty,
                     "final": round(buffer, 1)
                 }
             },
@@ -419,8 +426,7 @@ class WAPEngine:
         return {'avg_speed': 25.0}
 
     def _estimate_complexity(self, order: Order) -> float:
-        """Estimate order complexity (0-5)."""
-        # Simple heuristic based on items
+        """Fallback method (deprecated) for estimating complexity."""
         item_count = getattr(order, 'item_count', 3)
         if item_count <= 2:
             return 1.0
@@ -428,6 +434,49 @@ class WAPEngine:
             return 2.0
         else:
             return 3.0
+
+    def _analyze_order_items(self, order: Order) -> Tuple[float, float]:
+        """
+        Analyze the exact menu items and their ingredients for this order.
+        Returns (complexity_score, availability_penalty).
+        """
+        complexity = 0.0
+        availability_penalty = 0.0
+        
+        # Example logic for analyzing ingredients:
+        items = getattr(order, 'items', [])
+        
+        if not items:
+            # Fallback if items are not loaded
+            return self._estimate_complexity(order), 0.0
+            
+        for item in items:
+            # Check complexity based on item type/ingredients
+            menu_item = item.get('menu_item', {}) if isinstance(item, dict) else getattr(item, 'menu_item', {})
+            ingredients = menu_item.get('ingredients', []) if isinstance(menu_item, dict) else getattr(menu_item, 'ingredients', [])
+            
+            item_complexity = 1.0
+            for ing in ingredients:
+                name = (ing.get('name', '') if isinstance(ing, dict) else getattr(ing, 'name', '')).lower()
+                # E.g. Grilled meat takes longer than a salad
+                if 'grilled' in name or 'steak' in name:
+                    item_complexity += 1.5
+                elif 'fried' in name:
+                    item_complexity += 1.0
+                elif 'fresh' in name:
+                    item_complexity += 0.5
+                    
+                # Check availability/stock level
+                stock_level = (ing.get('stock_level', 'high') if isinstance(ing, dict) else getattr(ing, 'stock_level', 'high'))
+                if stock_level == 'low':
+                    # Might require fetching from storage or fresh prep
+                    availability_penalty += 2.0
+                    
+            complexity += item_complexity
+            
+        # Normalize complexity
+        avg_complexity = complexity / len(items) if items else 1.0
+        return min(avg_complexity, 5.0), min(availability_penalty, 10.0)
 
     def _is_rush_hour(self, dt: datetime) -> bool:
         """Check if current time is rush hour."""

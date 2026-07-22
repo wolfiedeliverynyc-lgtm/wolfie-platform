@@ -53,6 +53,16 @@ export const useSocket = () => {
         setNetworkStatus('offline')
       })
 
+      socket.io.on('reconnect', () => {
+        console.log('[Wolfie] Telemetry feed reconnected')
+        setNetworkStatus('online')
+      })
+
+      socket.on('connect_error', (error: any) => {
+        console.warn('[Wolfie] Socket connection error:', error)
+        setNetworkStatus('offline')
+      })
+
       socket.on('order_status_update', (data: any) => {
         if (data && data.order_id && data.status) {
           updateOrderStatus(data.order_id, data.status)

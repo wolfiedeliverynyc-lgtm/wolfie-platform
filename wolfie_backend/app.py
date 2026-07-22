@@ -294,9 +294,29 @@ def _register_socket_events():
                 user_id = payload.get("sub")
                 role = payload.get("role")
                 
+                # Store WebSocket session mapping in Redis
+                redis_inst = getattr(current_app, "redis", None)
+                if redis_inst:
+                    try:
+                        redis_inst.cache.set(f"ws:sid:{request.sid}", {"user_id": user_id, "role": role}, ttl=7200)
+                    except Exception as ex:
+                        logger.warning(f"WS sid mapping failed: {ex}")
+
                 join_room(f"user_{user_id}")
                 logger.info(f"WS user {user_id} joined room user_{user_id}")
                 
+                if role == "driver":
+                    try:
+                        with get_db_session() as session:
+                            from database.repositories import UserRepository
+                            user_repo = UserRepository(session)
+                            driver = user_repo.get(user_id)
+                            if driver and not driver.is_available:
+                                user_repo.update(driver, is_available=True)
+                        socketio.emit("driver_status", {"driver_id": user_id, "status": "online"}, room="admin")
+                    except Exception as ex:
+                        logger.warning(f"Failed to update driver online state: {ex}")
+
                 if role == "admin":
                     join_room("admin")
                     logger.info(f"WS admin {user_id} joined room admin")
@@ -321,7 +341,27 @@ def _register_socket_events():
 
     @socketio.on("disconnect")
     def on_disconnect():
-        logging.getLogger("wolfie").info(f"WS disconnected: {request.sid}")
+        logger = logging.getLogger("wolfie")
+        logger.info(f"WS disconnected: {request.sid}")
+        try:
+            redis_inst = getattr(current_app, "redis", None)
+            if redis_inst:
+                mapping = redis_inst.cache.get(f"ws:sid:{request.sid}")
+                if mapping:
+                    redis_inst.cache.delete(f"ws:sid:{request.sid}")
+                    user_id = mapping.get("user_id")
+                    role = mapping.get("role")
+                    if role == "driver" and user_id:
+                        with get_db_session() as session:
+                            from database.repositories import UserRepository
+                            user_repo = UserRepository(session)
+                            driver = user_repo.get(user_id)
+                            if driver and driver.is_available:
+                                user_repo.update(driver, is_available=False)
+                        socketio.emit("driver_status", {"driver_id": user_id, "status": "offline"}, room="admin")
+                        logger.info(f"WS driver {user_id} marked offline on disconnect")
+        except Exception as e:
+            logger.warning(f"WS disconnect handler error: {e}")
 
     @socketio.on("join_order")
     def on_join_order(data):

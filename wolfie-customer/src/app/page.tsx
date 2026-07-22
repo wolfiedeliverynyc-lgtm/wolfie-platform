@@ -1746,20 +1746,23 @@ export default function HomePage() {
   // Chat page states
   const [chatRecipient, setChatRecipient] = useState<'support' | 'driver'>('support');
   const [chatInputText, setChatInputText] = useState('');
+  const [aiSessionId] = useState<string>(() => `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
+  const [isSupportTyping, setIsSupportTyping] = useState(false);
   const [supportMessages, setSupportMessages] = useState<ChatMessage[]>([
-    { id: 'msg_1', sender: 'user', text: "Hello, I ordered two fried chicken burgers. can I know how much time it will get to arrive?", timestamp: "12:30 PM" },
-    { id: 'msg_2', sender: 'recipient', text: "Ok, please let me check!", timestamp: "12:31 PM" },
-    { id: 'msg_3', sender: 'user', text: "Sure...", timestamp: "12:31 PM" },
-    { id: 'msg_4', sender: 'recipient', text: "It’ll get 25 minutes to arrive to your address", timestamp: "12:32 PM" },
-    { id: 'msg_5', sender: 'user', text: "Ok, thanks you for your support", timestamp: "12:33 PM" }
+    {
+      id: 'msg_welcome',
+      sender: 'recipient',
+      text: "👋 Hi! I'm Wolfie's AI Support Agent. I can help you with your orders, payments, account issues, and more. How can I assist you today?",
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    }
   ]);
   const [driverMessages, setDriverMessages] = useState<ChatMessage[]>([
     { id: 'dmsg_1', sender: 'recipient', text: "Hi! I am heading over now with your hot Wolfie order. Be there soon!", timestamp: "12:05 PM" },
     { id: 'dmsg_2', sender: 'user', text: "Sounds great, thank you! Please leave it at the front door.", timestamp: "12:06 PM" }
   ]);
 
-  const handleSendMessage = () => {
-    if (!chatInputText.trim()) return;
+  const handleSendMessage = async () => {
+    if (!chatInputText.trim() || isSupportTyping) return;
     
     const newMsg: ChatMessage = {
       id: `msg_${Date.now()}`,
@@ -1769,34 +1772,41 @@ export default function HomePage() {
     };
     
     if (chatRecipient === 'support') {
+      const userText = chatInputText.trim();
       setSupportMessages(prev => [...prev, newMsg]);
       setChatInputText('');
-      
-      // Simulate support response
-      setTimeout(() => {
+      setIsSupportTyping(true);
+
+      try {
+        const res = await apiRequest('/support/chat', {
+          method: 'POST',
+          body: { message: userText, session_id: aiSessionId }
+        });
+        const aiText = res.success && res.data?.response
+          ? res.data.response
+          : "I'm sorry, I couldn't process your request right now. Please try again or contact us directly.";
         const replyMsg: ChatMessage = {
           id: `msg_${Date.now() + 1}`,
           sender: 'recipient',
-          text: "You are welcome! Let us know if you need anything else.",
+          text: aiText,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
         setSupportMessages(prev => [...prev, replyMsg]);
-      }, 1500);
+      } catch {
+        const errMsg: ChatMessage = {
+          id: `msg_${Date.now() + 1}`,
+          sender: 'recipient',
+          text: "Sorry, I'm having trouble connecting right now. Please try again in a moment.",
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+        setSupportMessages(prev => [...prev, errMsg]);
+      } finally {
+        setIsSupportTyping(false);
+      }
     } else {
       setDriverMessages(prev => [...prev, newMsg]);
       sendMessageOverSocket(chatInputText.trim());
       setChatInputText('');
-      
-      // Simulate driver response
-      setTimeout(() => {
-        const replyMsg: ChatMessage = {
-          id: `msg_${Date.now() + 1}`,
-          sender: 'recipient',
-          text: "Copy that, I'm waiting at the red light right now. Will be there shortly!",
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        };
-        setDriverMessages(prev => [...prev, replyMsg]);
-      }, 1500);
     }
   };
 

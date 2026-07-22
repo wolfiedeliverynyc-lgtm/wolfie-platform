@@ -15,6 +15,7 @@ import OfferCard from './components/OfferCard';
 import ActiveDeliveryWidget from './components/ActiveDeliveryWidget';
 import WolfSvg from './components/WolfSvg';
 import NotificationsPanel from './components/NotificationsPanel';
+import ErrorBoundary from './components/ErrorBoundary';
 import { API_BASE } from './lib/api';
 
 // Pre-configured custom high-fidelity orders corresponding to screenshot template
@@ -577,7 +578,8 @@ export default function App() {
   );
 
   return (
-    <div className={`w-full h-full relative overflow-hidden flex flex-col justify-between bg-bg-app text-text-primary font-sans antialiased select-none transition-all duration-300 ${theme === 'light' ? 'light-theme' : ''}`}>
+    <ErrorBoundary context="DriverDashboard">
+      <div className={`w-full h-full relative overflow-hidden flex flex-col justify-between bg-bg-app text-text-primary font-sans antialiased select-none transition-all duration-300 ${theme === 'light' ? 'light-theme' : ''}`}>
 
       {/* VIEWPANEL CORE SCREEN */}
       <div className="flex-1 overflow-y-auto relative p-4 custom-scrollbar pb-24 bg-bg-app flex flex-col justify-start space-y-5">
@@ -1148,6 +1150,7 @@ export default function App() {
         </div>
       )}
 
-    </div>
+      </div>
+    </ErrorBoundary>
   );
 }
