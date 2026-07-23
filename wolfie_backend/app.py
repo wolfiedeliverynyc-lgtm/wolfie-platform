@@ -261,6 +261,12 @@ def _register_blueprints(app: Flask):
     app.register_blueprint(uploads_bp, url_prefix="/api/v1")
     app.register_blueprint(testing_bp, url_prefix="/api/v1/testing")
 
+    from flask import send_from_directory
+    from services.storage import UPLOAD_DIR
+    @app.route('/uploads/<filename>', methods=['GET'])
+    def serve_static_upload(filename):
+        return send_from_directory(UPLOAD_DIR, filename)
+
     app.logger.info("✅ All blueprints registered")
 
 

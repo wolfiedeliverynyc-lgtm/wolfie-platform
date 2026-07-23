@@ -36,3 +36,9 @@ def upload_file():
         return jsonify({"url": url}), 201
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@uploads_bp.route('/uploads/<filename>', methods=['GET'])
+def get_uploaded_file(filename):
+    from flask import send_from_directory
+    from services.storage import UPLOAD_DIR
+    return send_from_directory(UPLOAD_DIR, filename)
