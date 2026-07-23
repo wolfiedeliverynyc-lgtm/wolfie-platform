@@ -368,7 +368,7 @@ export default function HomePage() {
   const [restaurantMenuItems, setRestaurantMenuItems] = useState<any[]>(staticRestaurantMenuItems);
 
   // React Query Hooks
-  const { user, isAuthenticated, updateProfile } = useAuth();
+  const { user, isAuthenticated, updateProfile, logout: executeLogout } = useAuth();
   const { restaurants: fetchedRestaurants } = useRestaurants();
   const { menuItems: fetchedMenuItems } = useRestaurantMenu(selectedRestaurant?.id, selectedRestaurant?.name);
 
@@ -3701,7 +3701,9 @@ export default function HomePage() {
               <div className="space-y-2.5">
                 <button 
                   onClick={() => {
-                    // Reset ALL user profile data on logout
+                    // Execute central useAuth logout to clean queries and Zustand store
+                    executeLogout();
+                    // Reset ALL local component state variables
                     setProfileName('');
                     setProfileEmail('');
                     setProfilePhone('');
