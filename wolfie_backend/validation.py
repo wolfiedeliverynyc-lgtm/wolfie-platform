@@ -1,6 +1,6 @@
 from functools import wraps
 from flask import request, jsonify
-from pydantic import BaseModel, Field, field_validator, ValidationError
+from pydantic import BaseModel, Field, field_validator, ValidationError, AliasChoices
 from typing import List, Optional
 import re
 
@@ -64,9 +64,14 @@ class OrderCreateSchema(BaseModel):
 class UserRegisterSchema(BaseModel):
     email: str
     password: str = Field(..., min_length=8, description="Password must be at least 8 characters")
-    full_name: str = Field(..., min_length=1, description="Full name cannot be empty")
+    full_name: str = Field(..., validation_alias=AliasChoices("full_name", "name"), min_length=1, description="Full name cannot be empty")
     phone: str = Field(..., min_length=1, description="Phone number cannot be empty")
     role: str
+
+    # Support reading using both name and alias
+    model_config = {
+        "populate_by_name": True
+    }
 
     @field_validator("email")
     def validate_email(cls, v):

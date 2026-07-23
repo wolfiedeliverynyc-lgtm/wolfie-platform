@@ -15,7 +15,8 @@ def test_post_apiv1authregister_with_valid_data():
         "name": "Test User",
         "email": "test.user@example.com",
         "phone": "12345678901",
-        "password": "ValidPass123!"
+        "password": "ValidPass123!",
+        "role": "customer"
     }
 
     response = requests.post(register_url, json=payload, headers=headers, timeout=TIMEOUT)

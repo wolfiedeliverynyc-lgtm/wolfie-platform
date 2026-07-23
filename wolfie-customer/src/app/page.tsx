@@ -389,34 +389,6 @@ export default function HomePage() {
     }
   }, [user]);
 
-  // Handle route view parameter and socket connectivity on mount/auth state change
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const viewParam = params.get('view');
-      if (viewParam === 'tracking') {
-        // Check if there is actually an active order in the orders array
-        const hasActiveOrder = orders.some(o => o.status !== 'Completed');
-        if (hasActiveOrder) {
-          setCurrentView('tracking');
-        } else {
-          // If no active orders, redirect back to home and clear query param
-          setCurrentView('home');
-          const newUrl = window.location.pathname;
-          window.history.replaceState({}, document.title, newUrl);
-        }
-      } else if (isAuthenticated && !params.get('view')) {
-        setCurrentView('home');
-      }
-    }
-
-    if (isAuthenticated) {
-      connectSocket();
-    } else {
-      disconnectSocket();
-    }
-  }, [isAuthenticated, orders]);
-
   const handleToggleDietary = async (dietId: string) => {
     const updated = profilePreferFood.includes(dietId)
       ? profilePreferFood.filter((x) => x !== dietId)
@@ -1740,6 +1712,34 @@ export default function HomePage() {
   useEffect(() => {
     localStorage.setItem('wolfie_notifications_enabled', String(notificationsEnabled));
   }, [notificationsEnabled]);
+
+  // Handle route view parameter and socket connectivity on mount/auth state change
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const viewParam = params.get('view');
+      if (viewParam === 'tracking') {
+        // Check if there is actually an active order in the orders array
+        const hasActiveOrder = orders.some(o => o.status !== 'Completed');
+        if (hasActiveOrder) {
+          setCurrentView('tracking');
+        } else {
+          // If no active orders, redirect back to home and clear query param
+          setCurrentView('home');
+          const newUrl = window.location.pathname;
+          window.history.replaceState({}, document.title, newUrl);
+        }
+      } else if (isAuthenticated && !params.get('view')) {
+        setCurrentView('home');
+      }
+    }
+
+    if (isAuthenticated) {
+      connectSocket();
+    } else {
+      disconnectSocket();
+    }
+  }, [isAuthenticated, orders]);
 
   const toggleFavoriteRestaurant = async (id: string) => {
     const isFav = favoriteRestaurants.includes(id);
