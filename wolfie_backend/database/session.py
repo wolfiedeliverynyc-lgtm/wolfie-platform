@@ -202,8 +202,11 @@ def init_db(app):
     testing = app.config.get("TESTING", False)
     engine  = init_engine(db_url, testing=testing)
 
-    if testing or db_url.startswith("sqlite"):
+    # Always run create_tables to ensure new schemas (like ai_conversations) are automatically created
+    try:
         create_tables()
+    except Exception as e:
+        logger.error(f"⚠️ Failed to auto-create tables: {e}")
 
     # Attach session factory to app
     app.db_session = _SessionLocal
