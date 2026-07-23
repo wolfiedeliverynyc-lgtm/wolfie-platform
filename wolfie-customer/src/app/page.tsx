@@ -1659,7 +1659,7 @@ export default function HomePage() {
           id: o.id,
           restaurantId: o.restaurant_id || 'rest_wendys',
           restaurantName: o.restaurant_name || 'Restaurant',
-          restaurantLogo: o.restaurant_logo || '/assets/default_restaurant.png',
+          restaurantLogo: o.restaurant_logo || '/assets/restaurant_logo_wendys.png',
           date: new Date(o.created_at).toLocaleDateString(),
           status: o.status === 'delivered' ? 'Completed' : o.status,
           totalPrice: o.total || 0,

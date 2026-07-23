@@ -27,7 +27,7 @@ export default function TrackingView({
   onBackToHome,
   onOpenChat,
   orderId,
-  restaurantLogo = '/assets/logo_wendys.png',
+  restaurantLogo = '/assets/restaurant_logo_wendys.png',
   restaurantName = "Wendy's Burgers",
   initialStatus,
   driverName = "Kenji Sato",
