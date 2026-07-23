@@ -73,9 +73,18 @@ class SupabaseStorageProvider(StorageProvider):
         public_url = self.supabase.storage.from_(self.bucket_name).get_public_url(unique_filename)
         return public_url
 
-# Initialize provider based on environment (currently hardcoded to local)
 UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'uploads')
-BASE_URL = os.getenv("BASE_URL", "http://localhost:5000")
+
+# ✅ FIX: Use correct URL for production (Render)
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+RENDER_EXTERNAL_URL = os.getenv("RENDER_EXTERNAL_URL", "")
+
+if ENVIRONMENT == "production" or "render.com" in RENDER_EXTERNAL_URL:
+    # Production on Render - use external URL
+    BASE_URL = os.getenv("BASE_URL") or RENDER_EXTERNAL_URL or "https://wolfie-backend-pt9u.onrender.com"
+else:
+    # Local development
+    BASE_URL = os.getenv("BASE_URL", "http://localhost:5000")
 
 # Singleton instance
 supabase_url = os.getenv("SUPABASE_URL")

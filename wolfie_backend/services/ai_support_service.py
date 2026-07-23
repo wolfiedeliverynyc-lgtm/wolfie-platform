@@ -275,6 +275,13 @@ class AISupportService:
                 )
                 
                 if "error" in res:
+                    error_msg = res.get("error", "UNKNOWN")
+                    # If config-related or missing API key
+                    if "key" in error_msg.lower() or "config" in error_msg.lower():
+                        return {
+                            "response": "Support service configuration issue (API key missing or invalid). Please contact the platform administrator.",
+                            "escalate": True
+                        }
                     return {"response": "I'm experiencing connectivity issues right now. Let me escalate you to an agent.", "escalate": True}
                     
                 # 10. Process response
