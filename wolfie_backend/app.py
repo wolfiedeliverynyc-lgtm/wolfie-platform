@@ -76,7 +76,10 @@ def create_app(config_name: str = None) -> Flask:
     _setup_logging(app)
 
     # ── Extensions ────────────────────────────
-    CORS(app, resources={r"/api/*": {"origins": app.config["ALLOWED_ORIGINS"]}})
+    CORS(app, resources={r"/api/*": {
+        "origins": app.config["ALLOWED_ORIGINS"],
+        "supports_credentials": True
+    }})
     socketio.init_app(app)
 
     # ── Database (Supabase) ───────────────────
