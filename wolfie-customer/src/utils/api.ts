@@ -90,8 +90,13 @@ export async function apiRequest(endpoint: string, options: FetchOptions = {}) {
     const data = await response.json();
     
     if (!response.ok) {
+      let errorMsg = data.error || response.statusText || 'Request failed';
+      if (data.details && Array.isArray(data.details) && data.details.length > 0) {
+        const detailMsgs = data.details.map((d: any) => d.message).join(', ');
+        errorMsg = `${errorMsg}: ${detailMsgs}`;
+      }
       return {
-        error: data.error || response.statusText || 'Request failed',
+        error: errorMsg,
         status: response.status,
         success: false
       };

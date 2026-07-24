@@ -215,8 +215,13 @@ export default function DriverAuthPage() {
       });
       
       const regData = await regRes.json();
-      if (!regRes.ok && regRes.status !== 400) {
-        throw new Error(regData.error || 'Failed to register account.');
+      if (!regRes.ok) {
+        let errMsg = regData.error || 'Failed to register account.';
+        if (regData.details && Array.isArray(regData.details) && regData.details.length > 0) {
+          const detailMsgs = regData.details.map((d: any) => d.message).join(', ');
+          errMsg = `${errMsg}: ${detailMsgs}`;
+        }
+        throw new Error(errMsg);
       }
       
       // 2. Log in to get the JWT token

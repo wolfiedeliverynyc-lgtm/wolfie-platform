@@ -113,7 +113,12 @@ export default function RegisterPage() {
 
       setStep('address');
     } catch (err: any) {
-      const errMsg = err.response?.data?.error || err.message || 'Registration failed.';
+      let errMsg = err.response?.data?.error || err.message || 'Registration failed.';
+      const details = err.response?.data?.details;
+      if (Array.isArray(details) && details.length > 0) {
+        const detailMsgs = details.map((d: any) => d.message).join(', ');
+        errMsg = `${errMsg}: ${detailMsgs}`;
+      }
       if (err.message === 'Network connection failed' || err.response?.status >= 500) {
         setError('Failed to connect to the server. Please check your internet connection.');
       } else {
