@@ -5,6 +5,7 @@ import { FoodItem } from '@/services/restaurantService';
 import { useCartStore, CartItem } from '@/store/useCartStore';
 import { mockFoodItems } from '@/lib/mockData';
 import { toppingOptions, addonOptions, drinkOptions } from '@/lib/constants';
+import { handleImageError } from '@/utils/image';
 
 interface FoodItemDetailViewProps {
   foodItem: FoodItem;
@@ -43,7 +44,7 @@ export default function FoodItemDetailView({ foodItem, onBack, onVisitStore, onG
       case 'food_10': return { kcal: '450 kcal', fat: '16g', saturates: '10g', sugars: '48g', salt: '0.3g' };
       case 'food_11': return { kcal: '380 kcal', fat: '19g', saturates: '6g', sugars: '1g', salt: '1.5g' };
       case 'food_12': return { kcal: '520 kcal', fat: '28g', saturates: '8g', sugars: '11g', salt: '1.3g' };
-      default: return { kcal: '420 kcal', fat: '20g', saturates: '8g', sugars: '10g', salt: '1.0g' };
+      default: return { kcal: '420 kcal', fat: '20g', saturates: '20g', sugars: '10g', salt: '1.0g' };
     }
   };
 
@@ -188,7 +189,12 @@ export default function FoodItemDetailView({ foodItem, onBack, onVisitStore, onG
 
           {/* Image display */}
           <div className="relative flex items-center justify-center h-[260px] w-full mb-6 bg-gray-50/40 rounded-[28px] p-6">
-            <img src={foodItem.image} alt={foodItem.name} className="max-h-[220px] max-w-[220px] object-contain hover:scale-105 transition-transform duration-300" />
+            <img 
+              src={foodItem.image} 
+              alt={foodItem.name} 
+              onError={(e) => handleImageError(e, '/assets/hamburger_1.png')}
+              className="max-h-[220px] max-w-[220px] object-contain hover:scale-105 transition-transform duration-300" 
+            />
           </div>
 
           {/* Nutrition Pills */}

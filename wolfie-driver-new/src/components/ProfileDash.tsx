@@ -33,7 +33,12 @@ export default function ProfileDash({
     return (
       <div className="relative w-22 h-22 rounded-full border-2 border-slate-700/60 bg-gradient-to-tr from-slate-900 to-slate-800 p-0.5 shadow-xl shrink-0 group overflow-hidden">
         {store.driverProfile?.profilePhoto ? (
-          <img src={store.driverProfile.profilePhoto} alt="Profile" className="w-full h-full object-cover rounded-full" />
+          <img 
+            src={store.driverProfile.profilePhoto || '/wolf_logo.png'} 
+            alt="Profile" 
+            onError={(e) => { e.currentTarget.src = '/wolf_logo.png'; }}
+            className="w-full h-full object-cover rounded-full" 
+          />
         ) : (
           <svg viewBox="0 0 100 100" className="w-full h-full text-text-secondary">
             <defs>

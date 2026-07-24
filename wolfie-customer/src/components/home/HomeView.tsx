@@ -5,6 +5,7 @@ import { useRestaurants } from '@/hooks/useRestaurants';
 import { useCartStore, CartItem } from '@/store/useCartStore';
 import { Restaurant, FoodItem } from '@/services/restaurantService';
 import { mockRestaurants, mockFoodItems } from '@/lib/mockData';
+import { handleImageError } from '@/utils/image';
 import RestaurantCard from '@/components/restaurant/RestaurantCard';
 
 interface HomeViewProps {
@@ -102,7 +103,12 @@ export default function HomeView({ onSelectRestaurant, onSelectFoodItem, onProce
             <h2 className="font-poppins font-bold text-[34px] mt-4 mb-3 leading-tight">Order premium burgers & meals under 25 mins!</h2>
             <p className="font-roboto text-[16px] text-white/80">Tailored dietary screening protects your lifestyle and allergy preferences.</p>
           </div>
-          <img src="/assets/onboarding_burger.png" alt="Promo Burger" className="w-[280px] object-contain scale-[1.25] -rotate-12 transform translate-x-4 z-10 filter drop-shadow-[0_20px_20px_rgba(0,0,0,0.3)] transition-transform hover:scale-[1.3] duration-500" />
+          <img 
+            src="/assets/onboarding_burger.png" 
+            alt="Promo Burger" 
+            onError={(e) => handleImageError(e, '/assets/onboarding_burger.png')}
+            className="w-[280px] object-contain scale-[1.25] -rotate-12 transform translate-x-4 z-10 filter drop-shadow-[0_20px_20px_rgba(0,0,0,0.3)] transition-transform hover:scale-[1.3] duration-500" 
+          />
           <div className="absolute inset-0 opacity-15 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-transparent scale-[1.5]" />
         </div>
 
@@ -260,7 +266,12 @@ export default function HomeView({ onSelectRestaurant, onSelectFoodItem, onProce
                       className="bg-white rounded-[26px] border border-gray-100 p-4 shadow-[0_5px_15px_rgba(0,0,0,0.02)] hover:shadow-[0_12px_25px_rgba(0,0,0,0.06)] hover:-translate-y-0.5 transition-all duration-300 cursor-pointer flex gap-4 group active:scale-[0.99] relative"
                     >
                       <div className="w-[110px] h-[110px] bg-gray-50/70 rounded-[20px] overflow-hidden flex items-center justify-center shrink-0 relative p-1">
-                        <img src={item.image} alt={item.name} className="max-h-[95px] max-w-[95px] object-contain group-hover:scale-105 transition-transform" />
+                        <img 
+                          src={item.image} 
+                          alt={item.name} 
+                          onError={(e) => handleImageError(e, '/assets/hamburger_1.png')}
+                          className="max-h-[95px] max-w-[95px] object-contain group-hover:scale-105 transition-transform" 
+                        />
                       </div>
                       <div className="text-left flex-1 flex flex-col justify-between min-w-0">
                         <div>

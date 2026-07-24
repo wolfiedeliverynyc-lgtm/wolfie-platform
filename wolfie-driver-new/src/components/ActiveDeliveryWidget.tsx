@@ -816,7 +816,12 @@ export default function ActiveDeliveryWidget({
               <span className="text-xs font-bold text-text-secondary uppercase tracking-widest text-[9px] block">Proof of Delivery photo</span>
               {simulatedPhotoUrl ? (
                 <div className="relative border border-slate-800 rounded-xl overflow-hidden shadow-lg animate-fade-in h-[130px]">
-                  <img src={simulatedPhotoUrl} alt="Delivery Proof" className="w-full h-full object-cover" />
+                  <img 
+                    src={simulatedPhotoUrl} 
+                    alt="Delivery Proof" 
+                    onError={(e) => { e.currentTarget.src = '/wolf_hero.png'; }}
+                    className="w-full h-full object-cover" 
+                  />
                   <div className="absolute inset-0 bg-black/40 flex items-center justify-center font-bold text-[11px] text-emerald-400 space-x-1">
                     <Check className="w-4 h-4" />
                     <span>GPS Proof Encrypted</span>

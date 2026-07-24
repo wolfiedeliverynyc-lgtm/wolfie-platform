@@ -1,5 +1,6 @@
 import React from 'react';
 import { Restaurant } from '@/services/restaurantService';
+import { handleImageError } from '@/utils/image';
 
 interface RestaurantCardProps {
   restaurant: Restaurant;
@@ -16,6 +17,7 @@ export default function RestaurantCard({ restaurant, onClick }: RestaurantCardPr
         <img 
           src={restaurant.cover} 
           alt={restaurant.name} 
+          onError={(e) => handleImageError(e, '/assets/restaurant_cover_wendys.png')}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
         />
         {restaurant.isBestSeller && (
@@ -26,7 +28,12 @@ export default function RestaurantCard({ restaurant, onClick }: RestaurantCardPr
       </div>
       <div className="p-5 flex gap-3.5 relative">
         <div className="w-[54px] h-[54px] rounded-[16px] bg-white border border-gray-100 shadow-sm overflow-hidden flex items-center justify-center shrink-0 -mt-10 relative z-10">
-          <img src={restaurant.logo} alt={restaurant.name} className="w-full h-full object-cover" />
+          <img 
+            src={restaurant.logo} 
+            alt={restaurant.name} 
+            onError={(e) => handleImageError(e, '/assets/restaurant_logo_wendys.png')}
+            className="w-full h-full object-cover" 
+          />
         </div>
         <div className="text-left flex-1">
           <h4 className="font-poppins font-bold text-[16px] text-[#3C2F2F] group-hover:text-[#EF2A39] transition-colors">

@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Restaurant, FoodItem } from '@/services/restaurantService';
 import { useRestaurantMenu } from '@/hooks/useRestaurantMenu';
 import { useCartStore, CartItem } from '@/store/useCartStore';
+import { handleImageError } from '@/utils/image';
 import dynamic from 'next/dynamic';
 import { logger } from '@/utils/logger';
 
@@ -84,7 +85,12 @@ export default function RestaurantDetailView({ restaurant, onBack, onSelectFoodI
     <div className="max-w-[1400px] mx-auto select-none animate-fadeIn text-left pb-16 px-4">
       {/* Cover Photo */}
       <div className="w-full h-[320px] relative rounded-[32px] overflow-hidden bg-gray-100 mb-8 shadow-sm">
-        <img src={restaurant.cover} alt={restaurant.name} className="w-full h-full object-cover" />
+        <img 
+          src={restaurant.cover} 
+          alt={restaurant.name} 
+          onError={(e) => handleImageError(e, '/assets/restaurant_cover_wendys.png')}
+          className="w-full h-full object-cover" 
+        />
         <button 
           onClick={onBack}
           className="absolute left-6 top-6 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-md active:scale-95 transition-all focus:outline-none cursor-pointer hover:bg-gray-50"
@@ -119,7 +125,12 @@ export default function RestaurantDetailView({ restaurant, onBack, onSelectFoodI
       {/* Brand Details Bar */}
       <div className="flex gap-6 items-end mb-8 relative">
         <div className="w-[120px] h-[120px] rounded-[28px] overflow-hidden bg-white border-4 border-white shadow-md flex items-center justify-center shrink-0 -mt-16 z-10">
-          <img src={restaurant.logo} alt={restaurant.name} className="w-full h-full object-cover" />
+          <img 
+            src={restaurant.logo} 
+            alt={restaurant.name} 
+            onError={(e) => handleImageError(e, '/assets/restaurant_logo_wendys.png')}
+            className="w-full h-full object-cover" 
+          />
         </div>
         <div className="flex-1 text-left">
           <div className="flex items-center gap-2">

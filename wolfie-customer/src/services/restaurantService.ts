@@ -1,4 +1,5 @@
 import { apiClient } from '@/lib/axios';
+import { sanitizeImageUrl } from '@/utils/image';
 
 export interface Restaurant {
   id: string;
@@ -36,8 +37,8 @@ export const restaurantService = {
       return res.data.restaurants.map((r: any) => ({
         id: r.id,
         name: r.restaurant_name,
-        logo: r.logo_image || '/assets/restaurant_logo_wendys.png',
-        cover: r.hero_image || '/assets/restaurant_cover_wendys.png',
+        logo: sanitizeImageUrl(r.logo_image, '/assets/restaurant_logo_wendys.png'),
+        cover: sanitizeImageUrl(r.hero_image, '/assets/restaurant_cover_wendys.png'),
         rating: 4.8,
         reviewsCount: '1.2K',
         deliveryTime: `${r.delivery_time_min || 25} mins`,
@@ -61,7 +62,7 @@ export const restaurantService = {
         name: d.name,
         brand: d.restaurant_name || '',
         price: Number(d.price) || 8.00,
-        image: d.image_url || '/assets/hamburger_1.png',
+        image: sanitizeImageUrl(d.image_url, '/assets/hamburger_1.png'),
         category: d.category || 'Burgers',
         description: d.description || '',
         rating: 4.8,
