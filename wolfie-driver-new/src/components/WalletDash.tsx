@@ -36,7 +36,7 @@ export default function WalletDash({
         if (res.ok) {
           const data = await res.json();
           updateWallet({
-            availableBalance: data.total_paid + data.pending_payout,
+            availableBalance: data.pending_payout,
             pendingBalance: data.pending_payout
           });
         }

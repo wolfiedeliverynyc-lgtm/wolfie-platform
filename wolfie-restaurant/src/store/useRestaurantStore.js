@@ -566,13 +566,18 @@ export const useRestaurantStore = create((set, get) => ({
   },
 
   toggleItemAvailability: async (itemId) => {
-    set(s => ({
-      menuItems: s.menuItems.map(i => i.id === itemId ? { ...i, available: !i.available } : i),
-      isDraftDirty: true
-    }));
+    let newAvailable = false;
+    set(s => {
+      const item = s.menuItems.find(i => i.id === itemId);
+      newAvailable = item ? !item.available : false;
+      return {
+        menuItems: s.menuItems.map(i => i.id === itemId ? { ...i, available: newAvailable } : i),
+        isDraftDirty: true
+      };
+    });
     try {
       const { menuApi } = await import('../api');
-      await menuApi.toggleItem(itemId);
+      await menuApi.toggleItem(itemId, newAvailable);
     } catch (err) {
       console.error('Failed to toggle item availability on backend:', err);
     }

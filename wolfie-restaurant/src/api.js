@@ -116,7 +116,7 @@ export const menuApi = {
   addItem:      (body) => request('/restaurants/menu', { method: 'POST', body: JSON.stringify(body) }),
   updateItem:   (id, body) => request(`/restaurants/menu/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   deleteItem:   (id)   => request(`/restaurants/menu/${id}`, { method: 'DELETE' }),
-  toggleItem:   (id)   => request(`/restaurants/menu/${id}/toggle`, { method: 'POST' }),
+  toggleItem:   (id, isAvailable) => request(`/restaurants/menu/${id}`, { method: 'PATCH', body: JSON.stringify({ is_available: isAvailable }) }),
 }
 
 // ── Orders ────────────────────────────────────
@@ -130,7 +130,7 @@ export const ordersApi = {
     return request(`/orders/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
   },
   acceptOrder:  (id)   => request(`/restaurants/orders/${id}/accept`, { method: 'POST' }),
-  rejectOrder:  (id)   => request(`/restaurants/orders/${id}/reject`, { method: 'POST' }),
+  rejectOrder:  (id)   => request(`/orders/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status: 'cancelled' }) }),
 }
 
 // ── Onboarding ────────────────────────────────

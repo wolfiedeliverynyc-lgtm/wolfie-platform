@@ -630,10 +630,20 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
 
   fetchMerchants: async () => {
     try {
-      const res = await api.get('/admin/merchants');
+      const res = await api.get('/admin/restaurants');
       const data = res.data;
-      const list: Merchant[] = Array.isArray(data) ? data : (data.merchants || data.data || MOCK_MERCHANTS);
-      set({ merchants: list });
+      const rawList = Array.isArray(data) ? data : (data.restaurants || data.data || []);
+      const mapped: Merchant[] = rawList.map((r: any) => ({
+        id: r.id,
+        name: r.restaurant_name || r.full_name || "Merchant",
+        category: r.category || "General",
+        rating: r.rating || 5.0,
+        commissionPct: r.commission_rate ? Math.round(r.commission_rate * 100) : 18,
+        status: r.is_active ? (r.is_open ? 'active' : 'paused') : 'suspended',
+        zone: (r.delivery_zones && r.delivery_zones[0]) || "Algiers Centre",
+        operational_status: r.busy_mode ? 'busy' : (r.is_open ? 'open' : 'paused')
+      }));
+      set({ merchants: mapped });
     } catch (err) {
       console.warn("API fallback to mock merchants:", err);
       if (get().merchants.length === 0) {
@@ -681,18 +691,18 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
 
   suspendDriver: async (driverId) => {
     let newStatus: 'available' | 'offline' = 'offline';
+    const driver = get().drivers.find(d => d.id === driverId);
+    const currentlyActive = driver ? driver.status !== 'offline' : true;
+    newStatus = currentlyActive ? 'offline' : 'available';
+
     set((state) => ({
-      drivers: state.drivers.map((d) => {
-        if (d.id === driverId) {
-          newStatus = d.status === 'offline' ? 'available' : 'offline';
-          return { ...d, status: newStatus };
-        }
-        return d;
-      })
+      drivers: state.drivers.map((d) =>
+        d.id === driverId ? { ...d, status: newStatus } : d
+      )
     }));
 
     try {
-      await api.post(`/admin/drivers/${driverId}/suspend`);
+      await api.patch(`/admin/users/${driverId}/activate`, { is_active: !currentlyActive });
       get().addActivity({
         text: `Toggled suspension for Driver ${driverId} to status [${newStatus}]`,
         color: "var(--status-red)"
@@ -711,12 +721,16 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
   setMerchantStatus: async (merchantId, status) => {
     set((state) => ({
       merchants: state.merchants.map((m) =>
-        m.id === merchantId ? { ...m, operational_status: status } : m
+        m.id === merchantId ? { ...m, operational_status: status, status: status === 'open' ? 'active' : 'paused' } : m
       )
     }));
 
     try {
-      await api.patch(`/admin/merchants/${merchantId}/status`, { status });
+      if (status === 'open') {
+        await api.patch(`/admin/users/${merchantId}/activate`, { is_active: true });
+      } else {
+        await api.patch(`/admin/restaurants/${merchantId}/suspend`, { reason: `Status set to ${status}` });
+      }
       get().addActivity({
         text: `Updated Merchant ${merchantId} status to [${status}]`,
         color: "var(--accent)"
