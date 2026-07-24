@@ -19,9 +19,14 @@ interface AuthState {
   updateUser: (data: Partial<User>) => void;
 }
 
+// Helper for cross-tab logout messaging
+const authChannel = typeof window !== 'undefined' && 'BroadcastChannel' in window
+  ? new BroadcastChannel('wolfie_auth')
+  : null;
+
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
       isAuthenticated: false,
       token: null,
@@ -29,23 +34,37 @@ export const useAuthStore = create<AuthState>()(
       setAuth: (user, token) => {
         set({ user, token, isAuthenticated: true });
         if (typeof window !== 'undefined') {
-          localStorage.setItem('access_token', token);
-          localStorage.setItem('wolfie_auth_token', token);
-          localStorage.setItem('wolfie_auth_user_id', user.id);
-          // Set cookie for middleware access (expires in 7 days)
+          // Set unified cookie (expires in 7 days)
           const maxAge = 7 * 24 * 60 * 60;
           document.cookie = `wolfie_auth_token=${token}; path=/; max-age=${maxAge}; SameSite=Lax`;
+          localStorage.setItem('wolfie_auth_user_id', user.id);
         }
       },
       
       logout: () => {
+        const wasAuthenticated = get().isAuthenticated;
         set({ user: null, token: null, isAuthenticated: false });
         if (typeof window !== 'undefined') {
+          // Clear legacy local storage tokens
           localStorage.removeItem('access_token');
           localStorage.removeItem('wolfie_auth_token');
           localStorage.removeItem('wolfie_auth_user_id');
-          // Clear cookie for middleware
+          localStorage.removeItem('wolfie-auth-storage');
+          
+          // Clear cookie
           document.cookie = 'wolfie_auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+
+          // Clear Service Worker Caches
+          if ('caches' in window) {
+            caches.keys().then((names) => {
+              names.forEach((name) => caches.delete(name));
+            }).catch(() => {});
+          }
+
+          // Notify other tabs if logout initiated here
+          if (wasAuthenticated && authChannel) {
+            authChannel.postMessage({ type: 'LOGOUT' });
+          }
         }
       },
 
@@ -54,8 +73,24 @@ export const useAuthStore = create<AuthState>()(
       }))
     }),
     {
-      name: 'wolfie-auth-storage', // name of item in the storage (must be unique)
+      name: 'wolfie-auth-storage',
       partialize: (state) => ({ user: state.user, isAuthenticated: state.isAuthenticated, token: state.token }),
     }
   )
 );
+
+// Listen to multi-tab logout events from other tabs
+if (authChannel) {
+  authChannel.onmessage = (event) => {
+    if (event.data?.type === 'LOGOUT') {
+      const store = useAuthStore.getState();
+      if (store.isAuthenticated) {
+        store.logout();
+        if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+          window.location.href = '/login';
+        }
+      }
+    }
+  };
+}
+

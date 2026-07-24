@@ -10,7 +10,7 @@ const formatApiUrl = (url: string | undefined, defaultUrl: string): string => {
   return trimmed;
 };
 
-const API_URL = formatApiUrl(process.env.NEXT_PUBLIC_API_URL, 'http://localhost:4000/api/v1');
+const API_URL = formatApiUrl(process.env.NEXT_PUBLIC_API_URL, 'http://localhost:5000/api/v1');
 
 export const api = axios.create({
   baseURL: formatApiUrl(process.env.NEXT_PUBLIC_API_URL, 'http://localhost:5000/api/v1'),

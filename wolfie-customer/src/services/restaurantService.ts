@@ -54,14 +54,14 @@ export const restaurantService = {
   },
 
   getMenu: async (restaurantId: string): Promise<FoodItem[]> => {
-    const res = await apiClient.get(`/restaurants/menu?restaurant_id=${restaurantId}`);
-    if (res.data && res.data.dishes) {
-      return res.data.dishes.map((d: any) => ({
+    const res = await apiClient.get(`/restaurants/${restaurantId}/menu`);
+    if (res.data && res.data.menu) {
+      return res.data.menu.map((d: any) => ({
         id: d.id,
-        name: d.food_name,
+        name: d.name,
         brand: d.restaurant_name || '',
         price: Number(d.price) || 8.00,
-        image: d.image || '/assets/hamburger_1.png',
+        image: d.image_url || '/assets/hamburger_1.png',
         category: d.category || 'Burgers',
         description: d.description || '',
         rating: 4.8,

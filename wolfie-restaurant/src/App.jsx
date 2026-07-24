@@ -7,10 +7,11 @@ import MANIMALIST from './pages/MANIMALIST';
 import PendingApproval from './pages/PendingApproval';
 import Legal from './pages/Legal';
 
-// Simple PrivateRoute wrapper checking localStorage for a mock token
+import { getToken } from './api';
+
+// PrivateRoute wrapper checking token
 const PrivateRoute = ({ children }) => {
-  const token = localStorage.getItem('restaurant_token');
-  // For demo purposes, we'll check if a token exists
+  const token = getToken();
   return token ? children : <Navigate to="/login" replace />;
 };
 

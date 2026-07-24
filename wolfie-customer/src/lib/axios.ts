@@ -14,15 +14,22 @@ const BASE_URL = formatApiUrl(process.env.NEXT_PUBLIC_API_URL, 'https://wolfie-b
 export const apiClient = axios.create({
   baseURL: BASE_URL,
   timeout: 15000,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
+const getCookieToken = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  const match = document.cookie.match(/(?:^|; )\s*wolfie_auth_token\s*=\s*([^;]+)/);
+  return match ? decodeURIComponent(match[1]) : null;
+};
+
 // Request interceptor to attach JWT token
 apiClient.interceptors.request.use((config) => {
   if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('access_token'); // Will be migrated to cookies in later phases
+    const token = getCookieToken() || localStorage.getItem('wolfie_auth_token') || localStorage.getItem('access_token');
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }

@@ -5,18 +5,55 @@
 
 const BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api/v1` : '/api/v1'
 
-function getToken() {
-  return localStorage.getItem('restaurant_token') || localStorage.getItem('wolfie_restaurant_token')
+const authChannel = typeof window !== 'undefined' && 'BroadcastChannel' in window
+  ? new BroadcastChannel('wolfie_auth')
+  : null;
+
+export function getToken() {
+  if (typeof window !== 'undefined') {
+    const match = document.cookie.match(/(?:^|; )\s*wolfie_auth_token\s*=\s*([^;]+)/);
+    if (match) return decodeURIComponent(match[1]);
+    return localStorage.getItem('restaurant_token') || localStorage.getItem('wolfie_restaurant_token');
+  }
+  return null;
 }
 
 export function setToken(token) {
-  localStorage.setItem('restaurant_token', token)
-  localStorage.setItem('wolfie_restaurant_token', token)
+  if (typeof window !== 'undefined') {
+    document.cookie = `wolfie_auth_token=${token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
+    localStorage.setItem('restaurant_token', token);
+    localStorage.setItem('wolfie_restaurant_token', token);
+  }
 }
 
 export function clearToken() {
-  localStorage.removeItem('restaurant_token')
-  localStorage.removeItem('wolfie_restaurant_token')
+  if (typeof window !== 'undefined') {
+    document.cookie = 'wolfie_auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+    localStorage.removeItem('restaurant_token');
+    localStorage.removeItem('wolfie_restaurant_token');
+    
+    // Clear Service Worker Caches if present
+    if ('caches' in window) {
+      caches.keys().then((names) => {
+        names.forEach((name) => caches.delete(name));
+      }).catch(() => {});
+    }
+
+    if (authChannel) {
+      authChannel.postMessage({ type: 'LOGOUT' });
+    }
+  }
+}
+
+// Multi-tab logout listener
+if (authChannel) {
+  authChannel.onmessage = (event) => {
+    if (event.data?.type === 'LOGOUT') {
+      if (typeof window !== 'undefined' && window.location.hash !== '#/login' && window.location.hash !== '#/register') {
+        window.location.hash = '#/login';
+      }
+    }
+  };
 }
 
 async function request(path, options = {}) {
@@ -34,6 +71,7 @@ async function request(path, options = {}) {
     const res = await fetch(`${BASE}${path}`, { 
       ...options, 
       headers,
+      credentials: 'include',
       signal: controller.signal
     })
     const data = await res.json().catch(() => ({}))

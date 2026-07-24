@@ -18,6 +18,10 @@ function getDistanceMeters(lat1: number, lon1: number, lat2: number, lon2: numbe
   return R * c;
 }
 
+const authChannel = typeof window !== 'undefined' && 'BroadcastChannel' in window
+  ? new BroadcastChannel('wolfie_auth')
+  : null;
+
 export const useSocket = () => {
   const socketRef = useRef<Socket | null>(null)
   const lastSentCoordsRef = useRef<[number, number] | null>(null)
@@ -35,17 +39,55 @@ export const useSocket = () => {
 
     if (!socketRef.current) {
       const socketUrl = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const cookieToken = typeof window !== 'undefined' ? (document.cookie.match(/(?:^|; )\s*wolfie_auth_token\s*=\s*([^;]+)/)?.[1] || token) : token;
+
       const socket = io(socketUrl, {
         transports: ['websocket'],
-        auth: { token },
+        auth: { token: cookieToken },
+        withCredentials: true,
         reconnectionDelay: 1000,
         reconnectionDelayMax: 5000,
-        reconnectionAttempts: 15
+        reconnectionAttempts: Infinity
       })
+
+      const syncActiveOrderAndFlushQueue = async () => {
+        const store = useDriverStore.getState();
+        const activeToken = cookieToken || store.token;
+
+        // 1. Flush offline outbox queue
+        if (store.outboxQueue && store.outboxQueue.length > 0) {
+          console.log(`[Wolfie] Flushing ${store.outboxQueue.length} offline queued actions...`);
+          const queue = [...store.outboxQueue];
+          store.clearOutbox();
+          queue.forEach((item) => {
+            socket.emit(item.action, item.payload);
+          });
+        }
+
+        // 2. Sync current active order from backend
+        if (activeToken) {
+          try {
+            const apiBase = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/+$/, '');
+            const res = await fetch(`${apiBase}/api/v1/drivers/active-order`, {
+              headers: { Authorization: `Bearer ${activeToken}` },
+            });
+            if (res.ok) {
+              const data = await res.json();
+              if (data && data.id) {
+                store.addActiveOrder(data);
+                store.setLifecycleState(data.status || 'accepted');
+              }
+            }
+          } catch (err) {
+            console.warn('[Wolfie] Active order sync on reconnect failed:', err);
+          }
+        }
+      };
 
       socket.on('connect', () => {
         console.log('[Wolfie] Telemetry feed connected')
         setNetworkStatus('online')
+        syncActiveOrderAndFlushQueue()
       })
 
       socket.on('disconnect', () => {
@@ -56,6 +98,7 @@ export const useSocket = () => {
       socket.io.on('reconnect', () => {
         console.log('[Wolfie] Telemetry feed reconnected')
         setNetworkStatus('online')
+        syncActiveOrderAndFlushQueue()
       })
 
       socket.on('connect_error', (error: any) => {
@@ -103,7 +146,22 @@ export const useSocket = () => {
         socketRef.current = null
       }
     }
-  }, [isOnline, setNetworkStatus, updateOrderStatus, updateWallet])
+  }, [isOnline, setNetworkStatus, updateOrderStatus, updateWallet, token])
+
+  // Multi-tab logout listener
+  useEffect(() => {
+    if (!authChannel) return;
+    authChannel.onmessage = (event) => {
+      if (event.data?.type === 'LOGOUT') {
+        const store = useDriverStore.getState();
+        store.resetStore();
+        if (socketRef.current) {
+          socketRef.current.disconnect();
+          socketRef.current = null;
+        }
+      }
+    };
+  }, []);
 
   // Periodic heartbeat / location push
   useEffect(() => {

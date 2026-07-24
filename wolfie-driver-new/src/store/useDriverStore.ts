@@ -276,11 +276,24 @@ const defaultState = {
   theme: 'dark' as const,
 }
 
+const authChannel = typeof window !== 'undefined' && 'BroadcastChannel' in window
+  ? new BroadcastChannel('wolfie_auth')
+  : null;
+
 export const useDriverStore = create<DriverStore>()(
   persist(
     (set, get) => ({
       ...defaultState,
-      setToken: (token) => set({ token }),
+      setToken: (token) => {
+        set({ token });
+        if (typeof window !== 'undefined') {
+          if (token) {
+            document.cookie = `wolfie_auth_token=${token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
+          } else {
+            document.cookie = 'wolfie_auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+          }
+        }
+      },
       setLifecycleState: (state) => set({ lifecycleState: state }),
       setOnline: (online) => set({ isOnline: online, lifecycleState: online ? 'online' : 'offline' }),
       setActiveTab: (tab) => set({ activeTab: tab }),
@@ -335,7 +348,21 @@ export const useDriverStore = create<DriverStore>()(
         supportTickets: state.supportTickets.map(t => t.id === id ? { ...t, ...updates } : t)
       })),
       updatePerformance: (partial) => set((state) => ({ performance: { ...state.performance, ...partial } })),
-      resetStore: () => set({ ...defaultState })
+      resetStore: () => {
+        set({ ...defaultState });
+        if (typeof window !== 'undefined') {
+          document.cookie = 'wolfie_auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+          localStorage.removeItem('wolfie-driver-v3');
+          if ('caches' in window) {
+            caches.keys().then((names) => {
+              names.forEach((name) => caches.delete(name));
+            }).catch(() => {});
+          }
+          if (authChannel) {
+            authChannel.postMessage({ type: 'LOGOUT' });
+          }
+        }
+      }
     }),
     {
       name: 'wolfie-driver-v3',
