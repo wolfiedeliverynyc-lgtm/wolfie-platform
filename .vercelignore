@@ -19,8 +19,5 @@ node_modules
 *.log
 *.webm
 *.mp4
-*.png
-*.jpg
-*.jpeg
 dist
 **/dist
