@@ -288,7 +288,7 @@ export const useDriverStore = create<DriverStore>()(
         set({ token });
         if (typeof window !== 'undefined') {
           if (token) {
-            document.cookie = `wolfie_auth_token=${token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
+            document.cookie = `wolfie_auth_token=${token}; path=/; max-age=604800; SameSite=Lax; Secure`;
           } else {
             document.cookie = 'wolfie_auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
           }
@@ -355,12 +355,13 @@ export const useDriverStore = create<DriverStore>()(
           localStorage.removeItem('wolfie-driver-v3');
           if ('caches' in window) {
             caches.keys().then((names) => {
-              names.forEach((name) => caches.delete(name));
+              return Promise.all(names.map((name) => caches.delete(name)));
             }).catch(() => {});
           }
           if (authChannel) {
             authChannel.postMessage({ type: 'LOGOUT' });
           }
+          window.location.href = '/login';
         }
       }
     }),

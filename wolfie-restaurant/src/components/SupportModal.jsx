@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useRestaurantStore } from '../store/useRestaurantStore';
 import { X, Send, AlertTriangle, MessageSquare, Ticket } from 'lucide-react';
 
+import { getToken } from '../api';
+
 export default function SupportModal() {
   const { 
     isSupportModalOpen, 
@@ -37,8 +39,7 @@ export default function SupportModal() {
   }, []);
 
   const getRestaurantToken = () => {
-    if (typeof window === 'undefined') return '';
-    return localStorage.getItem('wolfie_restaurant_token') || localStorage.getItem('restaurant_token') || '';
+    return getToken() || '';
   };
 
   const getApiUrl = () => {

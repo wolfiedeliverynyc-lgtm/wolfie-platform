@@ -172,7 +172,17 @@ def register():
             "role": role
         }
     }
-    return jsonify(response_payload), 201
+    response = jsonify(response_payload)
+    response.set_cookie(
+        "refresh_token",
+        tokens["refresh_token"],
+        httponly=True,
+        secure=True,
+        samesite="Lax",
+        max_age=30 * 24 * 3600,
+        path="/"
+    )
+    return response, 201
 
 
 @auth_bp.route("/login", methods=["POST"])
@@ -211,13 +221,23 @@ def login():
         return jsonify({"error": "Login failed"}), 500
 
     logger.info(f"Login: {email} ({user_data['user']['role']})")
-    return jsonify({**user_data, **tokens}), 200
+    response = jsonify({**user_data, **tokens})
+    response.set_cookie(
+        "refresh_token",
+        tokens["refresh_token"],
+        httponly=True,
+        secure=True,
+        samesite="Lax",
+        max_age=30 * 24 * 3600,
+        path="/"
+    )
+    return response, 200
 
 
 @auth_bp.route("/refresh", methods=["POST"])
 def refresh_token():
     data  = request.get_json(silent=True) or {}
-    token = data.get("refresh_token") or ""
+    token = request.cookies.get("refresh_token") or data.get("refresh_token") or ""
     if not token:
         return jsonify({"error": "refresh_token required"}), 400
     secret  = current_app.config["JWT_SECRET_KEY"]
@@ -226,8 +246,20 @@ def refresh_token():
         return jsonify({"error": "Invalid or expired refresh token"}), 401
     if payload.get("type") != "refresh":
         return jsonify({"error": "Not a refresh token"}), 401
-    return jsonify(_generate_tokens(payload["sub"], payload["role"], secret, payload.get("admin_type"),
-                                     redis=getattr(current_app, "redis", None))), 200
+    
+    new_tokens = _generate_tokens(payload["sub"], payload["role"], secret, payload.get("admin_type"),
+                                  redis=getattr(current_app, "redis", None))
+    response = jsonify(new_tokens)
+    response.set_cookie(
+        "refresh_token",
+        new_tokens["refresh_token"],
+        httponly=True,
+        secure=True,
+        samesite="Lax",
+        max_age=30 * 24 * 3600,
+        path="/"
+    )
+    return response, 200
 
 
 @auth_bp.route("/logout", methods=["POST"])
@@ -244,7 +276,9 @@ def logout():
                 except Exception as e:
                     logger.warning(f"Session revoke failed: {e}")
     logger.info("Logout requested")
-    return jsonify({"message": "Logged out successfully"}), 200
+    response = jsonify({"message": "Logged out successfully"})
+    response.delete_cookie("refresh_token", path="/")
+    return response, 200
 
 
 @auth_bp.route("/me", methods=["GET"])
@@ -271,6 +305,10 @@ def update_profile():
             if data.get("phone"):     updates["phone"]     = data["phone"].strip()
             if "dietary_preferences" in data: updates["dietary_preferences"] = data["dietary_preferences"]
             if "allergy_preferences" in data: updates["allergy_preferences"] = data["allergy_preferences"]
+            if "profile_picture" in data:
+                docs = dict(user.kyc_documents or {})
+                docs["profile_picture"] = data["profile_picture"]
+                updates["kyc_documents"] = docs
             if data.get("password"):
                 if len(data["password"]) < 8:
                     return jsonify({"error": "Password must be at least 8 characters"}), 400

@@ -12,7 +12,7 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 @uploads_bp.route('/uploads', methods=['POST'])
-@require_auth(roles=["driver"])
+@require_auth(roles=["driver", "customer"])
 def upload_file():
     if 'file' not in request.files:
         return jsonify({"error": "No file part in request"}), 400

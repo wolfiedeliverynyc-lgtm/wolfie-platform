@@ -11,31 +11,33 @@ const authChannel = typeof window !== 'undefined' && 'BroadcastChannel' in windo
 
 export function getToken() {
   if (typeof window !== 'undefined') {
-    const match = document.cookie.match(/(?:^|; )\s*wolfie_auth_token\s*=\s*([^;]+)/);
-    if (match) return decodeURIComponent(match[1]);
-    return localStorage.getItem('restaurant_token') || localStorage.getItem('wolfie_restaurant_token');
+    const name = 'wolfie_auth_token=';
+    const decodedCookie = decodeURIComponent(document.cookie);
+    const cookieArray = decodedCookie.split(';');
+    for (let cookie of cookieArray) {
+      cookie = cookie.trim();
+      if (cookie.indexOf(name) === 0) {
+        return cookie.substring(name.length);
+      }
+    }
   }
   return null;
 }
 
 export function setToken(token) {
   if (typeof window !== 'undefined') {
-    document.cookie = `wolfie_auth_token=${token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
-    localStorage.setItem('restaurant_token', token);
-    localStorage.setItem('wolfie_restaurant_token', token);
+    document.cookie = `wolfie_auth_token=${token}; path=/; max-age=604800; SameSite=Lax; Secure`;
   }
 }
 
 export function clearToken() {
   if (typeof window !== 'undefined') {
     document.cookie = 'wolfie_auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
-    localStorage.removeItem('restaurant_token');
-    localStorage.removeItem('wolfie_restaurant_token');
+    localStorage.clear();
     
-    // Clear Service Worker Caches if present
     if ('caches' in window) {
       caches.keys().then((names) => {
-        names.forEach((name) => caches.delete(name));
+        return Promise.all(names.map((name) => caches.delete(name)));
       }).catch(() => {});
     }
 

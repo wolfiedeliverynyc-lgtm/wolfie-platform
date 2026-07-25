@@ -10,7 +10,7 @@
     "additionalInstruction": "Login credentials: email = admin@wolfie.com, password = Wolfie@Admin2024!. The app is running in production mode on port 3001 and calls the LIVE backend at https://wolfie-backend-pt9u.onrender.com/api/v1. Use these credentials for all tests that require authentication. The login form is on the root page /.",
     "serverMode": "production",
     "envs": {
-      "API_KEY": "sk-user-1r9Y3Ioy70NTm-N3LTDvgs_D7as3Olm8bGwTClvrzYdNE9uC6dW59rHI2L36UUtooQLAlipbdimXHR67IFUANudYA88D7aNusmi6CkYTbGyNeUyTK3JHhNlozSCuEB7NrdQ"
+      "API_KEY": "sk-user--Km59ev2M3ae7wAjBJjitiVdhsCJmin8kHw_9J8kuDYZvcCQR4yBov-xi6e84FcX4ativ0esLApR-MZZGyCpfhOiTdp6EKxu3Wh6XGmMxCtalamYZa9hQLVJcTD-cNPXoNI"
     }
   },
   "serverPort": 53241

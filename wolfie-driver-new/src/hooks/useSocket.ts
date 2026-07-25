@@ -18,6 +18,20 @@ function getDistanceMeters(lat1: number, lon1: number, lat2: number, lon2: numbe
   return R * c;
 }
 
+const getTokenFromCookie = () => {
+  if (typeof document === 'undefined') return null;
+  const name = 'wolfie_auth_token=';
+  const decodedCookie = decodeURIComponent(document.cookie);
+  const cookieArray = decodedCookie.split(';');
+  for (let cookie of cookieArray) {
+    cookie = cookie.trim();
+    if (cookie.indexOf(name) === 0) {
+      return cookie.substring(name.length);
+    }
+  }
+  return null;
+};
+
 const authChannel = typeof window !== 'undefined' && 'BroadcastChannel' in window
   ? new BroadcastChannel('wolfie_auth')
   : null;
@@ -39,7 +53,7 @@ export const useSocket = () => {
 
     if (!socketRef.current) {
       const socketUrl = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL || 'http://localhost:5000';
-      const cookieToken = typeof window !== 'undefined' ? (document.cookie.match(/(?:^|; )\s*wolfie_auth_token\s*=\s*([^;]+)/)?.[1] || token) : token;
+      const cookieToken = getTokenFromCookie() || token;
 
       const socket = io(socketUrl, {
         transports: ['websocket'],

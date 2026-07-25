@@ -63,6 +63,10 @@ export default function HomeView({ onSelectRestaurant, onSelectFoodItem, onProce
   };
 
   const activeRestaurantList = restaurants.filter(item => {
+    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          item.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
+    if (!matchesSearch) return false;
+    
     if (restaurantFilter === 'all') return true;
     if (restaurantFilter === 'near') return item.deliveryTime.includes('1') || item.deliveryTime.includes('20');
     if (restaurantFilter === 'rating') return item.rating >= 4.8;

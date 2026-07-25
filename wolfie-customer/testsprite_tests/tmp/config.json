@@ -14,7 +14,7 @@
     "additionalInstruction": "Run the tests against the live website https://wolfie-platform-9hjw.vercel.app. Login credentials: customer@wolfie.nyc / wolfie123.",
     "serverMode": "development",
     "envs": {
-      "API_KEY": "sk-user-1r9Y3Ioy70NTm-N3LTDvgs_D7as3Olm8bGwTClvrzYdNE9uC6dW59rHI2L36UUtooQLAlipbdimXHR67IFUANudYA88D7aNusmi6CkYTbGyNeUyTK3JHhNlozSCuEB7NrdQ"
+      "API_KEY": "sk-user--Km59ev2M3ae7wAjBJjitiVdhsCJmin8kHw_9J8kuDYZvcCQR4yBov-xi6e84FcX4ativ0esLApR-MZZGyCpfhOiTdp6EKxu3Wh6XGmMxCtalamYZa9hQLVJcTD-cNPXoNI"
     }
   },
   "serverPort": 60893

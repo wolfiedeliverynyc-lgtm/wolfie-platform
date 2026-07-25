@@ -166,4 +166,9 @@ class UserRepository(BaseRepository[User]):
         return self.update(user, commission_rate=rate, updated_at=datetime.now(UTC))
 
     def safe_dict(self, user: User) -> dict:
-        return self.to_dict(user, exclude={"password_hash"})
+        d = self.to_dict(user, exclude={"password_hash"})
+        if user.kyc_documents and isinstance(user.kyc_documents, dict):
+            d["profile_picture"] = user.kyc_documents.get("profile_picture", "/assets/avatar.png")
+        else:
+            d["profile_picture"] = "/assets/avatar.png"
+        return d

@@ -20,16 +20,24 @@ export const apiClient = axios.create({
   },
 });
 
-const getCookieToken = (): string | null => {
-  if (typeof window === 'undefined') return null;
-  const match = document.cookie.match(/(?:^|; )\s*wolfie_auth_token\s*=\s*([^;]+)/);
-  return match ? decodeURIComponent(match[1]) : null;
+const getTokenFromCookie = () => {
+  if (typeof document === 'undefined') return null;
+  const name = 'wolfie_auth_token=';
+  const decodedCookie = decodeURIComponent(document.cookie);
+  const cookieArray = decodedCookie.split(';');
+  for (let cookie of cookieArray) {
+    cookie = cookie.trim();
+    if (cookie.indexOf(name) === 0) {
+      return cookie.substring(name.length);
+    }
+  }
+  return null;
 };
 
 // Request interceptor to attach JWT token
 apiClient.interceptors.request.use((config) => {
   if (typeof window !== 'undefined') {
-    const token = getCookieToken() || localStorage.getItem('wolfie_auth_token') || localStorage.getItem('access_token');
+    const token = getTokenFromCookie();
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -55,6 +63,14 @@ const processQueue = (error: any, token: string | null = null) => {
   failedQueue = [];
 };
 
+const clearAuthDataAndRedirect = () => {
+  if (typeof window !== 'undefined') {
+    document.cookie = 'wolfie_auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+    localStorage.clear();
+    window.location.href = '/login';
+  }
+};
+
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -74,11 +90,7 @@ apiClient.interceptors.response.use(
       // Check retry limit (max 2 attempts)
       if (originalRequest._retryCount >= 2) {
         console.error('[Axios] Max token refresh retry limit reached (2). Stopping loop.');
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('refresh_token');
-          window.dispatchEvent(new Event('auth_session_expired'));
-        }
+        clearAuthDataAndRedirect();
         return Promise.reject(error);
       }
 
@@ -104,10 +116,7 @@ apiClient.interceptors.response.use(
 
       if (!refreshToken) {
         isRefreshing = false;
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('refresh_token');
-        }
+        clearAuthDataAndRedirect();
         return Promise.reject(error);
       }
 
@@ -135,11 +144,7 @@ apiClient.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError, null);
         isRefreshing = false;
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('refresh_token');
-          window.dispatchEvent(new Event('auth_session_expired'));
-        }
+        clearAuthDataAndRedirect();
         return Promise.reject(refreshError);
       }
     }

@@ -83,7 +83,7 @@ export function useAuth() {
   });
 
   const updateProfileMutation = useMutation({
-    mutationFn: async (data: Partial<RegisterPayload> & { dietary_preferences?: string[]; allergy_preferences?: string[] }) => {
+    mutationFn: async (data: Partial<RegisterPayload> & { dietary_preferences?: string[]; allergy_preferences?: string[]; profile_picture?: string }) => {
       return await authService.updateProfile(data);
     },
     onSuccess: (data) => {

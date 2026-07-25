@@ -8,6 +8,7 @@ interface User {
   phone?: string;
   dietary_preferences?: string[];
   allergy_preferences?: string[];
+  profile_picture?: string;
 }
 
 interface AuthState {
@@ -35,8 +36,7 @@ export const useAuthStore = create<AuthState>()(
         set({ user, token, isAuthenticated: true });
         if (typeof window !== 'undefined') {
           // Set unified cookie (expires in 7 days)
-          const maxAge = 7 * 24 * 60 * 60;
-          document.cookie = `wolfie_auth_token=${token}; path=/; max-age=${maxAge}; SameSite=Lax`;
+          document.cookie = `wolfie_auth_token=${token}; path=/; max-age=604800; SameSite=Lax; Secure`;
           localStorage.setItem('wolfie_auth_user_id', user.id);
         }
       },
@@ -57,7 +57,7 @@ export const useAuthStore = create<AuthState>()(
           // Clear Service Worker Caches
           if ('caches' in window) {
             caches.keys().then((names) => {
-              names.forEach((name) => caches.delete(name));
+              return Promise.all(names.map((name) => caches.delete(name)));
             }).catch(() => {});
           }
 
@@ -65,6 +65,9 @@ export const useAuthStore = create<AuthState>()(
           if (wasAuthenticated && authChannel) {
             authChannel.postMessage({ type: 'LOGOUT' });
           }
+
+          // Redirect to login
+          window.location.href = '/login';
         }
       },
 
@@ -74,7 +77,7 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'wolfie-auth-storage',
-      partialize: (state) => ({ user: state.user, isAuthenticated: state.isAuthenticated, token: state.token }),
+      partialize: (state) => ({ user: state.user, isAuthenticated: state.isAuthenticated }),
     }
   )
 );

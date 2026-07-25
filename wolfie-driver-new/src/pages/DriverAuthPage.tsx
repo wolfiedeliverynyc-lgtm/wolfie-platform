@@ -239,6 +239,7 @@ export default function DriverAuthPage() {
         throw new Error(logData.error || 'Registration succeeded, but failed to log in.');
       }
       
+      document.cookie = `wolfie_auth_token=${logData.access_token}; path=/; max-age=604800; SameSite=Lax; Secure`;
       setToken(logData.access_token);
       setStep(5); // Go directly to Step 5, skipping Step 4 (OTP)
     } catch (err: any) {
@@ -297,6 +298,7 @@ export default function DriverAuthPage() {
         vehicleModel: data.vehicle_model || 'Not specified',
         profilePhoto: data.profile_photo || '/assets/default_driver_avatar.png'
       });
+      document.cookie = `wolfie_auth_token=${data.access_token}; path=/; max-age=604800; SameSite=Lax; Secure`;
       setToken(data.access_token);
       
       setKycStatus('approved')

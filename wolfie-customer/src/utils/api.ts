@@ -12,24 +12,36 @@ const formatApiUrl = (url: string | undefined, defaultUrl: string): string => {
 // Dynamically read the base API url, default to localhost Flask port
 const API_BASE_URL = formatApiUrl(process.env.NEXT_PUBLIC_API_URL, 'http://localhost:5000/api/v1');
 
-export const getAuthToken = (): string | null => {
-  if (typeof window !== 'undefined') {
-    const match = document.cookie.match(/(?:^|; )\s*wolfie_auth_token\s*=\s*([^;]+)/);
-    if (match) return decodeURIComponent(match[1]);
-    return localStorage.getItem('wolfie_auth_token');
+const getTokenFromCookie = () => {
+  if (typeof document === 'undefined') return null;
+  const name = 'wolfie_auth_token=';
+  const decodedCookie = decodeURIComponent(document.cookie);
+  const cookieArray = decodedCookie.split(';');
+  for (let cookie of cookieArray) {
+    cookie = cookie.trim();
+    if (cookie.indexOf(name) === 0) {
+      return cookie.substring(name.length);
+    }
   }
   return null;
+};
+
+export const getAuthToken = (): string | null => {
+  return getTokenFromCookie();
 };
 
 export const setAuthToken = (token: string | null) => {
   if (typeof window !== 'undefined') {
     if (token) {
-      document.cookie = `wolfie_auth_token=${token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
+      document.cookie = `wolfie_auth_token=${token}; path=/; max-age=604800; SameSite=Lax; Secure`;
     } else {
       document.cookie = 'wolfie_auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
-      localStorage.removeItem('wolfie_auth_token');
     }
   }
+};
+
+export const deleteAuthToken = () => {
+  setAuthToken(null);
 };
 
 export const getAuthUserId = (): string | null => {

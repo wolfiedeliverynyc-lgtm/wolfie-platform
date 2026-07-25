@@ -341,12 +341,38 @@ export default function HomePage() {
   const [passwordSuccess, setPasswordSuccess] = useState('');
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  
+  interface WolfieNotification {
+    id: string;
+    title: string;
+    message: string;
+    time: string;
+    read: boolean;
+  }
+  
+  const [notifications, setNotifications] = useState<WolfieNotification[]>([
+    { id: 'notif_1', title: 'Welcome to Wolfie! 🎉', message: 'Enjoy free delivery on your first order. Order from Manhattan\'s top-rated kitchens now!', time: '10m ago', read: false },
+    { id: 'notif_2', title: 'New Store Added! 🍕', message: 'Joe\'s Pizza is now live on Wolfie. Try the legendary classic NYC slices today!', time: '1h ago', read: false },
+    { id: 'notif_3', title: 'Radar Tracking Active 🚴', message: 'Your driver is tracked via Mapbox real-time telemetry on every gourmet order.', time: '1d ago', read: true }
+  ]);
+  
+  const [showNotificationsModal, setShowNotificationsModal] = useState(false);
   const [profileMessage, setProfileMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [profileActiveSubSection, setProfileActiveSubSection] = useState<'main' | 'account' | 'diet' | 'payment' | 'locations' | 'password' | 'notifications' | 'orders'>('main');
   const [desktopPriceFilter, setDesktopPriceFilter] = useState<'all' | 'under3' | 'under5' | 'over5'>('all');
   const [desktopRatingFilter, setDesktopRatingFilter] = useState<'all' | 'high' | 'veryhigh'>('all');
   const [desktopTimeFilter, setDesktopTimeFilter] = useState<'all' | 'fast' | 'veryfast'>('all');
   const [restaurantTab, setRestaurantTab] = useState<'overview' | 'menu' | 'reviews'>('overview');
+  
+  const goBack = () => {
+    const authViews = ['onboarding', 'login', 'register', 'otp', 'forgot', 'reset', 'address_entry'];
+    if (previousView && !authViews.includes(previousView) && previousView !== 'chat') {
+      setCurrentView(previousView);
+    } else {
+      setCurrentView('home');
+      setActiveTab('home');
+    }
+  };
   const [menuActiveCategory, setMenuActiveCategory] = useState('All');
   const [restaurantReviews, setRestaurantReviews] = useState([
     { id: 'rev_1', author: 'John D.', avatar: '/assets/avatar.png', rating: 5, date: 'Today', comment: "Always fresh, hot and exactly as ordered! The Wendy's burger is a NYC classic." },
@@ -368,7 +394,7 @@ export default function HomePage() {
   const [restaurantMenuItems, setRestaurantMenuItems] = useState<any[]>(staticRestaurantMenuItems);
 
   // React Query Hooks
-  const { user, isAuthenticated, updateProfile, logout: executeLogout } = useAuth();
+  const { user, isAuthenticated, updateProfile, logout: executeLogout, token } = useAuth();
   const { restaurants: fetchedRestaurants } = useRestaurants();
   const { menuItems: fetchedMenuItems } = useRestaurantMenu(selectedRestaurant?.id, selectedRestaurant?.name);
 
@@ -868,6 +894,45 @@ export default function HomePage() {
   };
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file.');
+      return;
+    }
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const activeToken = token || localStorage.getItem('access_token');
+      const res = await fetch('https://wolfie-backend-pt9u.onrender.com/api/v1/uploads', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${activeToken}`,
+        },
+        body: formData,
+      });
+      if (!res.ok) {
+        throw new Error('Upload failed');
+      }
+      const data = await res.json();
+      const imageUrl = data.url;
+      if (imageUrl) {
+        setProfilePicture(imageUrl);
+        if (isAuthenticated) {
+          await updateProfile({ profile_picture: imageUrl });
+        }
+        setProfileMessage({ type: 'success', text: 'Profile picture uploaded and saved!' });
+        setTimeout(() => setProfileMessage(null), 3000);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Failed to upload profile picture. Please make sure you are logged in.');
+    }
+  };
+
   const mapRef = useRef<any>(null);
   const driverMarkerRef = useRef<any>(null);
   
@@ -2919,7 +2984,7 @@ export default function HomePage() {
     return (
       <RestaurantDetailView 
         restaurant={selectedRestaurant as any} 
-        onBack={() => setCurrentView(previousView)} 
+        onBack={goBack} 
         onSelectFoodItem={(item: any) => {
           setSelectedFoodItem(item);
           setPreviousView('restaurant');
@@ -2935,7 +3000,7 @@ export default function HomePage() {
     return (
       <FoodItemDetailView 
         foodItem={selectedFoodItem as any}
-        onBack={() => setCurrentView(previousView)}
+        onBack={goBack}
         onVisitStore={() => {
           const match = restaurants.find(r => r.name.toLowerCase() === selectedFoodItem.brand.toLowerCase() || selectedFoodItem.brand.toLowerCase().includes(r.name.toLowerCase()));
           if (match) {
@@ -3019,7 +3084,7 @@ export default function HomePage() {
         driverName={activeOrder?.driverName} 
         chatRecipient={chatRecipient}
         setChatRecipient={setChatRecipient}
-        onBack={() => setCurrentView(previousView)}
+        onBack={goBack}
         profilePicture={profilePicture}
         activeOrderId={activeOrder ? activeOrder.id : undefined}
       />
@@ -3526,7 +3591,34 @@ export default function HomePage() {
                     </span>
                   </button>
                 ))}
+                
+                {/* Upload Custom Image option */}
+                <button
+                  onClick={() => {
+                    fileInputRef.current?.click();
+                    setShowAvatarModal(false);
+                  }}
+                  className="flex flex-col items-center justify-center gap-2 p-2 rounded-2xl bg-gray-50 hover:bg-gray-150/40 active:scale-95 transition-all focus:outline-none cursor-pointer border border-dashed border-gray-300"
+                >
+                  <div className="w-[64px] h-[64px] rounded-full overflow-hidden flex items-center justify-center bg-white border border-gray-200">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#EF2A39" strokeWidth="2.5">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="17 8 12 3 7 8" />
+                      <line x1="12" y1="3" x2="12" y2="15" />
+                    </svg>
+                  </div>
+                  <span className="font-roboto text-[11px] font-bold text-[#EF2A39] text-center leading-tight">
+                    Upload Custom
+                  </span>
+                </button>
               </div>
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                onChange={handleAvatarUpload} 
+                accept="image/*" 
+                className="hidden" 
+              />
             </div>
           </div>
         )}
@@ -3742,6 +3834,73 @@ export default function HomePage() {
             </div>
           </div>
         )}
+        {/* showNotificationsModal (User Notifications Slide Up Modal) */}
+        {showNotificationsModal && (
+          <div className="fixed inset-0 z-[300] flex items-end lg:items-center lg:justify-center">
+            {/* Backdrop */}
+            <div 
+              className="fixed inset-0 bg-black/60 backdrop-blur-xs animate-fadeInSimple"
+              onClick={() => {
+                setShowNotificationsModal(false);
+                // Mark all as read when closing
+                setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+              }}
+            />
+            {/* Slide up content */}
+            <div className="relative bg-white w-full max-h-[85vh] lg:max-h-[500px] lg:max-w-[440px] rounded-t-[30px] lg:rounded-[28px] p-6 shadow-2xl animate-slideUp flex flex-col z-[310] select-none pb-8 text-left border-t lg:border border-gray-100 overflow-y-auto scrollbar-hide">
+              <div className="w-[40px] h-[5px] bg-gray-200 rounded-full mx-auto mb-5 lg:hidden shrink-0" />
+              
+              <div className="flex justify-between items-center mb-5 shrink-0">
+                <h3 className="font-poppins font-semibold text-[20px] text-[#3C2F2F]">
+                  Notifications 🔔
+                </h3>
+                {notifications.length > 0 && (
+                  <button 
+                    onClick={() => setNotifications([])}
+                    className="text-[12px] font-roboto font-bold text-[#EF2A39] hover:underline focus:outline-none cursor-pointer"
+                  >
+                    Clear All
+                  </button>
+                )}
+              </div>
+
+              <div className="space-y-3.5 flex-1 overflow-y-auto scrollbar-hide pr-1 mb-4">
+                {notifications.length === 0 ? (
+                  <div className="text-center py-10 flex flex-col items-center justify-center">
+                    <span className="text-[32px] mb-2">📭</span>
+                    <span className="font-roboto font-bold text-[14px] text-gray-400">All caught up!</span>
+                    <p className="font-roboto text-[11.5px] text-gray-400 mt-1">No new alerts or delivery updates right now.</p>
+                  </div>
+                ) : (
+                  notifications.map((notif) => (
+                    <div 
+                      key={notif.id}
+                      className={`p-3.5 rounded-[18px] border transition-all ${
+                        notif.read ? 'bg-white border-gray-100' : 'bg-red-50/40 border-red-100/50 shadow-xs'
+                      }`}
+                    >
+                      <div className="flex justify-between items-start gap-1">
+                        <h4 className="font-poppins font-bold text-[13.5px] text-[#3C2F2F]">{notif.title}</h4>
+                        <span className="text-[10px] font-roboto text-gray-400 shrink-0 font-medium">{notif.time}</span>
+                      </div>
+                      <p className="font-roboto text-[12px] text-[#6A6A6A] mt-1 leading-relaxed">{notif.message}</p>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <button 
+                onClick={() => {
+                  setShowNotificationsModal(false);
+                  setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+                }}
+                className="w-full h-[50px] bg-[#FFE100] hover:brightness-95 active:scale-98 transition-all rounded-[16px] font-roboto font-bold text-[15px] text-[#3C2F2F] shadow-[0_4px_12px_rgba(255,225,0,0.2)] focus:outline-none cursor-pointer shrink-0 text-center"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        )}
       </>
     );
   };
@@ -3787,44 +3946,66 @@ export default function HomePage() {
         {currentView === 'home' ? (
           <>
             {/* Fixed Header Layer (y = 0 to 130) */}
-            <div className="absolute top-0 left-0 w-full h-[130px] bg-white z-30 select-none">
-              {/* Support Chat Button */}
-              <button 
-                onClick={() => {
-                  setPreviousView(currentView);
-                  setChatRecipient('support');
-                  setCurrentView('chat');
-                }}
-                className="absolute left-[19px] top-[34px] w-[36px] h-[36px] bg-[#2563EB] hover:bg-[#1D4ED8] rounded-full flex items-center justify-center shadow-[0_4px_12px_rgba(37,99,235,0.25)] active:scale-90 transition-transform focus:outline-none cursor-pointer z-40 animate-fadeIn"
-                title="Customer Support"
+            <div className="absolute top-0 left-0 w-full h-[130px] bg-white z-30 select-none border-b border-gray-50 flex items-center px-[19px]">
+              {/* Brand Icon Left */}
+              <div 
+                onClick={() => { setCurrentView('home'); setActiveTab('home'); }}
+                className="w-[36px] h-[36px] bg-gray-50 border border-gray-100 rounded-xl flex items-center justify-center cursor-pointer shadow-xs active:scale-95 transition-transform"
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                </svg>
-              </button>
-              {/* Title "WOLFIE" or "PROFILE" */}
-              <h1 className="absolute left-[68px] top-[30px] w-[270px] h-[61px] font-lustria font-normal text-[38px] text-[#3C2F2F] leading-none uppercase">
-                {activeTab === 'user' ? 'PROFILE' : activeTab === 'heart' ? 'FAVORITES' : 'WOLFIE'}
-              </h1>
-              {/* Subtitle */}
-              <span className="absolute left-[68px] top-[84px] w-[270px] h-[27px] font-poppins font-medium text-[13px] text-[#6A6A6A] leading-none uppercase tracking-wide">
-                {activeTab === 'user' ? 'DIETARY & ACCOUNT' : activeTab === 'heart' ? 'SAVED ITEMS & STORES' : 'BUILD FOR NEW YORKERS!'}
-              </span>
-              {/* Avatar (x = 351px, y = 28px, rounded 20px) */}
-              <button 
-                onClick={() => {
-                  if (activeTab !== 'user') {
-                    setActiveTab('user');
-                  }
-                }}
-                className="absolute left-[351px] top-[28px] w-[60px] h-[60px] rounded-[20px] overflow-hidden bg-gray-100 shadow-[0_4px_10px_rgba(0,0,0,0.05)] border border-gray-100/50 active:scale-95 transition-transform focus:outline-none cursor-pointer"
-              >
-                <img 
-                  src={profilePicture} 
-                  alt="User Avatar" 
-                  className="w-full h-full object-cover scale-[1.05]"
-                />
-              </button>
+                <img src="/assets/wolf_logo.png" alt="Wolfie" className="w-[22px] h-[22px] object-contain" />
+              </div>
+
+              {/* Delivery Address Middle */}
+              <div className="flex-1 flex justify-center px-2">
+                <div 
+                  onClick={() => setShowLocationModal(true)} 
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-100 rounded-full cursor-pointer max-w-[200px] transition-colors shadow-xs active:scale-97"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#EF2A39" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                    <circle cx="12" cy="10" r="3" />
+                  </svg>
+                  <span className="font-roboto font-bold text-[11px] text-[#3C2F2F] truncate">
+                    {deliveryAddress || "Select Address..."}
+                  </span>
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#A6A6A6" strokeWidth="3" className="shrink-0">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </div>
+              </div>
+
+              {/* Icons Right (Notification + Support) */}
+              <div className="flex items-center gap-2">
+                {/* Notifications Bell Button */}
+                <button 
+                  onClick={() => setShowNotificationsModal(true)}
+                  className="w-[36px] h-[36px] bg-gray-50 hover:bg-gray-100 border border-gray-100 rounded-xl flex items-center justify-center cursor-pointer shadow-xs active:scale-90 transition-transform relative focus:outline-none"
+                  title="Notifications"
+                >
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#3C2F2F" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                  </svg>
+                  {notifications.some(n => !n.read) && (
+                    <span className="absolute top-[8px] right-[8px] w-2.5 h-2.5 bg-[#EF2A39] border-2 border-white rounded-full animate-bounce" />
+                  )}
+                </button>
+
+                {/* Support Chat Button */}
+                <button 
+                  onClick={() => {
+                    setPreviousView(currentView);
+                    setChatRecipient('support');
+                    setCurrentView('chat');
+                  }}
+                  className="w-[36px] h-[36px] bg-[#EF2A39] hover:bg-[#D61B29] rounded-xl flex items-center justify-center shadow-[0_4px_12px_rgba(239,42,57,0.2)] active:scale-90 transition-transform focus:outline-none cursor-pointer"
+                  title="Customer Support"
+                >
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                  </svg>
+                </button>
+              </div>
             </div>
 
             {/* Scrollable Content Layer (y = 130 to 856) */}
@@ -3916,9 +4097,15 @@ export default function HomePage() {
                 {/* Horizontal Scroll Box */}
                 <div className="w-full h-[155px] overflow-x-auto scrollbar-hide flex gap-[14px] px-[19px] pb-[10px]">
                   {restaurants.filter(rest => {
-                    if (restaurantFilter === 'near') return rest.distance <= 0.5;
-                    if (restaurantFilter === 'rating') return rest.rating >= 4.7;
-                    if (restaurantFilter === 'best_seller') return rest.isBestSeller === true;
+                    const matchesSearch = rest.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                          rest.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
+                    if (!matchesSearch) return false;
+                    if (restaurantFilter === 'near' && rest.distance > 0.5) return false;
+                    if (restaurantFilter === 'rating' && rest.rating < 4.7) return false;
+                    if (restaurantFilter === 'best_seller' && !rest.isBestSeller) return false;
+                    if (activeCategory === 'Near Me' && rest.distance > 0.5) return false;
+                    if (activeCategory === 'TOP RATING' && rest.rating < 4.7) return false;
+                    if (activeCategory === 'CLOSE' && rest.distance > 0.8) return false;
                     return true;
                   }).length === 0 ? (
                     <div className="w-full flex items-center justify-center h-[120px] bg-gray-50 border border-dashed border-gray-200 rounded-[20px]">
@@ -3926,9 +4113,15 @@ export default function HomePage() {
                     </div>
                   ) : (
                     restaurants.filter(rest => {
-                      if (restaurantFilter === 'near') return rest.distance <= 0.5;
-                      if (restaurantFilter === 'rating') return rest.rating >= 4.7;
-                      if (restaurantFilter === 'best_seller') return rest.isBestSeller === true;
+                      const matchesSearch = rest.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                            rest.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
+                      if (!matchesSearch) return false;
+                      if (restaurantFilter === 'near' && rest.distance > 0.5) return false;
+                      if (restaurantFilter === 'rating' && rest.rating < 4.7) return false;
+                      if (restaurantFilter === 'best_seller' && !rest.isBestSeller) return false;
+                      if (activeCategory === 'Near Me' && rest.distance > 0.5) return false;
+                      if (activeCategory === 'TOP RATING' && rest.rating < 4.7) return false;
+                      if (activeCategory === 'CLOSE' && rest.distance > 0.8) return false;
                       return true;
                     }).map((rest) => (
                       <div
@@ -5191,7 +5384,7 @@ export default function HomePage() {
               
               {/* Back Button (x = 12px, y = 22px relative) */}
               <button 
-                onClick={() => setCurrentView(previousView)} 
+                onClick={goBack} 
                 className="absolute left-[12px] top-[22px] w-[28px] h-[28px] flex items-center justify-center cursor-pointer active:scale-90 transition-transform focus:outline-none z-50"
               >
                 <img 
@@ -5557,12 +5750,7 @@ export default function HomePage() {
                 <button 
                   onClick={() => {
                     if (chatRecipient === 'support') {
-                      if (previousView && previousView !== 'chat') {
-                        setCurrentView(previousView);
-                      } else {
-                        setCurrentView('home');
-                        setActiveTab('user');
-                      }
+                      goBack();
                     } else {
                       setCurrentView('tracking');
                     }
@@ -5686,7 +5874,7 @@ export default function HomePage() {
                   />
                   {/* Back button */}
                   <button 
-                    onClick={() => setCurrentView(previousView)}
+                    onClick={goBack}
                     className="absolute left-[19px] top-[28px] w-[36px] h-[36px] bg-white rounded-full flex items-center justify-center shadow-[0_4px_12px_rgba(0,0,0,0.15)] active:scale-90 transition-transform focus:outline-none cursor-pointer z-10"
                   >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3C2F2F" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
@@ -6172,7 +6360,7 @@ export default function HomePage() {
               <div className="h-[76px] shrink-0 flex items-center justify-between px-[19px] relative border-b border-gray-50 bg-white">
                 <div className="flex items-center gap-2.5">
                   <button 
-                    onClick={() => setCurrentView(previousView)} 
+                    onClick={goBack} 
                     className="w-[28px] h-[28px] flex items-center justify-center cursor-pointer active:scale-90 transition-transform focus:outline-none"
                   >
                     <img 
