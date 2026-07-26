@@ -40,20 +40,23 @@ async def run_test():
         except Exception:
             pass
         
-        # -> navigate
-        await page.goto("http://localhost:3000")
+        # -> Final action — this is where the agent failed
+        # Error observed by agent: Navigation failed - site unavailable: http://localhost:3000/
+        await page.goto("http://localhost:3000/")
         try:
             await page.wait_for_load_state("domcontentloaded", timeout=5000)
         except Exception:
             pass
         
         # --> Assertions to verify final state
-        current_url = await page.evaluate("() => window.location.href")
-        # Assert: page loaded with a URL (final outcome verified by the AI judge during the run)
-        assert current_url, 'Page should have loaded with a URL'
-        current_url = await page.evaluate("() => window.location.href")
-        # Assert: page loaded with a URL (final outcome verified by the AI judge during the run)
-        assert current_url, 'Page should have loaded with a URL'
+        # Assert: Verify delivery progress is displayed
+        assert False, "Expected: Verify delivery progress is displayed (could not be verified on the page)"
+        # Assert: Verify the driver location is displayed on the map
+        assert False, "Expected: Verify the driver location is displayed on the map (could not be verified on the page)"
+        
+        # --> Test blocked by environment/access constraints during agent run
+        # Reason: TEST BLOCKED The application could not be reached — the UI did not load and the page is blank. Observations: - Navigating to http://localhost:3000/login showed an empty DOM with 0 interactive elements and a blank screenshot. - Attempting to open http://localhost:3000/ also failed; the site remains unavailable and no UI rendered.
+        raise AssertionError("Test blocked during agent run: " + "TEST BLOCKED The application could not be reached \u2014 the UI did not load and the page is blank. Observations: - Navigating to http://localhost:3000/login showed an empty DOM with 0 interactive elements and a blank screenshot. - Attempting to open http://localhost:3000/ also failed; the site remains unavailable and no UI rendered." + " — the exported script cannot reproduce a PASS in this environment.")
         await asyncio.sleep(5)
 
     finally:

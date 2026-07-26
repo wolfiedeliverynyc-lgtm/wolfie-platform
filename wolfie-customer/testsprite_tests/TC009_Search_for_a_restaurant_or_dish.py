@@ -33,90 +33,32 @@ async def run_test():
         page = await context.new_page()
 
         # Interact with the page elements to simulate user flow
-        # -> Click the 'Reload' button to retry loading the Wolfie home page.
+        # -> navigate
+        await page.goto("http://localhost:3000")
+        try:
+            await page.wait_for_load_state("domcontentloaded", timeout=5000)
+        except Exception:
+            pass
+        
+        # -> Click the 'Reload' button to retry loading the home page
         # Reload button
         elem = page.locator('[id="reload-button"]')
         await elem.click(timeout=10000)
         
-        # -> Click the 'Sign In' button to open the login form.
-        # Sign In button
-        elem = page.get_by_role('button', name='Sign In', exact=True)
-        await elem.click(timeout=10000)
-        
-        # -> Click the 'Sign In' link/button to open the login form and reveal the email and password fields.
-        # Sign In button
-        elem = page.get_by_role('button', name='Sign In', exact=True)
-        await elem.click(timeout=10000)
-        
-        # -> Click the 'Sign In' button to open the login form.
-        # Sign In button
-        elem = page.get_by_role('button', name='Sign In', exact=True)
-        await elem.click(timeout=10000)
-        
-        # -> Click the 'Sign In' button to open the login form and reveal the email and password fields.
-        # Sign In button
-        elem = page.get_by_role('button', name='Sign In', exact=True)
-        await elem.click(timeout=10000)
-        
-        # -> Open the Login page by navigating to the site's /login URL so the email and password fields become visible.
-        await page.goto("https://wolfie-platform-9hjw.vercel.app/login")
-        try:
-            await page.wait_for_load_state("domcontentloaded", timeout=5000)
-        except Exception:
-            pass
-        
-        # -> Open the Wolfie Platform home page and look for the search field on the home screen.
-        await page.goto("https://wolfie-platform-9hjw.vercel.app/")
-        try:
-            await page.wait_for_load_state("domcontentloaded", timeout=5000)
-        except Exception:
-            pass
-        
-        # -> Look for a search field on the homepage by searching the page text for 'Search', then inspect visible input fields and scroll the page to reveal any hidden search input.
-        await page.mouse.wheel(0, 300)
-        
-        # -> Click the 'Sign In' button to open the login form and reveal email and password fields.
-        # Sign In button
-        elem = page.get_by_role('button', name='Sign In', exact=True)
-        await elem.click(timeout=10000)
-        
-        # -> Fill the 'Email or Phone' and 'Password' fields and click the 'Sign In' button.
-        # e.g. takahashi@wolfie.nyc text field
-        elem = page.get_by_placeholder('e.g. takahashi@wolfie.nyc', exact=True)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.fill("wendys@wolfie.delivery")
-        
-        # -> Fill the 'Email or Phone' and 'Password' fields and click the 'Sign In' button.
-        # •••••••• password field
-        elem = page.locator('xpath=/html/body/div[2]/div/div/main/div/div[2]/div/div/div/div[2]/input')
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.fill("password123")
-        
-        # -> Fill the 'Email or Phone' and 'Password' fields and click the 'Sign In' button.
-        # Sign In button
-        elem = page.get_by_text('Bypass & Test App', exact=True).locator("xpath=ancestor-or-self::*[.//button][1]").get_by_role('button', name='Sign In', exact=True)
-        await elem.click(timeout=10000)
-        
-        # -> Click the 'Bypass & Test App' button to enter the application so the home screen search field can be located.
-        # Bypass & Test App button
-        elem = page.get_by_role('button', name='Bypass & Test App', exact=True)
+        # -> Click the visible 'Reload' button to retry loading the home page.
+        # Reload button
+        elem = page.locator('[id="reload-button"]')
         await elem.click(timeout=10000)
         
         # --> Assertions to verify final state
+        # Assert: Verify search results are displayed
+        assert False, "Expected: Verify search results are displayed (could not be verified on the page)"
+        # Assert: Verify the results match the search query
+        assert False, "Expected: Verify the results match the search query (could not be verified on the page)"
         
-        # --> Verify search results are displayed
-        await page.locator("xpath=/html/body/div[2]/div[1]/div/main/div/div/div/div/div[3]/div[2]/div[1]").nth(0).scroll_into_view_if_needed()
-        # Assert: Search results are displayed: the 'Wendy's Burger' result is visible.
-        await expect(page.locator("xpath=/html/body/div[2]/div[1]/div/main/div/div/div/div/div[3]/div[2]/div[1]").nth(0)).to_be_visible(timeout=15000), "Search results are displayed: the 'Wendy's Burger' result is visible."
-        await page.locator("xpath=/html/body/div[2]/div[1]/div/main/div/div/div/div/div[3]/div[2]/div[2]").nth(0).scroll_into_view_if_needed()
-        # Assert: Search results are displayed: the 'McDonald's' result is visible.
-        await expect(page.locator("xpath=/html/body/div[2]/div[1]/div/main/div/div/div/div/div[3]/div[2]/div[2]").nth(0)).to_be_visible(timeout=15000), "Search results are displayed: the 'McDonald's' result is visible."
-        await page.locator("xpath=/html/body/div[2]/div[1]/div/main/div/div/div/div/div[3]/div[2]/div[3]").nth(0).scroll_into_view_if_needed()
-        # Assert: Search results are displayed: the 'Shake Shack' result is visible.
-        await expect(page.locator("xpath=/html/body/div[2]/div[1]/div/main/div/div/div/div/div[3]/div[2]/div[3]").nth(0)).to_be_visible(timeout=15000), "Search results are displayed: the 'Shake Shack' result is visible."
-        current_url = await page.evaluate("() => window.location.href")
-        # Assert: page loaded with a URL (final outcome verified by the AI judge during the run)
-        assert current_url, 'Page should have loaded with a URL'
+        # --> Test blocked by environment/access constraints during agent run
+        # Reason: TEST BLOCKED The test could not be run — the web application UI is not reachable or did not render, preventing interaction with the home screen and search field. Observations: - The browser tab is at /login but the page shows an empty DOM with 0 interactive elements. - The visible screenshot is blank/white and no search field or UI elements are present. - Reload attempts were performed but did ...
+        raise AssertionError("Test blocked during agent run: " + "TEST BLOCKED The test could not be run \u2014 the web application UI is not reachable or did not render, preventing interaction with the home screen and search field. Observations: - The browser tab is at /login but the page shows an empty DOM with 0 interactive elements. - The visible screenshot is blank/white and no search field or UI elements are present. - Reload attempts were performed but did ..." + " — the exported script cannot reproduce a PASS in this environment.")
         await asyncio.sleep(5)
 
     finally:

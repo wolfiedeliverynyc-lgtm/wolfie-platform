@@ -17,11 +17,11 @@
       "name": "Authentication",
       "description": "Allows customers to register, verify phone numbers via OTP, sign in, refresh tokens, and log out securely.",
       "user_flows": [
-        "POST /api/v1/auth/register with name, email, phone, and password -> Receive 201 with user object and token -> POST /api/v1/auth/verify-otp with phone and valid OTP -> Receive 200 verified",
-        "POST /api/v1/auth/login with valid email and password -> Receive 200 with access_token, refresh_token, and user -> POST /api/v1/auth/refresh with valid refresh token -> Receive 200 with new access_token -> POST /api/v1/auth/logout with access token -> Receive 200 logged out",
+        "POST /api/v1/auth/register with full_name, email, phone, role ('customer'), and password -> Receive 201 with user object and token -> POST /api/v1/auth/otp/verify with phone and valid code -> Receive 200 verified",
+        "POST /api/v1/auth/login with email 'customer_demo@wolfie.delivery' and password 'password123' -> Receive 200 with access_token, refresh_token, and user -> POST /api/v1/auth/refresh with JSON body containing refresh_token -> Receive 200 with new access_token -> POST /api/v1/auth/logout with access token -> Receive 200 logged out",
         "POST /api/v1/auth/register with missing or invalid fields -> Receive 400 validation error",
         "POST /api/v1/auth/login with incorrect password -> Receive 401 invalid credentials",
-        "POST /api/v1/auth/verify-otp with incorrect OTP -> Receive 400 invalid OTP"
+        "POST /api/v1/auth/otp/verify with incorrect code -> Receive 400 invalid OTP"
       ]
     },
     {
@@ -137,10 +137,11 @@
             "auth_required": false,
             "request_schema": {
               "body": {
-                "name": "string",
+                "full_name": "string",
                 "email": "string",
                 "phone": "string",
-                "password": "string"
+                "password": "string",
+                "role": "string"
               }
             },
             "response_schema": {
@@ -155,8 +156,8 @@
             "auth_required": false,
             "request_schema": {
               "body": {
-                "email": "string",
-                "password": "string"
+                "email": "customer_demo@wolfie.delivery",
+                "password": "password123"
               }
             },
             "response_schema": {
@@ -166,13 +167,13 @@
           },
           {
             "method": "POST",
-            "path": "/api/v1/auth/verify-otp",
+            "path": "/api/v1/auth/otp/verify",
             "description": "Verify OTP sent to phone number",
             "auth_required": false,
             "request_schema": {
               "body": {
                 "phone": "string",
-                "otp": "string"
+                "code": "string"
               }
             },
             "response_schema": {
@@ -184,9 +185,14 @@
             "method": "POST",
             "path": "/api/v1/auth/refresh",
             "description": "Refresh access token",
-            "auth_required": true,
+            "auth_required": false,
             "response_schema": {
               "200": "new access_token"
+            },
+            "request_schema": {
+              "body": {
+                "refresh_token": "string"
+              }
             }
           },
           {
@@ -214,7 +220,7 @@
             "description": "List all active restaurants",
             "auth_required": false,
             "response_schema": {
-              "200": "list of restaurant objects"
+              "200": "object containing restaurants and count"
             }
           },
           {
@@ -250,15 +256,15 @@
         "endpoints": [
           {
             "method": "POST",
-            "path": "/api/v1/orders",
+            "path": "/api/v1/orders/",
             "description": "Place a new order",
             "auth_required": true,
             "request_schema": {
               "body": {
                 "restaurant_id": "string",
                 "items": "array",
-                "delivery_address": "object",
-                "payment_method_id": "string"
+                "delivery_address": "string",
+                "payment_method": "string"
               }
             },
             "response_schema": {
@@ -268,11 +274,19 @@
           },
           {
             "method": "GET",
-            "path": "/api/v1/orders",
+            "path": "/api/v1/orders/",
             "description": "Get orders for current user",
             "auth_required": true,
             "response_schema": {
               "200": "list of orders"
+            },
+            "request_schema": {
+              "body": {
+                "restaurant_id": "string",
+                "items": "array",
+                "delivery_address": "string",
+                "payment_method": "string"
+              }
             }
           },
           {
@@ -364,15 +378,6 @@
           "routes/driver_kyc.py"
         ],
         "endpoints": [
-          {
-            "method": "GET",
-            "path": "/api/v1/drivers/available",
-            "description": "List available drivers",
-            "auth_required": true,
-            "response_schema": {
-              "200": "list of available drivers"
-            }
-          },
           {
             "method": "PATCH",
             "path": "/api/v1/drivers/<id>/location",

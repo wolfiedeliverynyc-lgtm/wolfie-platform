@@ -33,16 +33,9 @@ async def run_test():
         page = await context.new_page()
 
         # Interact with the page elements to simulate user flow
-        # -> navigate
-        await page.goto("http://localhost:3000")
-        try:
-            await page.wait_for_load_state("domcontentloaded", timeout=5000)
-        except Exception:
-            pass
-        
         # -> Final action — this is where the agent failed
-        # Error observed by agent: Navigation failed - site unavailable: https://wolfie-platform-9hjw.vercel.app/
-        await page.goto("https://wolfie-platform-9hjw.vercel.app/")
+        # Error observed by agent: Navigation failed - site unavailable: http://localhost:3000/
+        await page.goto("http://localhost:3000/")
         try:
             await page.wait_for_load_state("domcontentloaded", timeout=5000)
         except Exception:
@@ -55,8 +48,8 @@ async def run_test():
         assert False, "Expected: Verify the tracking view remains available (could not be verified on the page)"
         
         # --> Test blocked by environment/access constraints during agent run
-        # Reason: TEST BLOCKED The homepage could not be reached — the test cannot be run because the site failed to load. Observations: - The browser displayed a "This site can’t be reached" page with error code ERR_CONNECTION_CLOSED. - The page shows 'Reload' and 'Details' buttons and no application UI or sign-in button was visible.
-        raise AssertionError("Test blocked during agent run: " + "TEST BLOCKED The homepage could not be reached \u2014 the test cannot be run because the site failed to load. Observations: - The browser displayed a \"This site can\u2019t be reached\" page with error code ERR_CONNECTION_CLOSED. - The page shows 'Reload' and 'Details' buttons and no application UI or sign-in button was visible." + " — the exported script cannot reproduce a PASS in this environment.")
+        # Reason: TEST BLOCKED The test could not be run because the web application at http://localhost:3000 did not load and the UI could not be reached. Observations: - The page displayed a blank white screen with no interactive elements. - Multiple navigation and wait attempts were performed but the SPA never loaded.
+        raise AssertionError("Test blocked during agent run: " + "TEST BLOCKED The test could not be run because the web application at http://localhost:3000 did not load and the UI could not be reached. Observations: - The page displayed a blank white screen with no interactive elements. - Multiple navigation and wait attempts were performed but the SPA never loaded." + " — the exported script cannot reproduce a PASS in this environment.")
         await asyncio.sleep(5)
 
     finally:

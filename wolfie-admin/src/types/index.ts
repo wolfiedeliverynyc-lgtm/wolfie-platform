@@ -28,6 +28,8 @@ export interface Merchant {
   operational_status?: 'open' | 'paused' | 'busy' | 'delayed';
   prep_delay_minutes?: number;
   kitchen_delay?: boolean;
+  kyc_status?: string;
+  kyc_documents?: any;
 }
 
 export interface Order {
@@ -71,6 +73,8 @@ export interface Driver {
   active_order_ids?: string[];
   lat?: number;
   lng?: number;
+  kyc_status?: string;
+  kyc_documents?: any;
 }
 
 export interface SupportTicket {

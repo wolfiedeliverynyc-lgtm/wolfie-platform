@@ -40,62 +40,22 @@ async def run_test():
         except Exception:
             pass
         
-        # -> Load the Wolfie home page (https://wolfie-platform-9hjw.vercel.app/) and wait for it to fully render so the 'Sign In' button and restaurant list become visible.
-        await page.goto("https://wolfie-platform-9hjw.vercel.app/")
+        # -> Open the site's home page (navigate to '/') to begin the cart quantity and total verification flow.
+        await page.goto("http://localhost:3000/")
         try:
             await page.wait_for_load_state("domcontentloaded", timeout=5000)
         except Exception:
             pass
         
-        # -> Click the 'Sign In' button to open the login form.
-        # Sign In button
-        elem = page.get_by_role('button', name='Sign In', exact=True)
-        await elem.click(timeout=10000)
-        
-        # -> Enter wendys@wolfie.delivery into the 'Email or Phone' field, enter password123 into the 'Password' field, then click the 'Sign In' button.
-        # e.g. takahashi@wolfie.nyc text field
-        elem = page.get_by_placeholder('e.g. takahashi@wolfie.nyc', exact=True)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.fill("wendys@wolfie.delivery")
-        
-        # -> Enter wendys@wolfie.delivery into the 'Email or Phone' field, enter password123 into the 'Password' field, then click the 'Sign In' button.
-        # •••••••• password field
-        elem = page.locator('xpath=/html/body/div[2]/div/div/main/div/div[2]/div/div/div/div[2]/input')
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.fill("password123")
-        
-        # -> Enter wendys@wolfie.delivery into the 'Email or Phone' field, enter password123 into the 'Password' field, then click the 'Sign In' button.
-        # Sign In button
-        elem = page.get_by_text('Bypass & Test App', exact=True).locator("xpath=ancestor-or-self::*[.//button][1]").get_by_role('button', name='Sign In', exact=True)
-        await elem.click(timeout=10000)
-        
-        # -> Click the yellow 'Sign In' button on the right side of the page to submit credentials and open the authenticated view.
-        # Sign In button
-        elem = page.get_by_text('Bypass & Test App', exact=True).locator("xpath=ancestor-or-self::*[.//button][1]").get_by_role('button', name='Sign In', exact=True)
-        await elem.click(timeout=10000)
-        
-        # -> Click the yellow 'Sign In' button labeled "Sign In" to submit the credentials and sign in.
-        # Sign In button
-        elem = page.get_by_text('Bypass & Test App', exact=True).locator("xpath=ancestor-or-self::*[.//button][1]").get_by_role('button', name='Sign In', exact=True)
-        await elem.click(timeout=10000)
-        
-        # -> Click the 'Sign In' button to submit the login form and sign in
-        # Sign In button
-        elem = page.get_by_text('Bypass & Test App', exact=True).locator("xpath=ancestor-or-self::*[.//button][1]").get_by_role('button', name='Sign In', exact=True)
-        await elem.click(timeout=10000)
-        
-        # -> Open the 'Wendy's Burger' restaurant detail view by clicking its title.
-        # Wendy's Burger
-        elem = page.locator('xpath=/html/body/div[2]/div/div/main/div/div/div/div/div[3]/div[2]/div/div[2]/div[2]/h4')
-        await elem.click(timeout=10000)
-        
         # --> Assertions to verify final state
-        current_url = await page.evaluate("() => window.location.href")
-        # Assert: page loaded with a URL (final outcome verified by the AI judge during the run)
-        assert current_url, 'Page should have loaded with a URL'
-        current_url = await page.evaluate("() => window.location.href")
-        # Assert: page loaded with a URL (final outcome verified by the AI judge during the run)
-        assert current_url, 'Page should have loaded with a URL'
+        # Assert: Verify the updated quantity is shown
+        assert False, "Expected: Verify the updated quantity is shown (could not be verified on the page)"
+        # Assert: Verify the cart total is updated
+        assert False, "Expected: Verify the cart total is updated (could not be verified on the page)"
+        
+        # --> Test blocked by environment/access constraints during agent run
+        # Reason: TEST BLOCKED The test could not be run because the application server did not respond and the UI did not load. Observations: - The browser shows "This page isn’t working" with the message "localhost didn’t send any data." and error code ERR_EMPTY_RESPONSE. - The only interactive control visible is a 'Reload' button; no application UI elements (restaurants, menu items, or cart) are present.
+        raise AssertionError("Test blocked during agent run: " + "TEST BLOCKED The test could not be run because the application server did not respond and the UI did not load. Observations: - The browser shows \"This page isn\u2019t working\" with the message \"localhost didn\u2019t send any data.\" and error code ERR_EMPTY_RESPONSE. - The only interactive control visible is a 'Reload' button; no application UI elements (restaurants, menu items, or cart) are present." + " — the exported script cannot reproduce a PASS in this environment.")
         await asyncio.sleep(5)
 
     finally:

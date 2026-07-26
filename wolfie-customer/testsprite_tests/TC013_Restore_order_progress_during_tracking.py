@@ -33,47 +33,23 @@ async def run_test():
         page = await context.new_page()
 
         # Interact with the page elements to simulate user flow
-        # -> navigate
-        await page.goto("http://localhost:3000")
-        try:
-            await page.wait_for_load_state("domcontentloaded", timeout=5000)
-        except Exception:
-            pass
-        
-        # -> Click the 'Sign In' button to open the login form.
-        # Sign In button
-        elem = page.get_by_role('button', name='Sign In', exact=True)
-        await elem.click(timeout=10000)
-        
-        # -> Click the 'Sign In' button on the page to open the login form.
-        # Sign In button
-        elem = page.get_by_role('button', name='Sign In', exact=True)
-        await elem.click(timeout=10000)
-        
-        # -> Click the 'Sign In' button to open the login form.
-        # Sign In button
-        elem = page.get_by_role('button', name='Sign In', exact=True)
-        await elem.click(timeout=10000)
-        
-        # -> Click the 'Sign In' button on the homepage to open the login form.
-        # Sign In button
-        elem = page.get_by_role('button', name='Sign In', exact=True)
-        await elem.click(timeout=10000)
-        
-        # -> Open the site's Sign In page by navigating to the site's Sign In route so the login form can be used.
-        await page.goto("https://wolfie-platform-9hjw.vercel.app/signin")
+        # -> Final action — this is where the agent failed
+        # Error observed by agent: Navigation failed - site unavailable: http://localhost:3000/
+        await page.goto("http://localhost:3000/")
         try:
             await page.wait_for_load_state("domcontentloaded", timeout=5000)
         except Exception:
             pass
         
         # --> Assertions to verify final state
-        current_url = await page.evaluate("() => window.location.href")
-        # Assert: page loaded with a URL (final outcome verified by the AI judge during the run)
-        assert current_url, 'Page should have loaded with a URL'
-        current_url = await page.evaluate("() => window.location.href")
-        # Assert: page loaded with a URL (final outcome verified by the AI judge during the run)
-        assert current_url, 'Page should have loaded with a URL'
+        # Assert: Verify the current delivery status is displayed
+        assert False, "Expected: Verify the current delivery status is displayed (could not be verified on the page)"
+        # Assert: Verify the order details remain accessible
+        assert False, "Expected: Verify the order details remain accessible (could not be verified on the page)"
+        
+        # --> Test blocked by environment/access constraints during agent run
+        # Reason: TEST BLOCKED The test could not be run because the target web application did not load and the UI could not be reached. Observations: - Navigation to http://localhost:3000/ and http://localhost:3000/login returned a blank page with no interactive elements. - The SPA did not render (screenshot shows a blank/white viewport), so the order tracking view and chat are not accessible.
+        raise AssertionError("Test blocked during agent run: " + "TEST BLOCKED The test could not be run because the target web application did not load and the UI could not be reached. Observations: - Navigation to http://localhost:3000/ and http://localhost:3000/login returned a blank page with no interactive elements. - The SPA did not render (screenshot shows a blank/white viewport), so the order tracking view and chat are not accessible." + " — the exported script cannot reproduce a PASS in this environment.")
         await asyncio.sleep(5)
 
     finally:

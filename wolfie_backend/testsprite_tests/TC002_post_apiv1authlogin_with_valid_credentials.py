@@ -1,39 +1,30 @@
 import requests
 
-BASE_URL = "http://localhost:5000"
-
 def test_post_apiv1authlogin_with_valid_credentials():
-    reset_url = f"{BASE_URL}/api/v1/testing/reset"
-    login_url = f"{BASE_URL}/api/v1/auth/login"
-    timeout = 30
-
-    # Reset data before test
-    resp_reset = requests.delete(reset_url, timeout=timeout)
-    assert resp_reset.status_code in [200, 204], f"Reset failed with status {resp_reset.status_code}"
-
-    login_payload = {
-        "email": "test.customer@wolfie.delivery",
-        "password": "TestPassword123!"
+    base_url = "http://127.0.0.1:5000/api/v1"
+    url = f"{base_url}/auth/login"
+    headers = {
+        "Content-Type": "application/json"
     }
-    headers = {"Content-Type": "application/json"}
+    payload = {
+        "email": "test-cust-0000-0000-000000000002@example.com",
+        "password": "correct_password"
+    }
 
     try:
-        response = requests.post(login_url, json=login_payload, headers=headers, timeout=timeout)
+        response = requests.post(url, json=payload, headers=headers, timeout=30)
+        assert response.status_code == 200, f"Expected status 200 but got {response.status_code}"
+        data = response.json()
+        assert "access_token" in data, "Response missing access_token"
+        assert "refresh_token" in data, "Response missing refresh_token"
+        assert "user" in data, "Response missing user object"
+        # Optional: further checks on user object structure
+        user = data["user"]
+        assert isinstance(user, dict), "User should be a dictionary"
+        assert "email" in user and user["email"] == payload["email"], "User email mismatch"
     except requests.RequestException as e:
-        assert False, f"Request to login endpoint failed: {e}"
+        assert False, f"Request failed: {e}"
 
-    assert response.status_code == 200, f"Expected status 200 but got {response.status_code}"
-
-    response_json = response.json()
-    # Verify presence of access_token, refresh_token, and user objects
-    assert "access_token" in response_json, "access_token missing in response"
-    assert "refresh_token" in response_json, "refresh_token missing in response"
-    assert "user" in response_json, "user object missing in response"
-    # Additional basic assertions on content types
-    assert isinstance(response_json["access_token"], str) and len(response_json["access_token"]) > 0
-    assert isinstance(response_json["refresh_token"], str) and len(response_json["refresh_token"]) > 0
-    assert isinstance(response_json["user"], dict)
-    # Optional: check user's email matches login email
-    assert response_json["user"].get("email") == login_payload["email"]
-
+# The email and password should be valid credentials already registered in the system.
+# Since no credentials are provided, using plausible example email and password for testing.
 test_post_apiv1authlogin_with_valid_credentials()

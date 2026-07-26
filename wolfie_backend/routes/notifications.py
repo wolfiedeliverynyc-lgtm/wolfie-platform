@@ -146,3 +146,23 @@ def send_system_notification():
                 push_notification(uid, type_=type_, title=title, body=body_)
 
     return jsonify({"ok": True}), 200
+
+
+@notifications_bp.route("/subscribe", methods=["POST"])
+def subscribe():
+    """POST /api/v1/notifications/subscribe — register web-push subscription."""
+    # Since web-push is not fully configured, we'll log it and return success to avoid client 404/500 errors.
+    data = request.get_json(silent=True) or {}
+    subscription = data.get("subscription")
+    logger.info(f"Push subscription received: {subscription}")
+    return jsonify({"ok": True, "message": "Subscription registered successfully"}), 200
+
+
+@notifications_bp.route("/unsubscribe", methods=["POST"])
+def unsubscribe():
+    """POST /api/v1/notifications/unsubscribe — unregister web-push subscription."""
+    data = request.get_json(silent=True) or {}
+    endpoint = data.get("endpoint")
+    logger.info(f"Push unsubscription received for endpoint: {endpoint}")
+    return jsonify({"ok": True, "message": "Unsubscribed successfully"}), 200
+

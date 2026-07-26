@@ -64,6 +64,7 @@ interface DashboardState {
 
   updateDriver: (driver: Partial<Driver> & { id: string }) => void;
   activateDriver: (driverId: string) => Promise<boolean>;
+  reviewKyc: (id: string, role: 'driver' | 'restaurant', status: 'approved' | 'rejected', rejectionReason?: string) => Promise<boolean>;
 
   resolveTicket: (ticketId: string, resolution: string) => Promise<boolean>;
   escalateTicket: (ticketId: string, reason: string) => Promise<boolean>;
@@ -190,6 +191,8 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
         current_order_id?: string;
         lat?: number;
         lng?: number;
+        kyc_status?: string;
+        kyc_documents?: any;
       }
 
       const driversList = (Array.isArray(data) 
@@ -207,7 +210,9 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
         completed_trips: d.total_deliveries || d.completed_trips || 0,
         current_order_id: d.current_order_id || undefined,
         lat: d.lat,
-        lng: d.lng
+        lng: d.lng,
+        kyc_status: d.kyc_status || 'not_started',
+        kyc_documents: d.kyc_documents || {}
       }));
       set({ drivers: normalizedDrivers });
     } catch (err) {
@@ -491,7 +496,7 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
       await api.patch(`/admin/drivers/${driverId}/approve`);
       set((state) => ({
         drivers: state.drivers.map((d) => 
-          d.id === driverId ? { ...d, status: 'available' } : d
+          d.id === driverId ? { ...d, status: 'available', kyc_status: 'approved' } : d
         )
       }));
       get().addActivity({
@@ -501,6 +506,39 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
       return true;
     } catch (err) {
       console.error("Failed to activate driver:", err);
+      return false;
+    }
+  },
+
+  reviewKyc: async (id, role, status, rejectionReason) => {
+    try {
+      await api.post(`/drivers/kyc/review`, {
+        driver_id: id,
+        status,
+        rejection_reason: rejectionReason || ""
+      });
+
+      if (role === 'driver') {
+        set((state) => ({
+          drivers: state.drivers.map((d) => 
+            d.id === id ? { ...d, kyc_status: status } : d
+          )
+        }));
+      } else {
+        set((state) => ({
+          merchants: state.merchants.map((m) => 
+            m.id === id ? { ...m, kyc_status: status } : m
+          )
+        }));
+      }
+
+      get().addActivity({
+        text: `Updated ${role} ${id} KYC status to ${status}`,
+        color: status === 'approved' ? "var(--status-green)" : "var(--status-red)"
+      });
+      return true;
+    } catch (err) {
+      console.error("Failed to review KYC:", err);
       return false;
     }
   },
@@ -641,7 +679,9 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
         commissionPct: r.commission_rate ? Math.round(r.commission_rate * 100) : 18,
         status: r.is_active ? (r.is_open ? 'active' : 'paused') : 'suspended',
         zone: (r.delivery_zones && r.delivery_zones[0]) || "Algiers Centre",
-        operational_status: r.busy_mode ? 'busy' : (r.is_open ? 'open' : 'paused')
+        operational_status: r.busy_mode ? 'busy' : (r.is_open ? 'open' : 'paused'),
+        kyc_status: r.kyc_status || 'not_started',
+        kyc_documents: r.kyc_documents || {}
       }));
       set({ merchants: mapped });
     } catch (err) {

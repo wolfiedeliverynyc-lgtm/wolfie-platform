@@ -33,15 +33,25 @@ async def run_test():
         page = await context.new_page()
 
         # Interact with the page elements to simulate user flow
-        # -> Click the 'Reload' button on the browser error page to retry loading the site.
+        # -> navigate
+        await page.goto("http://localhost:3000")
+        try:
+            await page.wait_for_load_state("domcontentloaded", timeout=5000)
+        except Exception:
+            pass
+        
+        # -> Click the 'Reload' button on the error page to retry loading the application.
         # Reload button
         elem = page.locator('[id="reload-button"]')
         await elem.click(timeout=10000)
         
-        # -> Click the 'Reload' button on the error page to retry loading the site.
-        # Reload button
-        elem = page.locator('[id="reload-button"]')
-        await elem.click(timeout=10000)
+        # -> Final action — this is where the agent failed
+        # Error observed by agent: Navigation failed - site unavailable: http://127.0.0.1:3000/health
+        await page.goto("http://127.0.0.1:3000/health")
+        try:
+            await page.wait_for_load_state("domcontentloaded", timeout=5000)
+        except Exception:
+            pass
         
         # --> Assertions to verify final state
         # Assert: Verify the cart shows the added item
@@ -50,8 +60,8 @@ async def run_test():
         assert False, "Expected: Verify the cart total is updated (could not be verified on the page)"
         
         # --> Test blocked by environment/access constraints during agent run
-        # Reason: TEST BLOCKED The test could not be run because the application was unreachable — the browser closed the connection to the live site and the UI could not be interacted with. Observations: - The browser shows "This site can’t be reached" with message that the connection was unexpectedly closed and error code ERR_CONNECTION_CLOSED. - The page's visible 'Reload' button was clicked twice and the pag...
-        raise AssertionError("Test blocked during agent run: " + "TEST BLOCKED The test could not be run because the application was unreachable \u2014 the browser closed the connection to the live site and the UI could not be interacted with. Observations: - The browser shows \"This site can\u2019t be reached\" with message that the connection was unexpectedly closed and error code ERR_CONNECTION_CLOSED. - The page's visible 'Reload' button was clicked twice and the pag..." + " — the exported script cannot reproduce a PASS in this environment.")
+        # Reason: TEST BLOCKED The test could not be run because the application server is not responding on the local loopback interface, preventing the UI from being reached. Observations: - The browser shows 'ERR_EMPTY_RESPONSE' with the message '127.0.0.1 didn't send any data.' - A 'Reload' button is present on the error page, and previous reload attempts did not recover the site. - Navigation attempts to ht...
+        raise AssertionError("Test blocked during agent run: " + "TEST BLOCKED The test could not be run because the application server is not responding on the local loopback interface, preventing the UI from being reached. Observations: - The browser shows 'ERR_EMPTY_RESPONSE' with the message '127.0.0.1 didn't send any data.' - A 'Reload' button is present on the error page, and previous reload attempts did not recover the site. - Navigation attempts to ht..." + " — the exported script cannot reproduce a PASS in this environment.")
         await asyncio.sleep(5)
 
     finally:

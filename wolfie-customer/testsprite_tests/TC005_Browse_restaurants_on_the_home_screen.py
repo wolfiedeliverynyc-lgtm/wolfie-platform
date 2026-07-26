@@ -33,12 +33,15 @@ async def run_test():
         page = await context.new_page()
 
         # Interact with the page elements to simulate user flow
-        # -> Click the 'Reload' button on the error page to retry loading the Wolfie home page
-        # Reload button
-        elem = page.locator('[id="reload-button"]')
-        await elem.click(timeout=10000)
+        # -> navigate
+        await page.goto("http://localhost:3000")
+        try:
+            await page.wait_for_load_state("domcontentloaded", timeout=5000)
+        except Exception:
+            pass
         
-        # -> Click the 'Reload' button on the error page to retry loading the Wolfie home page.
+        # -> Final action — this is where the agent failed
+        # Error observed by agent: Failed to click element <button index=7>. The element may not be interactable or visible. If the page changed after navigation/interaction, the index [7] may be stale. Get fresh browser state before r
         # Reload button
         elem = page.locator('[id="reload-button"]')
         await elem.click(timeout=10000)
@@ -50,8 +53,8 @@ async def run_test():
         assert False, "Expected: Verify the home browsing content is visible (could not be verified on the page)"
         
         # --> Test blocked by environment/access constraints during agent run
-        # Reason: TEST BLOCKED The site could not be reached — the application page did not load and the test cannot run. Observations: - The browser shows "This site can't be reached" with error code ERR_CONNECTION_CLOSED. - Reload attempts did not restore the connection and no application UI (home/browse or restaurant list) was visible.
-        raise AssertionError("Test blocked during agent run: " + "TEST BLOCKED The site could not be reached \u2014 the application page did not load and the test cannot run. Observations: - The browser shows \"This site can't be reached\" with error code ERR_CONNECTION_CLOSED. - Reload attempts did not restore the connection and no application UI (home/browse or restaurant list) was visible." + " — the exported script cannot reproduce a PASS in this environment.")
+        # Reason: TEST BLOCKED The test could not be run — the application server at http://localhost:3000 is not responding, so the home screen cannot be reached. Observations: - The browser shows 'This page isn’t working' and the error code ERR_EMPTY_RESPONSE. - The page only displays a 'Reload' button and no application UI or restaurant list. - Attempts to reload or navigate returned the same empty response a...
+        raise AssertionError("Test blocked during agent run: " + "TEST BLOCKED The test could not be run \u2014 the application server at http://localhost:3000 is not responding, so the home screen cannot be reached. Observations: - The browser shows 'This page isn\u2019t working' and the error code ERR_EMPTY_RESPONSE. - The page only displays a 'Reload' button and no application UI or restaurant list. - Attempts to reload or navigate returned the same empty response a..." + " — the exported script cannot reproduce a PASS in this environment.")
         await asyncio.sleep(5)
 
     finally:

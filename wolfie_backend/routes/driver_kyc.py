@@ -69,22 +69,24 @@ def review_kyc():
         return jsonify({"error": "driver_id and status (approved/rejected) are required"}), 400
 
     with transaction() as session:
-        driver = session.query(User).filter(User.id == driver_id, User.role == "driver").first()
+        driver = session.query(User).filter(User.id == driver_id, User.role.in_(["driver", "restaurant"])).first()
         if not driver:
-            return jsonify({"error": "Driver not found"}), 404
+            return jsonify({"error": "User not found"}), 404
 
         driver.kyc_status = status
         
         docs = dict(driver.kyc_documents or {})
         for doc in docs.values():
-            doc["status"] = "approved" if status == "approved" else "rejected"
-            if status == "rejected" and rejection_reason:
-                doc["error_reason"] = rejection_reason
+            if isinstance(doc, dict):
+                doc["status"] = "approved" if status == "approved" else "rejected"
+                if status == "rejected" and rejection_reason:
+                    doc["error_reason"] = rejection_reason
 
         driver.kyc_documents = docs
 
         return jsonify({
-            "message": f"Driver KYC status updated to {status}",
+            "message": f"KYC status updated to {status}",
             "driver_id": driver_id,
             "kyc_status": driver.kyc_status
         }), 200
+

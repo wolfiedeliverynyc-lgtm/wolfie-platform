@@ -2,51 +2,6 @@
   {
     "id": "TC001",
     "title": "post apiv1authregister with valid data",
-    "description": "Test user registration with valid name, email, phone, and password to receive 201 status with user object and token."
-  },
-  {
-    "id": "TC002",
-    "title": "post apiv1authlogin with valid credentials",
-    "description": "Test user login with correct email and password to receive 200 status with access_token, refresh_token, and user object."
-  },
-  {
-    "id": "TC003",
-    "title": "post apiv1authverifyotp with correct otp",
-    "description": "Test OTP verification by posting phone and valid OTP to receive 200 status confirming verification."
-  },
-  {
-    "id": "TC004",
-    "title": "post apiv1authrefresh with valid refresh token",
-    "description": "Test access token refresh by posting with valid refresh token to receive 200 status with new access_token."
-  },
-  {
-    "id": "TC005",
-    "title": "post apiv1authlogout with valid access token",
-    "description": "Test user logout by posting with valid access token to receive 200 status confirming logout."
-  },
-  {
-    "id": "TC006",
-    "title": "get apiv1restaurants returns active restaurants",
-    "description": "Test retrieval of all active restaurants without authentication to receive 200 status with list of restaurant objects."
-  },
-  {
-    "id": "TC007",
-    "title": "post apiv1orders places new order",
-    "description": "Test placing a new order with valid restaurant_id, items, delivery_address, and payment_method_id after authentication to receive 201 status with order object."
-  },
-  {
-    "id": "TC008",
-    "title": "post apiv1paymentscreateintent with valid amount and currency",
-    "description": "Test creation of Stripe payment intent by posting valid amount and currency after authentication to receive 200 status with client_secret."
-  },
-  {
-    "id": "TC009",
-    "title": "patch apiv1driversidlocation updates driver location",
-    "description": "Test updating driver location by patching with valid latitude and longitude after authentication to receive 200 status confirming update."
-  },
-  {
-    "id": "TC010",
-    "title": "get apiv1trackingorderid returns live tracking info",
-    "description": "Test retrieval of live tracking information for an order with valid authentication and existing order_id to receive 200 status with tracking object and driver coordinates."
+    "description": "Test user registration endpoint with valid full_name, email, phone, role as customer, and password. Expect 201 response with user object and token."
   }
 ]

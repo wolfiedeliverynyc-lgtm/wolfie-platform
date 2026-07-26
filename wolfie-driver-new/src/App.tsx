@@ -277,7 +277,7 @@ export default function App() {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${store.token}`
           },
-          body: JSON.stringify({ status: 'rejected' })
+          body: JSON.stringify({ status: 'pending' })
         });
       }
     } catch (e) {

@@ -40,9 +40,17 @@ async def run_test():
         except Exception:
             pass
         
-        # -> Final action — this is where the agent failed
-        # Error observed by agent: Navigation failed - site unavailable: https://wolfie-platform-9hjw.vercel.app/
-        await page.goto("https://wolfie-platform-9hjw.vercel.app/")
+        # -> Navigate to the homepage (http://localhost:3000/) to load the app and expose cart/checkout UI.
+        await page.goto("http://localhost:3000/")
+        try:
+            await page.wait_for_load_state("domcontentloaded", timeout=5000)
+        except Exception:
+            pass
+        
+        # -> Open a new tab and navigate to http://127.0.0.1:3000/ to try loading the application.
+        # Open URL in new tab
+        page = await context.new_page()
+        await page.goto("http://127.0.0.1:3000/")
         try:
             await page.wait_for_load_state("domcontentloaded", timeout=5000)
         except Exception:
@@ -55,8 +63,8 @@ async def run_test():
         assert False, "Expected: Verify the order total is displayed (could not be verified on the page)"
         
         # --> Test blocked by environment/access constraints during agent run
-        # Reason: TEST BLOCKED The test could not be run — the homepage is not reachable and the UI did not load, preventing the checkout flow from being executed. Observations: - The browser shows "This site can't be reached" for https://wolfie-platform-9hjw.vercel.app/ with error ERR_SOCKET_NOT_CONNECTED - No interactive elements or application UI loaded on the page, so 'Sign In', cart, and checkout cannot be ...
-        raise AssertionError("Test blocked during agent run: " + "TEST BLOCKED The test could not be run \u2014 the homepage is not reachable and the UI did not load, preventing the checkout flow from being executed. Observations: - The browser shows \"This site can't be reached\" for https://wolfie-platform-9hjw.vercel.app/ with error ERR_SOCKET_NOT_CONNECTED - No interactive elements or application UI loaded on the page, so 'Sign In', cart, and checkout cannot be ..." + " — the exported script cannot reproduce a PASS in this environment.")
+        # Reason: TEST BLOCKED The test could not be run — the application failed to load in the browser, preventing access to the cart and checkout UI. Observations: - The page returned an ERR_EMPTY_RESPONSE and rendered a blank page. - No interactive elements (cart, checkout, or navigation) were present on the page. - Attempts to reload or click the visible Reload button were unsuccessful or the element was no...
+        raise AssertionError("Test blocked during agent run: " + "TEST BLOCKED The test could not be run \u2014 the application failed to load in the browser, preventing access to the cart and checkout UI. Observations: - The page returned an ERR_EMPTY_RESPONSE and rendered a blank page. - No interactive elements (cart, checkout, or navigation) were present on the page. - Attempts to reload or click the visible Reload button were unsuccessful or the element was no..." + " — the exported script cannot reproduce a PASS in this environment.")
         await asyncio.sleep(5)
 
     finally:

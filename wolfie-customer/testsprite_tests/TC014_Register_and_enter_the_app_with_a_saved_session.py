@@ -33,177 +33,27 @@ async def run_test():
         page = await context.new_page()
 
         # Interact with the page elements to simulate user flow
-        # -> navigate
-        await page.goto("http://localhost:3000")
+        # -> Final action — this is where the agent failed
+        # Error observed by agent: Navigation failed - site unavailable: http://localhost:3000/register
+        await page.goto("http://localhost:3000/register")
         try:
             await page.wait_for_load_state("domcontentloaded", timeout=5000)
         except Exception:
             pass
-        
-        # -> Open the Wolfie home page (https://wolfie-platform-9hjw.vercel.app/) so the registration flow can be started.
-        await page.goto("https://wolfie-platform-9hjw.vercel.app/")
-        try:
-            await page.wait_for_load_state("domcontentloaded", timeout=5000)
-        except Exception:
-            pass
-        
-        # -> Fill the registration form (Full Name, Email Address, Phone Number, Password) and click the 'Sign Up' button.
-        # e.g. Simona Takahashi text field
-        elem = page.get_by_placeholder('e.g. Simona Takahashi', exact=True)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.fill("Autotest User")
-        
-        # -> Fill the registration form (Full Name, Email Address, Phone Number, Password) and click the 'Sign Up' button.
-        # takahashi@wolfie.nyc email field
-        elem = page.get_by_placeholder('takahashi@wolfie.nyc', exact=True)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.fill("autotest.user.20260709+1@example.com")
-        
-        # -> Fill the registration form (Full Name, Email Address, Phone Number, Password) and click the 'Sign Up' button.
-        # +1 (555) 019-2831 text field
-        elem = page.get_by_placeholder('+1 (555) 019-2831', exact=True)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.fill("+1 (555) 010-2020")
-        
-        # -> Fill the registration form (Full Name, Email Address, Phone Number, Password) and click the 'Sign Up' button.
-        # •••••••• password field
-        elem = page.get_by_placeholder('••••••••', exact=True)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.fill("Password123!")
-        
-        # -> Fill the registration form (Full Name, Email Address, Phone Number, Password) and click the 'Sign Up' button.
-        # Sign Up button
-        elem = page.get_by_role('button', name='Sign Up', exact=True)
-        await elem.click(timeout=10000)
-        
-        # -> Click the 'Sign Up' button to submit the Create Account form and observe the resulting verification or home screen.
-        # Sign Up button
-        elem = page.get_by_role('button', name='Sign Up', exact=True)
-        await elem.click(timeout=10000)
-        
-        # -> Click the 'Sign Up' button to submit the Create Account form and observe the resulting verification or home screen.
-        # Sign Up button
-        elem = page.get_by_role('button', name='Sign Up', exact=True)
-        await elem.click(timeout=10000)
-        
-        # -> Navigate to the '/register' page to open the registration route and re-evaluate the registration submission.
-        await page.goto("https://wolfie-platform-9hjw.vercel.app/register")
-        try:
-            await page.wait_for_load_state("domcontentloaded", timeout=5000)
-        except Exception:
-            pass
-        
-        # -> Open the Wolfie home page and check for the visible 'Sign Up' / Create Account form so the registration flow can be retried from the homepage.
-        await page.goto("https://wolfie-platform-9hjw.vercel.app/")
-        try:
-            await page.wait_for_load_state("domcontentloaded", timeout=5000)
-        except Exception:
-            pass
-        
-        # -> Fill the Create Account form (Full Name, Email Address, Phone Number, Password) and click the 'Sign Up' button.
-        # e.g. Simona Takahashi text field
-        elem = page.get_by_placeholder('e.g. Simona Takahashi', exact=True)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.fill("Autotest User")
-        
-        # -> Fill the Create Account form (Full Name, Email Address, Phone Number, Password) and click the 'Sign Up' button.
-        # takahashi@wolfie.nyc email field
-        elem = page.get_by_placeholder('takahashi@wolfie.nyc', exact=True)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.fill("autotest.user.20260709+2@example.com")
-        
-        # -> Fill the Create Account form (Full Name, Email Address, Phone Number, Password) and click the 'Sign Up' button.
-        # +1 (555) 019-2831 text field
-        elem = page.get_by_placeholder('+1 (555) 019-2831', exact=True)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.fill("+1 (555) 010-2021")
-        
-        # -> Fill the Create Account form (Full Name, Email Address, Phone Number, Password) and click the 'Sign Up' button.
-        # •••••••• password field
-        elem = page.get_by_placeholder('••••••••', exact=True)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.fill("Password123!")
-        
-        # -> Fill the Create Account form (Full Name, Email Address, Phone Number, Password) and click the 'Sign Up' button.
-        # Sign Up button
-        elem = page.get_by_role('button', name='Sign Up', exact=True)
-        await elem.click(timeout=10000)
-        
-        # -> Click the 'Sign Up' button on the Create Account form and observe whether the app proceeds to verification, address setup, or the home screen.
-        # Sign Up button
-        elem = page.get_by_role('button', name='Sign Up', exact=True)
-        await elem.click(timeout=10000)
-        
-        # -> Click the 'Sign Up' button and observe whether registration proceeds to verification or the home screen.
-        # Sign Up button
-        elem = page.get_by_role('button', name='Sign Up', exact=True)
-        await elem.click(timeout=10000)
-        
-        # -> Click the 'Sign Up' button and observe whether the app advances to verification, address setup, or the home screen.
-        # Sign Up button
-        elem = page.get_by_role('button', name='Verify Code', exact=True)
-        await elem.click(timeout=10000)
-        
-        # -> Fill the four 'Verify Phone' code boxes with the 4-digit code and click the 'Verify Code' button.
-        # text field
-        elem = page.locator('[id="d-otp-0"]')
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.fill("0")
-        
-        # -> Fill the four 'Verify Phone' code boxes with the 4-digit code and click the 'Verify Code' button.
-        # text field
-        elem = page.locator('[id="d-otp-1"]')
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.fill("0")
-        
-        # -> Fill the four 'Verify Phone' code boxes with the 4-digit code and click the 'Verify Code' button.
-        # text field
-        elem = page.locator('[id="d-otp-2"]')
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.fill("0")
-        
-        # -> Fill the four 'Verify Phone' code boxes with the 4-digit code and click the 'Verify Code' button.
-        # text field
-        elem = page.locator('[id="d-otp-3"]')
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.fill("0")
-        
-        # -> Fill the four 'Verify Phone' code boxes with the 4-digit code and click the 'Verify Code' button.
-        # Verify Code button
-        elem = page.get_by_role('button', name='Verify Code', exact=True)
-        await elem.click(timeout=10000)
-        
-        # -> Click the 'Resend Code' button to request a new OTP and check for any validation messages (if none, proceed to re-verify).
-        # Resend Code button
-        elem = page.get_by_text('Verify Phone', exact=True).locator("xpath=ancestor-or-self::*[.//button][1]").get_by_role('button', name='Resend Code', exact=True)
-        await elem.click(timeout=10000)
-        
-        # -> Enter '123 Main St, NY' into the 'Search Address' field and click the 'Confirm Address & Continue' button.
-        # e.g. 123 Main St, NY text field
-        elem = page.get_by_placeholder('e.g. 123 Main St, NY', exact=True)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.fill("123 Main St, NY")
-        
-        # -> Enter '123 Main St, NY' into the 'Search Address' field and click the 'Confirm Address & Continue' button.
-        # Confirm Address & Continue button
-        elem = page.get_by_text('Set Location', exact=True).locator("xpath=ancestor-or-self::*[.//button][1]").get_by_role('button', name='Confirm Address & Continue', exact=True)
-        await elem.click(timeout=10000)
         
         # --> Assertions to verify final state
         
         # --> Verify the home screen is displayed
-        # Assert: The page header displays 'WOLFIE'.
-        await expect(page.locator("xpath=/html/body/div[2]/div[1]/div/header/div[1]/div/span[1]").nth(0)).to_have_text("WOLFIE", timeout=15000), "The page header displays 'WOLFIE'."
-        # Assert: The page header displays 'Gourmet Delivery'.
-        await expect(page.locator("xpath=/html/body/div[2]/div[1]/div/header/div[1]/div/span[2]").nth(0)).to_have_text("Gourmet Delivery", timeout=15000), "The page header displays 'Gourmet Delivery'."
-        # Assert: The location header shows 'Home: 123 Main St, NY'.
-        await expect(page.locator("xpath=/html/body/div[2]/div[1]/div/header/div[2]/span").nth(0)).to_have_text("Home: 123 Main St, NY", timeout=15000), "The location header shows 'Home: 123 Main St, NY'."
+        # Assert: Expected the home screen to be displayed at a URL containing '/home'.
+        await expect(page).to_have_url(re.compile("/home"), timeout=15000), "Expected the home screen to be displayed at a URL containing '/home'."
         
         # --> Verify the user session is established
-        # Assert: Signed-in user's name 'Autotest User' is visible in the header.
-        await expect(page.locator("xpath=/html/body/div[2]/div[1]/div/header/div[3]/button[2]").nth(0)).to_contain_text("Autotest User", timeout=15000), "Signed-in user's name 'Autotest User' is visible in the header."
-        # Assert: The home address 'Home: 123 Main St, NY' is displayed in the header.
-        await expect(page.locator("xpath=/html/body/div[2]/div[1]/div/header/div[2]/span").nth(0)).to_have_text("Home: 123 Main St, NY", timeout=15000), "The home address 'Home: 123 Main St, NY' is displayed in the header."
+        # Assert: Expected user session to be established and for the user to be redirected to the home page.
+        await expect(page).to_have_url(re.compile("^http://localhost:3000/$"), timeout=15000), "Expected user session to be established and for the user to be redirected to the home page."
+        
+        # --> Test blocked by environment/access constraints during agent run
+        # Reason: TEST BLOCKED The application could not be reached — the local server at http://localhost:3000 did not respond. Observations: - The page showed 'localhost didn’t send any data.' with error code ERR_EMPTY_RESPONSE. - Only a 'Reload' button was displayed; no registration form or interactive sign-up fields were present.
+        raise AssertionError("Test blocked during agent run: " + "TEST BLOCKED The application could not be reached \u2014 the local server at http://localhost:3000 did not respond. Observations: - The page showed 'localhost didn\u2019t send any data.' with error code ERR_EMPTY_RESPONSE. - Only a 'Reload' button was displayed; no registration form or interactive sign-up fields were present." + " — the exported script cannot reproduce a PASS in this environment.")
         await asyncio.sleep(5)
 
     finally:

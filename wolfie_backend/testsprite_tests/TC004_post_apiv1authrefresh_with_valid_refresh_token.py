@@ -1,31 +1,22 @@
 import requests
 
-BASE_URL = "http://localhost:5000"
-TIMEOUT = 30
-
-def test_post_apiv1authrefresh_valid_refresh_token():
-    reset_url = f"{BASE_URL}/api/v1/testing/reset"
-    refresh_url = f"{BASE_URL}/api/v1/auth/refresh"
-
-    # Seeded refresh token from instructions
+def test_post_apiv1authrefresh_with_valid_refresh_token():
+    base_url = "http://127.0.0.1:5000/api/v1/auth/refresh"
     refresh_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0LWN1c3QtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMiIsInJvbGUiOiJjdXN0b21lciIsImlhdCI6MTc4MzU5NDM1OSwiZXhwIjoxNzg2MTg2MzU5LCJ0eXBlIjoiYWNjZXNzIn0.i2TQroUUBsEMo80V_HraBriCFj9srvvRRl-pJpz9FBU"
-
-    # Reset system to clean state before test
-    resp_reset = requests.delete(reset_url, timeout=TIMEOUT)
-    assert resp_reset.status_code == 200 or resp_reset.status_code == 204, f"Reset failed with status {resp_reset.status_code}"
 
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {refresh_token}"
     }
 
-    # POST /api/v1/auth/refresh with refresh token in Authorization header
-    resp = requests.post(refresh_url, headers=headers, timeout=TIMEOUT)
-    assert resp.status_code == 200, f"Expected status 200, got {resp.status_code}"
+    try:
+        response = requests.post(base_url, headers=headers, timeout=30)
+        assert response.status_code == 200, f"Expected status code 200, got {response.status_code}"
+        json_resp = response.json()
+        assert "access_token" in json_resp, "Response JSON does not contain 'access_token'"
+        assert isinstance(json_resp["access_token"], str) and len(json_resp["access_token"]) > 0, "Invalid 'access_token' value"
+    except requests.RequestException as e:
+        assert False, f"Request failed with exception: {e}"
 
-    json_data = resp.json()
-    # Assert new access_token is present and is a non-empty string
-    assert "access_token" in json_data, "Response missing 'access_token'"
-    assert isinstance(json_data["access_token"], str) and json_data["access_token"], "Invalid 'access_token' value"
 
-test_post_apiv1authrefresh_valid_refresh_token()
+test_post_apiv1authrefresh_with_valid_refresh_token()

@@ -33,97 +33,34 @@ async def run_test():
         page = await context.new_page()
 
         # Interact with the page elements to simulate user flow
-        # -> Click the 'Reload' button on the error page to retry loading the Wolfie Platform homepage
+        # -> navigate
+        await page.goto("http://localhost:3000")
+        try:
+            await page.wait_for_load_state("domcontentloaded", timeout=5000)
+        except Exception:
+            pass
+        
+        # -> Click the 'Reload' button to retry loading the application
         # Reload button
         elem = page.locator('[id="reload-button"]')
         await elem.click(timeout=10000)
         
-        # -> Click the 'Sign In' button on the homepage to open the login form.
-        # Sign In button
-        elem = page.get_by_role('button', name='Sign In', exact=True)
-        await elem.click(timeout=10000)
-        
-        # -> Click the 'Sign In' button to open the login form.
-        # Sign In button
-        elem = page.get_by_role('button', name='Sign In', exact=True)
-        await elem.click(timeout=10000)
-        
-        # -> Click the 'Sign In' button to open the login form
-        # Sign In button
-        elem = page.get_by_role('button', name='Sign In', exact=True)
-        await elem.click(timeout=10000)
-        
-        # -> Click the 'Sign In' button to open the login form and reveal the email/password fields.
-        # Sign In button
-        elem = page.get_by_role('button', name='Sign In', exact=True)
-        await elem.click(timeout=10000)
-        
-        # -> Click the 'Skip' button to bypass the authentication screen and reveal the main site content.
-        # Skip button
-        elem = page.get_by_role('button', name='Skip', exact=True)
-        await elem.click(timeout=10000)
-        
-        # -> Click the 'Next' button to advance past the onboarding/intro screen and reveal the main site content.
-        # Next button
-        elem = page.get_by_role('button', name='Next', exact=True)
-        await elem.click(timeout=10000)
-        
-        # -> Fill the 'Email Address' and 'Password' fields and click the 'Sign In' button to attempt to log in.
-        # takahashi@wolfie.nyc email field
-        elem = page.get_by_placeholder('takahashi@wolfie.nyc', exact=True)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.fill("wendys@wolfie.delivery")
-        
-        # -> Fill the 'Email Address' and 'Password' fields and click the 'Sign In' button to attempt to log in.
-        # •••••••• password field
-        elem = page.get_by_placeholder('••••••••', exact=True)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.fill("password123")
-        
-        # -> Fill the 'Email Address' and 'Password' fields and click the 'Sign In' button to attempt to log in.
-        # Sign In button
-        elem = page.get_by_role('button', name='Sign In', exact=True)
-        await elem.click(timeout=10000)
-        
-        # -> Open the 'Sign In' page (Sign In) to load a dedicated login form and reveal email/password inputs for login.
-        await page.goto("https://wolfie-platform-9hjw.vercel.app/signin")
-        try:
-            await page.wait_for_load_state("domcontentloaded", timeout=5000)
-        except Exception:
-            pass
-        
-        # -> Open the Wolfie Platform homepage (https://wolfie-platform-9hjw.vercel.app/) and verify the authentication section loads (handle any cookie/modals).
-        await page.goto("https://wolfie-platform-9hjw.vercel.app/")
-        try:
-            await page.wait_for_load_state("domcontentloaded", timeout=5000)
-        except Exception:
-            pass
-        
-        # -> Scroll down to reveal the page below the authentication screen and look for the 'Cart' label or navigation links.
-        await page.mouse.wheel(0, 300)
-        
-        # -> Fill the Email Address and Password fields with the test credentials, then click the 'Sign In' button to attempt login.
-        # takahashi@wolfie.nyc email field
-        elem = page.get_by_placeholder('takahashi@wolfie.nyc', exact=True)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.fill("wendys@wolfie.delivery")
-        
-        # -> Fill the Email Address and Password fields with the test credentials, then click the 'Sign In' button to attempt login.
-        # •••••••• password field
-        elem = page.get_by_placeholder('••••••••', exact=True)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.fill("password123")
-        
-        # -> Fill the Email Address and Password fields with the test credentials, then click the 'Sign In' button to attempt login.
-        # Sign In button
-        elem = page.get_by_role('button', name='Sign In', exact=True)
+        # -> Click the 'Reload' button on the error page to retry loading the application.
+        # Reload button
+        elem = page.locator('[id="reload-button"]')
         await elem.click(timeout=10000)
         
         # --> Assertions to verify final state
+        
+        # --> Verify the order is shown as placed
+        # Assert: Expected the page URL to contain '/order-confirmation' to show the order was placed.
+        await expect(page).to_have_url(re.compile("/order\\-confirmation"), timeout=15000), "Expected the page URL to contain '/order-confirmation' to show the order was placed."
         # Assert: Verify an order confirmation is visible
         assert False, "Expected: Verify an order confirmation is visible (could not be verified on the page)"
-        # Assert: Verify the order is shown as placed
-        assert False, "Expected: Verify the order is shown as placed (could not be verified on the page)"
+        
+        # --> Test blocked by environment/access constraints during agent run
+        # Reason: TEST BLOCKED The test could not be run because the web application at http://localhost:3000 is not reachable and the UI did not render, preventing any checkout interactions. Observations: - The browser shows an error page with text 'ERR_EMPTY_RESPONSE' and 'localhost didn\'t send any data.' - Clicking the 'Reload' button and multiple waits did not load the application UI. - No interactive appli...
+        raise AssertionError("Test blocked during agent run: " + "TEST BLOCKED The test could not be run because the web application at http://localhost:3000 is not reachable and the UI did not render, preventing any checkout interactions. Observations: - The browser shows an error page with text 'ERR_EMPTY_RESPONSE' and 'localhost didn\\'t send any data.' - Clicking the 'Reload' button and multiple waits did not load the application UI. - No interactive appli..." + " — the exported script cannot reproduce a PASS in this environment.")
         await asyncio.sleep(5)
 
     finally:
