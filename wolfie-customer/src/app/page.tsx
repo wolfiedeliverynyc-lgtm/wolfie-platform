@@ -245,17 +245,60 @@ const restaurantsList: Restaurant[] = [
   }
 ];
 
+const parseFullAddress = (fullAddress: string) => {
+  const parts = fullAddress.split(',');
+  const street = parts[0]?.trim() || fullAddress;
+  const city = parts[1]?.trim() || 'New York';
+  return { street, city };
+};
+
+const MAPBOX_ACCESS_TOKEN = 'pk.eyJ1Ijoid29sZmllZGVsaXZlcnkiLCJhIjoiY21vcjV2YW41MXlrYTJxcGhocWtqOGRhayJ9.bDuoURrNHs2QoZQcMBQhCQ';
+
+const geocodeAddress = async (address: string): Promise<number[] | null> => {
+  try {
+    const response = await fetch(
+      `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(address)}.json?access_token=${MAPBOX_ACCESS_TOKEN}&limit=1`
+    );
+    const data = await response.json();
+    if (data && data.features && data.features.length > 0) {
+      return data.features[0].center; // [longitude, latitude]
+    }
+  } catch (error) {
+    console.error("Geocoding failed:", error);
+  }
+  return null;
+};
+
+const getMapboxRoute = async (origin: number[], destination: number[]): Promise<number[][] | null> => {
+  try {
+    const response = await fetch(
+      `https://api.mapbox.com/directions/v5/mapbox/driving/${origin[0]},${origin[1]};${destination[0]},${destination[1]}?geometries=geojson&access_token=${MAPBOX_ACCESS_TOKEN}`
+    );
+    const data = await response.json();
+    if (data && data.routes && data.routes.length > 0) {
+      return data.routes[0].geometry.coordinates; // Array of [lng, lat]
+    }
+  } catch (error) {
+    console.error("Directions failed:", error);
+  }
+  return null;
+};
+
 export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
   const [favorites, setFavorites] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState('home');
   const [currentView, setCurrentView] = useState<'onboarding' | 'login' | 'register' | 'otp' | 'forgot' | 'reset' | 'address_entry' | 'home' | 'detail' | 'cart' | 'checkout' | 'tracking' | 'restaurant' | 'chat'>(() => {
-    if (typeof window !== 'undefined' && localStorage.getItem('wolfie_auth_token')) {
+    if (typeof window !== 'undefined' && (localStorage.getItem('wolfie_auth_token') || document.cookie.includes('wolfie_auth_token='))) {
       return 'home';
     }
     return 'onboarding';
   });
+
+  const [favoriteRestaurants, setFavoriteRestaurants] = useState<string[]>([]);
+  const [favSubTab, setFavSubTab] = useState<'items' | 'restaurants'>('items');
+  const [orders, setOrders] = useState<Order[]>([]);
 
   // Onboarding & Auth flow states
   const [onboardingSlide, setOnboardingSlide] = useState(0);
@@ -500,13 +543,42 @@ export default function HomePage() {
     }
   }, [restaurants]);
 
-  // WebSocket Live GPS Radar tracking listener
   useEffect(() => {
     if (currentView !== 'tracking') return;
 
     const socket = connectSocket();
     const activeOrder = orders.find(o => o.status !== 'Completed');
     const orderId = activeOrder ? activeOrder.id : null;
+
+    let isSubscribed = true;
+
+    const fetchInitialTracking = async () => {
+      if (!orderId) return;
+      const res = await apiRequest(`/tracking/${orderId}`);
+      if (res.success && res.data && isSubscribed) {
+        const pickupAddr = res.data.pickup_address;
+        const deliveryAddr = res.data.delivery_address;
+
+        if (pickupAddr) {
+          const coords = await geocodeAddress(pickupAddr);
+          if (coords && isSubscribed) {
+            setRestaurantCoords(coords);
+          }
+        }
+        if (deliveryAddr) {
+          const coords = await geocodeAddress(deliveryAddr);
+          if (coords && isSubscribed) {
+            setClientCoords(coords);
+          }
+        }
+        if (res.data.driver_location && res.data.driver_location.lat && res.data.driver_location.lng) {
+          if (isSubscribed) {
+            setDriverCoords([res.data.driver_location.lng, res.data.driver_location.lat]);
+          }
+        }
+      }
+    };
+    fetchInitialTracking();
 
     if (orderId && socket) {
       console.log(`[Socket.IO] Joining order room: order_${orderId}`);
@@ -515,7 +587,9 @@ export default function HomePage() {
       socket.on('driver_location', (data: any) => {
         console.log('[Socket.IO] Received driver location:', data);
         if (data.lat && data.lng) {
-          setDriverCoords([data.lng, data.lat]);
+          if (isSubscribed) {
+            setDriverCoords([data.lng, data.lat]);
+          }
           
           const markerObj = (window as any).desktopDriverMarker;
           if (markerObj) {
@@ -523,6 +597,21 @@ export default function HomePage() {
           }
           if (driverMarkerRef.current) {
             driverMarkerRef.current.setLngLat([data.lng, data.lat]);
+          }
+        }
+        if (data.restaurant_lat && data.restaurant_lng) {
+          if (isSubscribed) {
+            setRestaurantCoords([data.restaurant_lng, data.restaurant_lat]);
+          }
+        }
+        if (data.client_lat && data.client_lng) {
+          if (isSubscribed) {
+            setClientCoords([data.client_lng, data.client_lat]);
+          }
+        }
+        if (data.route) {
+          if (isSubscribed) {
+            setRouteCoordinates(data.route);
           }
         }
       });
@@ -537,10 +626,12 @@ export default function HomePage() {
             mappedStatus = 'ontheway';
           } else if (data.status === 'delivered') {
             mappedStatus = 'arrived';
-            setShowFeedbackModal(true);
+            if (isSubscribed) setShowFeedbackModal(true);
           }
-          setTrackingStatus(mappedStatus);
-          setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: data.status } : o));
+          if (isSubscribed) {
+            setTrackingStatus(mappedStatus);
+            setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: data.status } : o));
+          }
         }
       });
 
@@ -553,16 +644,19 @@ export default function HomePage() {
             text: data.message,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
           };
-          if (chatRecipient === 'support') {
-            setSupportMessages(prev => [...prev, newMsg]);
-          } else {
-            setDriverMessages(prev => [...prev, newMsg]);
+          if (isSubscribed) {
+            if (chatRecipient === 'support') {
+              setSupportMessages(prev => [...prev, newMsg]);
+            } else {
+              setDriverMessages(prev => [...prev, newMsg]);
+            }
           }
         }
       });
     }
 
     return () => {
+      isSubscribed = false;
       if (orderId && socket) {
         socket.emit('leave_order', { order_id: orderId });
         socket.off('driver_location');
@@ -570,7 +664,7 @@ export default function HomePage() {
         socket.off('chat_message');
       }
     };
-  }, [currentView, mapboxLoaded]);
+  }, [currentView, mapboxLoaded, orders]);
 
   const sendMessageOverSocket = (text: string) => {
     const socket = getSocket();
@@ -935,23 +1029,16 @@ export default function HomePage() {
 
   const mapRef = useRef<any>(null);
   const driverMarkerRef = useRef<any>(null);
+  const restaurantMarkerRef = useRef<any>(null);
+  const clientMarkerRef = useRef<any>(null);
   
   const desktopMapContainerRef = useRef<HTMLDivElement>(null);
   const desktopMapRef = useRef<any>(null);
   
   const [driverCoords, setDriverCoords] = useState<number[]>([8.4410, 36.8990]);
-
-  const restaurantCoords = [8.4410, 36.8990]; // El Port de El Kala
-  const clientCoords = [8.4433, 36.8956]; // Client (El Kala Center)
-
-  // Real street coordinates path in El Kala from Port to Center
-  const routeCoordinates = [
-    [8.4410, 36.8990], // El Port de El Kala
-    [8.4415, 36.8980], // Port exit road
-    [8.4420, 36.8970], // Rue de Port
-    [8.4428, 36.8962], // Near Center Roundabout
-    [8.4433, 36.8956]  // El Kala Town Center
-  ];
+  const [restaurantCoords, setRestaurantCoords] = useState<number[] | null>(null);
+  const [clientCoords, setClientCoords] = useState<number[] | null>(null);
+  const [routeCoordinates, setRouteCoordinates] = useState<number[][] | null>(null);
 
   // Helper to interpolate position along multi-segment street coordinates path
   const getInterpolatedCoordinates = (points: number[][], progress: number): number[] => {
@@ -1005,9 +1092,23 @@ export default function HomePage() {
     document.head.appendChild(script);
   }, [currentView]);
 
+  // Fetch dynamic Mapbox Directions route line when restaurant or client coords change
+  useEffect(() => {
+    const fetchRoute = async () => {
+      if (restaurantCoords && clientCoords) {
+        const route = await getMapboxRoute(restaurantCoords, clientCoords);
+        if (route) {
+          setRouteCoordinates(route);
+        }
+      }
+    };
+    fetchRoute();
+  }, [restaurantCoords, clientCoords]);
+
   // Initialize Mapbox map & markers
   useEffect(() => {
     if (currentView !== 'tracking' || !mapboxLoaded || !mapContainerRef.current) return;
+    if (!restaurantCoords || !clientCoords || !routeCoordinates) return;
     
     const mapboxgl = (window as any).mapboxgl;
     if (!mapboxgl) return;
@@ -1021,7 +1122,7 @@ export default function HomePage() {
         (restaurantCoords[0] + clientCoords[0]) / 2,
         (restaurantCoords[1] + clientCoords[1]) / 2
       ],
-      zoom: 15,
+      zoom: 14,
       pitch: 45,
       bearing: -17.6
     });
@@ -1029,6 +1130,11 @@ export default function HomePage() {
     mapRef.current = map;
     
     map.on('load', () => {
+      const bounds = new mapboxgl.LngLatBounds();
+      bounds.extend(restaurantCoords);
+      bounds.extend(clientCoords);
+      map.fitBounds(bounds, { padding: 50, duration: 1000 });
+
       // 1. Restaurant Marker
       const elRes = document.createElement('div');
       elRes.style.width = '38px';
@@ -1042,9 +1148,10 @@ export default function HomePage() {
       elRes.style.justifyContent = 'center';
       elRes.innerHTML = '<span style="font-size: 18px;">🍔</span>';
       
-      new mapboxgl.Marker(elRes)
+      const restMarker = new mapboxgl.Marker(elRes)
         .setLngLat(restaurantCoords)
         .addTo(map);
+      restaurantMarkerRef.current = restMarker;
         
       // 2. Client Marker
       const elCli = document.createElement('div');
@@ -1059,9 +1166,10 @@ export default function HomePage() {
       elCli.style.justifyContent = 'center';
       elCli.innerHTML = '<span style="font-size: 18px;">🏠</span>';
       
-      new mapboxgl.Marker(elCli)
+      const cliMarker = new mapboxgl.Marker(elCli)
         .setLngLat(clientCoords)
         .addTo(map);
+      clientMarkerRef.current = cliMarker;
         
       // 3. Route Line
       map.addSource('route', {
@@ -1120,7 +1228,7 @@ export default function HomePage() {
       elDriver.appendChild(carIcon);
       
       const driverMarker = new mapboxgl.Marker(elDriver)
-        .setLngLat(restaurantCoords)
+        .setLngLat(driverCoords || restaurantCoords)
         .addTo(map);
         
       driverMarkerRef.current = driverMarker;
@@ -1132,8 +1240,48 @@ export default function HomePage() {
         mapRef.current = null;
       }
       driverMarkerRef.current = null;
+      restaurantMarkerRef.current = null;
+      clientMarkerRef.current = null;
     };
-  }, [currentView, mapboxLoaded]);
+  }, [currentView, mapboxLoaded, restaurantCoords, clientCoords, routeCoordinates]);
+
+  // Dynamic Mapbox synchronization for mobile map
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    
+    const mapboxgl = (window as any).mapboxgl;
+    if (!mapboxgl) return;
+
+    if (restaurantCoords && restaurantMarkerRef.current) {
+      restaurantMarkerRef.current.setLngLat(restaurantCoords);
+    }
+    if (clientCoords && clientMarkerRef.current) {
+      clientMarkerRef.current.setLngLat(clientCoords);
+    }
+    if (driverCoords && driverMarkerRef.current) {
+      driverMarkerRef.current.setLngLat(driverCoords);
+    }
+    
+    if (routeCoordinates && map.getSource('route')) {
+      (map.getSource('route') as any).setData({
+        type: 'Feature',
+        properties: {},
+        geometry: {
+          type: 'LineString',
+          coordinates: routeCoordinates
+        }
+      });
+    }
+
+    if (restaurantCoords && clientCoords) {
+      const bounds = new mapboxgl.LngLatBounds();
+      bounds.extend(restaurantCoords);
+      bounds.extend(clientCoords);
+      if (driverCoords) bounds.extend(driverCoords);
+      map.fitBounds(bounds, { padding: 50, duration: 1000 });
+    }
+  }, [restaurantCoords, clientCoords, driverCoords, routeCoordinates]);
 
   // Onboarding auto-scroll timer
   useEffect(() => {
@@ -1143,54 +1291,6 @@ export default function HomePage() {
     }, 4000);
     return () => clearInterval(interval);
   }, [currentView]);
-
-  // Driver route interpolation loop
-  useEffect(() => {
-    if (currentView !== 'tracking') return;
-    
-    let startTime = Date.now();
-    const duration = 24000; // 24 seconds loop
-    
-    const interval = setInterval(() => {
-      const elapsed = Date.now() - startTime;
-      const progress = (elapsed % duration) / duration; // 0 to 1
-      
-      let status: 'received' | 'preparing' | 'ontheway' | 'arrived' = 'received';
-      let currentDriverCoords = [...restaurantCoords];
-      
-      if (progress < 0.15) {
-        status = 'received';
-      } else if (progress < 0.4) {
-        status = 'preparing';
-      } else if (progress < 0.9) {
-        status = 'ontheway';
-        const driveProgress = (progress - 0.4) / 0.5; // scale from 0 to 1
-        currentDriverCoords = getInterpolatedCoordinates(routeCoordinates, driveProgress);
-      } else {
-        status = 'arrived';
-        currentDriverCoords = [...clientCoords];
-        setTrackingStatus('arrived');
-        setDriverProgress(100);
-        setDriverCoords(currentDriverCoords);
-        setShowFeedbackModal(true);
-        if (driverMarkerRef.current) {
-          driverMarkerRef.current.setLngLat(currentDriverCoords);
-        }
-        clearInterval(interval);
-        return;
-      }
-      
-      setTrackingStatus(status);
-      setDriverProgress(progress * 100);
-      setDriverCoords(currentDriverCoords);
-      
-      if (driverMarkerRef.current) {
-        driverMarkerRef.current.setLngLat(currentDriverCoords);
-      }
-    }, 100);
-    
-    return () => clearInterval(interval);
-  }, [currentView, mapboxLoaded]);
 
   // Initialize Desktop Mapbox map
   useEffect(() => {
@@ -1267,7 +1367,7 @@ export default function HomePage() {
     const routeSourceId = 'desktop-route';
     const driverMarkerId = 'desktop-driver-marker';
 
-    if (currentView === 'tracking') {
+    if (currentView === 'tracking' && restaurantCoords && clientCoords && routeCoordinates) {
       dMap.flyTo({
         center: [
           (restaurantCoords[0] + clientCoords[0]) / 2,
@@ -1303,6 +1403,15 @@ export default function HomePage() {
             'line-color': '#EF2A39',
             'line-width': 6,
             'line-dasharray': [1.5, 1.5]
+          }
+        });
+      } else {
+        (dMap.getSource(routeSourceId) as any).setData({
+          type: 'Feature',
+          properties: {},
+          geometry: {
+            type: 'LineString',
+            coordinates: routeCoordinates
           }
         });
       }
@@ -1351,7 +1460,7 @@ export default function HomePage() {
         essential: true
       });
     }
-  }, [currentView, mapboxLoaded, driverCoords]);
+  }, [currentView, mapboxLoaded, driverCoords, restaurantCoords, clientCoords, routeCoordinates]);
 
 
   const toggleOption = (id: string, type: 'toppings' | 'addons' | 'drinks') => {
@@ -1661,55 +1770,27 @@ export default function HomePage() {
     );
   };
 
-  // Favorite restaurants and Order History states
-  const [favoriteRestaurants, setFavoriteRestaurants] = useState<string[]>(['rest_wendys']);
-  const [favSubTab, setFavSubTab] = useState<'items' | 'restaurants'>('items');
-  const [orders, setOrders] = useState<Order[]>([
-    {
-      id: 'WOLF_987123',
-      restaurantId: 'rest_mcdonalds',
-      restaurantName: "McDonald's",
-      restaurantLogo: '/assets/restaurant_logo_mcdonalds.png',
-      date: 'June 10, 2026 at 07:14 PM',
-      items: [
-        {
-          cartId: 'past_1_1',
-          foodItem: foodItems[0],
-          size: 'M',
-          toppings: ['Melted Cheddar'],
-          addons: ['Golden French Fries'],
-          drinks: ['Chilled Coca-Cola'],
-          spicy: 30,
-          quantity: 2,
-          pricePerUnit: 4.12
+
+
+  // Dynamic backend sync for user data
+  // Session restore on mount
+  useEffect(() => {
+    const restoreSession = async () => {
+      const token = getAuthToken();
+      if (token) {
+        const profileRes = await apiRequest('/auth/me');
+        if (profileRes.success && profileRes.data) {
+          setProfileName(profileRes.data.full_name || '');
+          setProfileEmail(profileRes.data.email || '');
+          setProfilePhone(profileRes.data.phone || '');
+          setProfilePreferFood(profileRes.data.dietary_preferences || []);
+          setProfileAllergies(profileRes.data.allergy_preferences || []);
         }
-      ],
-      totalPrice: 15.50,
-      status: 'Completed'
-    },
-    {
-      id: 'WOLF_543210',
-      restaurantId: 'rest_shakeshack',
-      restaurantName: "Shake Shack",
-      restaurantLogo: '/assets/restaurant_logo_shakeshack.png',
-      date: 'June 11, 2026 at 01:30 PM',
-      items: [
-        {
-          cartId: 'past_2_1',
-          foodItem: foodItems[1],
-          size: 'L',
-          toppings: [],
-          addons: ['Crispy Onion Rings'],
-          drinks: ['Vanilla Shake'],
-          spicy: 0,
-          quantity: 1,
-          pricePerUnit: 3.50
-        }
-      ],
-      totalPrice: 11.20,
-      status: 'Completed'
-    }
-  ]);
+        connectSocket();
+      }
+    };
+    restoreSession();
+  }, []);
 
   // Dynamic backend sync for user data
   useEffect(() => {
@@ -1745,24 +1826,32 @@ export default function HomePage() {
 
       // 2. Fetch Addresses
       const addrRes = await apiRequest('/addresses');
-      if (addrRes.success && addrRes.data?.addresses?.length > 0) {
-        const mappedLocations = addrRes.data.addresses.map((a: any) => ({
-          id: a.id,
-          name: a.label || 'Address',
-          address: a.full_address,
-        }));
+      if (addrRes.success && Array.isArray(addrRes.data) && addrRes.data.length > 0) {
+        const mappedLocations = addrRes.data.map((a: any) => {
+          const street = a.street || '';
+          const city = a.city || '';
+          const apt = a.apt ? `, Apt ${a.apt}` : '';
+          return {
+            id: a.id,
+            name: a.label || 'Address',
+            address: `${street}${apt}${city ? `, ${city}` : ''}`,
+          };
+        });
         setDeliveryLocations(mappedLocations);
 
-        const defaultAddr = addrRes.data.addresses.find((a: any) => a.is_default) || addrRes.data.addresses[0];
+        const defaultAddr = addrRes.data.find((a: any) => a.is_default) || addrRes.data[0];
         if (defaultAddr) {
-          setDeliveryAddress(`${defaultAddr.label}: ${defaultAddr.full_address}`);
+          const street = defaultAddr.street || '';
+          const city = defaultAddr.city || '';
+          const apt = defaultAddr.apt ? `, Apt ${defaultAddr.apt}` : '';
+          setDeliveryAddress(`${defaultAddr.label}: ${street}${apt}${city ? `, ${city}` : ''}`);
         }
       }
 
       // 3. Fetch Favorites
       const favRes = await apiRequest('/favorites');
-      if (favRes.success && favRes.data?.favorites) {
-        setFavoriteRestaurants(favRes.data.favorites.map((f: any) => f.restaurant_id));
+      if (favRes.success && Array.isArray(favRes.data)) {
+        setFavoriteRestaurants(favRes.data.map((f: any) => f.restaurant_id));
       }
     };
     syncUserData();
@@ -2612,9 +2701,10 @@ export default function HomePage() {
             }
             let locationId = `loc_${Date.now()}`;
             if (getAuthToken()) {
+              const { street, city } = parseFullAddress(addressSearchInput);
               const res = await apiRequest('/addresses', {
                 method: 'POST',
-                body: { label: addressSaveLabel, full_address: addressSearchInput },
+                body: { label: addressSaveLabel, street, city, apt: '', notes: '' },
               });
               if (res.success && res.data?.id) {
                 locationId = res.data.id;
@@ -3732,9 +3822,10 @@ export default function HomePage() {
                     }
                     let locationId = `loc_${Date.now()}`;
                     if (getAuthToken()) {
+                      const { street, city } = parseFullAddress(newLocationAddress);
                       const res = await apiRequest('/addresses', {
                         method: 'POST',
-                        body: { label: newLocationName, full_address: newLocationAddress },
+                        body: { label: newLocationName, street, city, apt: '', notes: '' },
                       });
                       if (res.success && res.data?.id) {
                         locationId = res.data.id;
@@ -6876,8 +6967,51 @@ export default function HomePage() {
 
         {/* ORDER TRACKING PLACEHOLDER VIEW */}
         {/* ORDER TRACKING VIEW */}
-        {currentView === 'tracking' && (
-          <div className="absolute inset-0 bg-[#F9FAFB] flex flex-col select-none z-50 animate-fadeIn">
+        {currentView === 'tracking' && (() => {
+          const activeOrder = orders.find(o => o.status !== 'Completed');
+          const hasActiveOrder = (activeOrder && activeOrder.id) || (orderedItems && orderedItems.length > 0);
+          
+          if (!hasActiveOrder) {
+            return (
+              <div className="absolute inset-0 bg-[#F9FAFB] flex flex-col select-none z-50 animate-fadeIn">
+                {/* Header */}
+                <div className="h-[76px] shrink-0 flex items-center justify-between px-[19px] border-b border-gray-50 bg-white">
+                  <button 
+                    onClick={() => {
+                      setOrderedItems([]);
+                      setCurrentView('home');
+                      setActiveTab('home');
+                    }}
+                    className="w-[28px] h-[28px] flex items-center justify-center cursor-pointer active:scale-90 transition-transform focus:outline-none"
+                  >
+                    <img src="/assets/icon_arrow_left.svg" alt="Back" className="w-full h-full object-contain" />
+                  </button>
+                  <h2 className="font-inter font-semibold text-[16px] text-[#3C2F2F]">Track Order</h2>
+                  <div className="w-[28px]" />
+                </div>
+                <div className="flex-1 flex flex-col items-center justify-center text-center p-6 bg-white">
+                  <span className="text-[64px] block mb-4">🛵</span>
+                  <h3 className="font-poppins font-bold text-[20px] text-[#3C2F2F]">No Active Orders</h3>
+                  <p className="font-roboto text-[13px] text-[#A6A6A6] mt-2 mb-8 leading-relaxed max-w-[280px]">
+                    You don't have any active orders currently in progress. Go back to the homepage to discover premium meals!
+                  </p>
+                  <button
+                    onClick={() => {
+                      setOrderedItems([]);
+                      setCurrentView('home');
+                      setActiveTab('home');
+                    }}
+                    className="px-6 py-3 bg-[#EF2A39] hover:bg-[#D61B29] text-white font-roboto font-bold text-[14px] rounded-[16px] transition-all cursor-pointer shadow-md active:scale-98"
+                  >
+                    Return to Homepage
+                  </button>
+                </div>
+              </div>
+            );
+          }
+
+          return (
+            <div className="absolute inset-0 bg-[#F9FAFB] flex flex-col select-none z-50 animate-fadeIn">
             {/* Header */}
             <div className="h-[76px] shrink-0 flex items-center justify-between px-[19px] border-b border-gray-50 bg-white">
               <div className="flex items-center gap-2.5">
@@ -7357,8 +7491,9 @@ export default function HomePage() {
                 </div>
               </>
             )}
-          </div>
-        )}
+            </div>
+          );
+        })()}
 
         {/* Floating payment notifications banner toast */}
         {paymentNotification && (
@@ -8013,9 +8148,10 @@ export default function HomePage() {
                   // Save location, add to saved list, set deliveryAddress
                   let locationId = `loc_${Date.now()}`;
                   if (getAuthToken()) {
+                    const { street, city } = parseFullAddress(addressSearchInput);
                     const res = await apiRequest('/addresses', {
                       method: 'POST',
-                      body: { label: addressSaveLabel, full_address: addressSearchInput },
+                      body: { label: addressSaveLabel, street, city, apt: '', notes: '' },
                     });
                     if (res.success && res.data?.id) {
                       locationId = res.data.id;

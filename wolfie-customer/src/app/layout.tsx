@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Lustria, Poppins, Roboto, Inter } from "next/font/google";
 import "./globals.css";
 import "./service-worker-handler"; // PWA service worker handler
 import { ErrorBoundary } from "@/providers/ErrorBoundary";
@@ -7,29 +6,10 @@ import QueryProvider from "@/providers/QueryProvider";
 import AuthProvider from "@/providers/AuthProvider";
 import { SocketProvider } from "@/providers/SocketProvider";
 
-const lustria = Lustria({
-  subsets: ["latin"],
-  weight: ["400"],
-  variable: "--font-lustria",
-});
-
-const poppins = Poppins({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-poppins",
-});
-
-const roboto = Roboto({
-  subsets: ["latin"],
-  weight: ["400", "500", "700"],
-  variable: "--font-roboto",
-});
-
-const inter = Inter({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-inter",
-});
+const lustria = { variable: "font-lustria" };
+const poppins = { variable: "font-poppins" };
+const roboto = { variable: "font-roboto" };
+const inter = { variable: "font-inter" };
 
 export const metadata: Metadata = {
   title: "Wolfie NYC - Build for New Yorkers!",
@@ -55,6 +35,19 @@ export default function RootLayout({
       lang="en"
       className={`${lustria.variable} ${poppins.variable} ${roboto.variable} ${inter.variable} h-full antialiased`}
     >
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lustria&family=Poppins:wght@400;500;600;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet" />
+        <style dangerouslySetInnerHTML={{ __html: `
+          :root {
+            --font-lustria: 'Lustria', serif;
+            --font-poppins: 'Poppins', sans-serif;
+            --font-roboto: 'Roboto', sans-serif;
+            --font-inter: 'Inter', sans-serif;
+          }
+        `}} />
+      </head>
       <body className="min-h-full flex flex-col">
         <ErrorBoundary>
           <QueryProvider>

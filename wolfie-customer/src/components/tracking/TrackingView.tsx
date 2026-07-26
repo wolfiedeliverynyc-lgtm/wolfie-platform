@@ -21,6 +21,38 @@ interface TrackingViewProps {
   driverAvatar?: string;
 }
 
+const MAPBOX_ACCESS_TOKEN = 'pk.eyJ1Ijoid29sZmllZGVsaXZlcnkiLCJhIjoiY21vcjV2YW41MXlrYTJxcGhocWtqOGRhayJ9.bDuoURrNHs2QoZQcMBQhCQ';
+
+const geocodeAddress = async (address: string): Promise<number[] | null> => {
+  try {
+    const response = await fetch(
+      `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(address)}.json?access_token=${MAPBOX_ACCESS_TOKEN}&limit=1`
+    );
+    const data = await response.json();
+    if (data && data.features && data.features.length > 0) {
+      return data.features[0].center; // [longitude, latitude]
+    }
+  } catch (error) {
+    console.error("Geocoding failed:", error);
+  }
+  return null;
+};
+
+const getMapboxRoute = async (origin: number[], destination: number[]): Promise<number[][] | null> => {
+  try {
+    const response = await fetch(
+      `https://api.mapbox.com/directions/v5/mapbox/driving/${origin[0]},${origin[1]};${destination[0]},${destination[1]}?geometries=geojson&access_token=${MAPBOX_ACCESS_TOKEN}`
+    );
+    const data = await response.json();
+    if (data && data.routes && data.routes.length > 0) {
+      return data.routes[0].geometry.coordinates; // Array of [lng, lat]
+    }
+  } catch (error) {
+    console.error("Directions failed:", error);
+  }
+  return null;
+};
+
 export default function TrackingView({
   deliveryAddress,
   orderedItems,
@@ -40,14 +72,10 @@ export default function TrackingView({
   const [showTrackingDetails, setShowTrackingDetails] = useState(false);
   const [driverProgress, setDriverProgress] = useState(0);
 
-  const [restaurantCoords, setRestaurantCoords] = useState<number[]>([-73.9876, 40.7580]);
-  const [clientCoords, setClientCoords] = useState<number[]>([-73.9850, 40.7484]);
-  const [routeCoordinates, setRouteCoordinates] = useState<number[][]>([
-    [-73.9876, 40.7580],
-    [-73.9850, 40.7484]
-  ]);
-
-  const [driverCoords, setDriverCoords] = useState<number[]>([-73.9876, 40.7580]);
+  const [restaurantCoords, setRestaurantCoords] = useState<number[] | null>(null);
+  const [clientCoords, setClientCoords] = useState<number[] | null>(null);
+  const [routeCoordinates, setRouteCoordinates] = useState<number[][] | null>(null);
+  const [driverCoords, setDriverCoords] = useState<number[] | null>(null);
 
   const getInterpolatedCoordinates = (points: number[][], progress: number): number[] => {
     if (points.length === 0) return [0, 0];
@@ -90,7 +118,66 @@ export default function TrackingView({
     }
   }, [initialStatus]);
 
-  // Connect to Socket and listen for real-time tracking seeding if online
+  // Fetch initial order addresses and geocode them
+  useEffect(() => {
+    const fetchTrackingInfo = async () => {
+      if (!orderId) return;
+      try {
+        const apiBase = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1').replace(/\/+$/, '');
+        const token = document.cookie
+          .split('; ')
+          .find(row => row.startsWith('wolfie_auth_token='))
+          ?.split('=')[1];
+          
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+        
+        const response = await fetch(`${apiBase}/tracking/${orderId}`, { headers });
+        if (response.ok) {
+          const data = await response.json();
+          const pickupAddr = data.pickup_address;
+          const deliveryAddr = data.delivery_address;
+
+          if (pickupAddr) {
+            const coords = await geocodeAddress(pickupAddr);
+            if (coords) {
+              setRestaurantCoords(coords);
+              setDriverCoords(coords);
+            }
+          }
+          if (deliveryAddr) {
+            const coords = await geocodeAddress(deliveryAddr);
+            if (coords) {
+              setClientCoords(coords);
+            }
+          }
+          if (data.driver_location && data.driver_location.lat && data.driver_location.lng) {
+            setDriverCoords([data.driver_location.lng, data.driver_location.lat]);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch tracking details:", err);
+      }
+    };
+    fetchTrackingInfo();
+  }, [orderId]);
+
+  // Fetch dynamic route line when coordinates are resolved
+  useEffect(() => {
+    const fetchRoute = async () => {
+      if (restaurantCoords && clientCoords) {
+        const route = await getMapboxRoute(restaurantCoords, clientCoords);
+        if (route) {
+          setRouteCoordinates(route);
+        }
+      }
+    };
+    fetchRoute();
+  }, [restaurantCoords, clientCoords]);
+
+  // Connect to Socket and listen for real-time tracking updates
   useEffect(() => {
     if (socket && orderId) {
       socket.emit('join_order', { order_id: orderId });
@@ -351,12 +438,19 @@ export default function TrackingView({
 
       {/* Right Side: Mapbox Live Radar */}
       <div className="flex-1 bg-white border border-gray-100 rounded-[32px] overflow-hidden shadow-sm min-h-[50vh] relative">
-        <TrackingMap 
-          driverCoords={driverCoords}
-          restaurantCoords={restaurantCoords}
-          clientCoords={clientCoords}
-          routeCoordinates={routeCoordinates}
-        />
+        {!restaurantCoords || !clientCoords || !routeCoordinates || !driverCoords ? (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-50 z-10">
+            <div className="w-10 h-10 border-4 border-gray-200 border-t-[#EF2A39] rounded-full animate-spin" />
+            <span className="mt-3 font-roboto text-[14.5px] text-gray-500 font-medium">Resolving Precision Radar Coordinates...</span>
+          </div>
+        ) : (
+          <TrackingMap 
+            driverCoords={driverCoords}
+            restaurantCoords={restaurantCoords}
+            clientCoords={clientCoords}
+            routeCoordinates={routeCoordinates}
+          />
+        )}
       </div>
     </div>
   );

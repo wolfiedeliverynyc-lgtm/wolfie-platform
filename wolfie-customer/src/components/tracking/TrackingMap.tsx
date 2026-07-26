@@ -4,10 +4,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import { MAPBOX_TOKEN } from '@/lib/constants';
 
 interface TrackingMapProps {
-  driverCoords: number[];
-  restaurantCoords: number[];
-  clientCoords: number[];
-  routeCoordinates: number[][];
+  driverCoords: number[] | null;
+  restaurantCoords: number[] | null;
+  clientCoords: number[] | null;
+  routeCoordinates: number[][] | null;
 }
 
 export default function TrackingMap({
@@ -45,6 +45,7 @@ export default function TrackingMap({
   // Map initialization
   useEffect(() => {
     if (!mapboxLoaded || !mapContainerRef.current) return;
+    if (!restaurantCoords || !clientCoords || !driverCoords || !routeCoordinates) return;
 
     const mapboxgl = (window as any).mapboxgl;
     if (!mapboxgl) return;
@@ -66,6 +67,12 @@ export default function TrackingMap({
     mapRef.current = map;
 
     map.on('load', () => {
+      const bounds = new mapboxgl.LngLatBounds();
+      bounds.extend(restaurantCoords);
+      bounds.extend(clientCoords);
+      bounds.extend(driverCoords);
+      map.fitBounds(bounds, { padding: 50, duration: 1000 });
+
       // Add Route Source and Layer
       map.addSource('route', {
         type: 'geojson',
@@ -125,14 +132,39 @@ export default function TrackingMap({
     return () => {
       map.remove();
     };
-  }, [mapboxLoaded]);
+  }, [mapboxLoaded, restaurantCoords, clientCoords, driverCoords, routeCoordinates]);
 
-  // Update Driver Marker Coordinates dynamically when driverCoords changes
+  // Synchronize dynamic coordinates and routes
   useEffect(() => {
-    if (driverMarkerRef.current) {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const mapboxgl = (window as any).mapboxgl;
+    if (!mapboxgl) return;
+
+    if (driverMarkerRef.current && driverCoords) {
       driverMarkerRef.current.setLngLat(driverCoords);
     }
-  }, [driverCoords]);
+
+    if (routeCoordinates && map.getSource('route')) {
+      (map.getSource('route') as any).setData({
+        type: 'Feature',
+        properties: {},
+        geometry: {
+          type: 'LineString',
+          coordinates: routeCoordinates
+        }
+      });
+    }
+
+    if (restaurantCoords && clientCoords) {
+      const bounds = new mapboxgl.LngLatBounds();
+      bounds.extend(restaurantCoords);
+      bounds.extend(clientCoords);
+      if (driverCoords) bounds.extend(driverCoords);
+      map.fitBounds(bounds, { padding: 50, duration: 1000 });
+    }
+  }, [driverCoords, restaurantCoords, clientCoords, routeCoordinates]);
 
   return (
     <div className="w-full h-full min-h-[50vh] relative">
