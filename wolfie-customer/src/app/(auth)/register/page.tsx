@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { MAPBOX_TOKEN } from '@/lib/constants';
 import { logger } from '@/utils/logger';
+import MapboxPicker from '@/components/profile/MapboxPicker';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -31,6 +32,7 @@ export default function RegisterPage() {
   const [addressSearchInput, setAddressSearchInput] = useState('');
   const [showAddressSuggestions, setShowAddressSuggestions] = useState(false);
   const [addressSaveLabel, setAddressSaveLabel] = useState('Home');
+  const [isChoosingOnMap, setIsChoosingOnMap] = useState(false);
 
   // OTP resend timer
   useEffect(() => {
@@ -230,92 +232,119 @@ export default function RegisterPage() {
 
 
           {step === 'address' && (
-            <div className="animate-fadeIn select-none">
+            <div className="animate-fadeIn select-none w-full">
               <h2 className="font-poppins font-bold text-[32px] text-[#3C2F2F] mb-1">Set Location</h2>
               <p className="font-roboto text-[15px] text-[#A6A6A6] mb-8">Configure your Manhattan delivery coordinates</p>
 
-              <div className="space-y-4 mb-6">
-                <button 
-                  type="button"
-                  onClick={fetchGPSAddress}
-                  className="w-full h-[54px] bg-red-50 hover:bg-red-100/70 border border-red-100 rounded-[16px] px-4 flex items-center justify-center gap-2 font-roboto font-bold text-[14.5px] text-[#EF2A39] cursor-pointer focus:outline-none transition-all active:scale-[0.99]"
-                >
-                  {isFetchingGPS ? (
-                    <svg className="animate-spin h-5 w-5 text-[#EF2A39]" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                  ) : (
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="12" cy="12" r="10" />
-                      <circle cx="12" cy="12" r="3" />
-                      <line x1="12" y1="1" x2="12" y2="3" />
-                      <line x1="12" y1="21" x2="12" y2="23" />
-                      <line x1="1" y1="12" x2="3" y2="12" />
-                      <line x1="21" y1="12" x2="23" y2="12" />
-                    </svg>
-                  )}
-                  {isFetchingGPS ? 'Capturing Coordinates...' : 'Use Current GPS Location'}
-                </button>
-
-                <div className="relative">
-                  <label className="block font-roboto font-bold text-[13px] text-[#3C2F2F] uppercase mb-2">Search Address</label>
-                  <input 
-                    type="text" 
-                    placeholder="e.g. 123 Main St, NY"
-                    value={addressSearchInput}
-                    onChange={(e) => {
-                      setAddressSearchInput(e.target.value);
-                      setShowAddressSuggestions(e.target.value.length > 2);
-                    }}
-                    className="w-full h-[54px] border border-gray-200 rounded-[16px] px-4 font-roboto text-[14px] outline-none focus:border-[#EF2A39] transition-colors"
-                  />
-                  {showAddressSuggestions && (
-                    <div className="absolute left-0 right-0 top-[85px] bg-white border border-gray-155 rounded-[16px] shadow-lg overflow-hidden z-20">
-                      {['Times Square, Manhattan, NY', 'Madison Square Garden, NY', 'Central Park, New York, NY'].map((sug, idx) => (
-                        <div 
-                          key={idx}
-                          onClick={() => {
-                            setAddressSearchInput(sug);
-                            setShowAddressSuggestions(false);
-                          }}
-                          className="px-4 py-3 hover:bg-gray-50 font-roboto text-[13.5px] text-[#3C2F2F] cursor-pointer border-b border-gray-50 last:border-0"
-                        >
-                          📍 {sug}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block font-roboto font-bold text-[13px] text-[#3C2F2F] uppercase mb-2">Save Address As</label>
-                  <div className="flex gap-2.5">
-                    {['Home', 'Work', 'Gym', 'Other'].map((label) => (
+              {isChoosingOnMap ? (
+                <MapboxPicker 
+                  onConfirm={(address, name) => {
+                    setAddressSearchInput(address);
+                    setIsChoosingOnMap(false);
+                  }}
+                  onCancel={() => setIsChoosingOnMap(false)}
+                />
+              ) : (
+                <>
+                  <div className="space-y-4 mb-6">
+                    <div className="grid grid-cols-2 gap-3">
                       <button 
-                        key={label}
                         type="button"
-                        onClick={() => setAddressSaveLabel(label)}
-                        className={`flex-1 h-[44px] font-roboto font-bold text-[13px] rounded-[12px] border transition-all cursor-pointer focus:outline-none ${
-                          addressSaveLabel === label 
-                            ? 'bg-[#EF2A39] border-[#EF2A39] text-white shadow-sm' 
-                            : 'bg-white border-gray-200 text-[#3C2F2F] hover:bg-gray-50'
-                        }`}
+                        onClick={fetchGPSAddress}
+                        className="h-[54px] bg-red-50 hover:bg-red-100/70 border border-red-100 rounded-[16px] px-4 flex items-center justify-center gap-2 font-roboto font-bold text-[13.5px] text-[#EF2A39] cursor-pointer focus:outline-none transition-all active:scale-[0.99]"
                       >
-                        {label}
+                        {isFetchingGPS ? (
+                          <svg className="animate-spin h-5 w-5 text-[#EF2A39]" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                        ) : (
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="10" />
+                            <circle cx="12" cy="12" r="3" />
+                            <line x1="12" y1="1" x2="12" y2="3" />
+                            <line x1="12" y1="21" x2="12" y2="23" />
+                            <line x1="1" y1="12" x2="3" y2="12" />
+                            <line x1="21" y1="12" x2="23" y2="12" />
+                          </svg>
+                        )}
+                        Use GPS
                       </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
 
-              <button 
-                type="button"
-                onClick={handleConfirmAddress}
-                className="w-full h-[58px] bg-[#FFE100] hover:brightness-95 active:scale-98 text-[#3C2F2F] font-roboto font-bold text-[16px] rounded-[18px] transition-all cursor-pointer focus:outline-none shadow-sm"
-              >
-                Confirm Address & Continue
-              </button>
+                      <button 
+                        type="button"
+                        onClick={() => setIsChoosingOnMap(true)}
+                        className="h-[54px] bg-[#FFE100]/10 hover:bg-[#FFE100]/20 text-[#3C2F2F] rounded-[16px] text-[13.5px] font-roboto font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-all border border-[#FFE100]/30 cursor-pointer"
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                          <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/>
+                          <line x1="9" y1="3" x2="9" y2="18"/>
+                          <line x1="15" y1="6" x2="15" y2="21"/>
+                        </svg>
+                        Choose on Map
+                      </button>
+                    </div>
+
+                    <div className="relative">
+                      <label className="block font-roboto font-bold text-[13px] text-[#3C2F2F] uppercase mb-2">Search Address</label>
+                      <input 
+                        type="text" 
+                        placeholder="e.g. 123 Main St, NY"
+                        value={addressSearchInput}
+                        onChange={(e) => {
+                          setAddressSearchInput(e.target.value);
+                          setShowAddressSuggestions(e.target.value.length > 2);
+                        }}
+                        className="w-full h-[54px] border border-gray-200 rounded-[16px] px-4 font-roboto text-[14px] outline-none focus:border-[#EF2A39] transition-colors"
+                      />
+                      {showAddressSuggestions && (
+                        <div className="absolute left-0 right-0 top-[85px] bg-white border border-gray-155 rounded-[16px] shadow-lg overflow-hidden z-20">
+                          {['Times Square, Manhattan, NY', 'Madison Square Garden, NY', 'Central Park, New York, NY'].map((sug, idx) => (
+                            <div 
+                              key={idx}
+                              onClick={() => {
+                                setAddressSearchInput(sug);
+                                setShowAddressSuggestions(false);
+                              }}
+                              className="px-4 py-3 hover:bg-gray-50 font-roboto text-[13.5px] text-[#3C2F2F] cursor-pointer border-b border-gray-50 last:border-0"
+                            >
+                              📍 {sug}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block font-roboto font-bold text-[13px] text-[#3C2F2F] uppercase mb-2">Save Address As</label>
+                      <div className="flex gap-2.5">
+                        {['Home', 'Work', 'Gym', 'Other'].map((label) => (
+                          <button 
+                            key={label}
+                            type="button"
+                            onClick={() => setAddressSaveLabel(label)}
+                            className={`flex-1 h-[44px] font-roboto font-bold text-[13px] rounded-[12px] border transition-all cursor-pointer focus:outline-none ${
+                              addressSaveLabel === label 
+                                ? 'bg-[#EF2A39] border-[#EF2A39] text-white shadow-sm' 
+                                : 'bg-white border-gray-200 text-[#3C2F2F] hover:bg-gray-50'
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <button 
+                    type="button"
+                    onClick={handleConfirmAddress}
+                    className="w-full h-[58px] bg-[#FFE100] hover:brightness-95 active:scale-98 text-[#3C2F2F] font-roboto font-bold text-[16px] rounded-[18px] transition-all cursor-pointer focus:outline-none shadow-sm"
+                  >
+                    Confirm Address & Continue
+                  </button>
+                </>
+              )}
             </div>
           )}
         </div>

@@ -17,6 +17,8 @@ const CheckoutView = dynamic(() => import('@/components/checkout/CheckoutView'),
 const TrackingView = dynamic(() => import('@/components/tracking/TrackingView'), { ssr: false });
 const ChatView = dynamic(() => import('@/components/chat/ChatView'), { ssr: false });
 const ProfileView = dynamic(() => import('@/components/profile/ProfileView'), { ssr: false });
+import MapboxPicker from '@/components/profile/MapboxPicker';
+import FilterModal from '@/components/home/FilterModal';
 
 
 
@@ -384,6 +386,16 @@ export default function HomePage() {
   const [passwordSuccess, setPasswordSuccess] = useState('');
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  
+  // Custom states for MapboxPicker, FilterModal, and Avatar preview
+  const [isChoosingOnMap, setIsChoosingOnMap] = useState(false);
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [priceFilter, setPriceFilter] = useState<'all' | 'under3' | 'under5' | 'over5'>('all');
+  const [feeFilter, setFeeFilter] = useState<'all' | 'under1' | 'under2'>('all');
+  const [selectedDiets, setSelectedDiets] = useState<string[]>([]);
+  const [selectedCuisines, setSelectedCuisines] = useState<string[]>([]);
+  const [previewAvatarUrl, setPreviewAvatarUrl] = useState<string | null>(null);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
   
   interface WolfieNotification {
     id: string;
@@ -990,41 +1002,53 @@ export default function HomePage() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      alert('Please select an image file.');
-      return;
-    }
+  const uploadCustomAvatar = async (file: File) => {
     const formData = new FormData();
     formData.append('file', file);
-    try {
-      const activeToken = token || localStorage.getItem('access_token');
-      const res = await fetch('https://wolfie-backend-pt9u.onrender.com/api/v1/uploads', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${activeToken}`,
-        },
-        body: formData,
-      });
-      if (!res.ok) {
-        throw new Error('Upload failed');
-      }
-      const data = await res.json();
-      const imageUrl = data.url;
-      if (imageUrl) {
-        setProfilePicture(imageUrl);
-        if (isAuthenticated) {
-          await updateProfile({ profile_picture: imageUrl });
+    
+    // Create base64 fallback in case upload fails
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onloadend = async () => {
+      const base64data = reader.result as string;
+      try {
+        const activeToken = token || localStorage.getItem('access_token');
+        const res = await fetch('https://wolfie-backend-pt9u.onrender.com/api/v1/uploads', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${activeToken}`,
+          },
+          body: formData,
+        });
+        if (!res.ok) {
+          throw new Error('Upload failed');
         }
-        setProfileMessage({ type: 'success', text: 'Profile picture uploaded and saved!' });
+        const data = await res.json();
+        const imageUrl = data.url;
+        if (imageUrl) {
+          setProfilePicture(imageUrl);
+          if (isAuthenticated) {
+            await updateProfile({ profile_picture: imageUrl });
+          }
+          setProfileMessage({ type: 'success', text: 'Profile picture uploaded and saved!' });
+          setTimeout(() => setProfileMessage(null), 3000);
+          return;
+        }
+      } catch (err) {
+        console.error("Upload failed, falling back to local preview", err);
+        // Fallback to base64 so it changes locally
+        setProfilePicture(base64data);
+        if (isAuthenticated) {
+          try {
+            await updateProfile({ profile_picture: base64data });
+          } catch (e) {
+            console.error("Failed to update profile with base64 data", e);
+          }
+        }
+        setProfileMessage({ type: 'success', text: 'Profile picture updated locally!' });
         setTimeout(() => setProfileMessage(null), 3000);
       }
-    } catch (err) {
-      console.error(err);
-      alert('Failed to upload profile picture. Please make sure you are logged in.');
-    }
+    };
   };
 
   const mapRef = useRef<any>(null);
@@ -2864,6 +2888,16 @@ export default function HomePage() {
         onSelectRestaurant={(res) => { setSelectedRestaurant(res); setPreviousView('home'); setCurrentView('restaurant'); }}
         onSelectFoodItem={(item) => { setSelectedFoodItem(item); setPreviousView('home'); setCurrentView('detail'); }}
         onProceedToCheckout={() => setCurrentView('checkout')}
+        sortBy={restaurantFilter}
+        setSortBy={setRestaurantFilter}
+        priceFilter={priceFilter}
+        setPriceFilter={setPriceFilter}
+        feeFilter={feeFilter}
+        setFeeFilter={setFeeFilter}
+        selectedDiets={selectedDiets}
+        setSelectedDiets={setSelectedDiets}
+        selectedCuisines={selectedCuisines}
+        setSelectedCuisines={setSelectedCuisines}
       />
     );
   };
@@ -3469,6 +3503,32 @@ export default function HomePage() {
   const renderGlobalModals = () => {
     return (
       <>
+        {/* FilterModal (DoorDash / Uber Eats Style) */}
+        <FilterModal 
+          isOpen={showFilterModal}
+          onClose={() => setShowFilterModal(false)}
+          restaurants={restaurants}
+          sortBy={restaurantFilter}
+          setSortBy={setRestaurantFilter}
+          priceFilter={priceFilter}
+          setPriceFilter={setPriceFilter}
+          feeFilter={feeFilter}
+          setFeeFilter={setFeeFilter}
+          selectedDiets={selectedDiets}
+          setSelectedDiets={setSelectedDiets}
+          selectedCuisines={selectedCuisines}
+          setSelectedCuisines={setSelectedCuisines}
+          onApply={() => setShowFilterModal(false)}
+          onClear={() => {
+            setRestaurantFilter('all');
+            setPriceFilter('all');
+            setFeeFilter('all');
+            setSelectedDiets([]);
+            setSelectedCuisines([]);
+            setShowFilterModal(false);
+          }}
+        />
+
         {/* showLegalModal (Policies & Legal Info) */}
         {showLegalModal && (
           <div className="fixed inset-0 z-[300] flex items-end lg:items-center lg:justify-center">
@@ -3647,65 +3707,148 @@ export default function HomePage() {
             {/* Backdrop */}
             <div 
               className="fixed inset-0 bg-black/60 backdrop-blur-xs animate-fadeInSimple"
-              onClick={() => setShowAvatarModal(false)}
+              onClick={() => {
+                setShowAvatarModal(false);
+                setPreviewAvatarUrl(null);
+                setPendingFile(null);
+              }}
             />
             {/* Slide up content */}
-            <div className="relative bg-white w-full max-h-[85vh] lg:max-h-[300px] lg:max-w-[480px] rounded-t-[30px] lg:rounded-[28px] p-6 shadow-2xl animate-slideUp flex flex-col z-[310] select-none pb-8 text-left border-t lg:border border-gray-100">
+            <div className="relative bg-white w-full max-h-[85vh] lg:max-h-[420px] lg:max-w-[480px] rounded-t-[30px] lg:rounded-[28px] p-6 shadow-2xl animate-slideUp flex flex-col z-[310] select-none pb-8 text-left border-t lg:border border-gray-100">
               <div className="w-[40px] h-[5px] bg-gray-200 rounded-full mx-auto mb-5 lg:hidden shrink-0" />
               
-              <h3 className="font-poppins font-semibold text-[20px] text-[#3C2F2F] mb-5 text-left shrink-0">
-                Select Profile Picture
-              </h3>
-              
-              <div className="grid grid-cols-3 gap-4 flex-1">
-                {[
-                  { id: 'avatar_default', name: 'Simona Takahashi', path: '/assets/avatar.png' },
-                  { id: 'avatar_driver', name: 'Your Driver', path: '/assets/driver_avatar.png' },
-                  { id: 'avatar_user', name: 'Standard User', path: '/assets/user.png' }
-                ].map((avatar) => (
-                  <button
-                    key={avatar.id}
-                    onClick={() => {
-                      setProfilePicture(avatar.path);
-                      setShowAvatarModal(false);
-                      setProfileMessage({ type: 'success', text: 'Profile picture updated successfully!' });
-                      setTimeout(() => setProfileMessage(null), 3000);
-                    }}
-                    className="flex flex-col items-center gap-2 p-2 rounded-2xl hover:bg-gray-50 active:scale-95 transition-all focus:outline-none cursor-pointer border border-transparent hover:border-gray-100"
-                  >
-                    <div className="w-[64px] h-[64px] rounded-full overflow-hidden border border-gray-200">
-                      <img src={avatar.path} alt={avatar.name} className="w-full h-full object-cover scale-[1.05]" />
-                    </div>
-                    <span className="font-roboto text-[11px] font-bold text-[#3C2F2F] text-center leading-tight">
-                      {avatar.name}
-                    </span>
-                  </button>
-                ))}
-                
-                {/* Upload Custom Image option */}
-                <button
-                  onClick={() => {
-                    fileInputRef.current?.click();
-                    setShowAvatarModal(false);
-                  }}
-                  className="flex flex-col items-center justify-center gap-2 p-2 rounded-2xl bg-gray-50 hover:bg-gray-150/40 active:scale-95 transition-all focus:outline-none cursor-pointer border border-dashed border-gray-300"
-                >
-                  <div className="w-[64px] h-[64px] rounded-full overflow-hidden flex items-center justify-center bg-white border border-gray-200">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#EF2A39" strokeWidth="2.5">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <polyline points="17 8 12 3 7 8" />
-                      <line x1="12" y1="3" x2="12" y2="15" />
-                    </svg>
+              {!previewAvatarUrl ? (
+                <>
+                  <h3 className="font-poppins font-semibold text-[20px] text-[#3C2F2F] mb-5 text-left shrink-0">
+                    Select Profile Picture
+                  </h3>
+                  
+                  <div className="grid grid-cols-3 gap-4 flex-1">
+                    {[
+                      { id: 'avatar_default', name: 'Simona Takahashi', path: '/assets/avatar.png' },
+                      { id: 'avatar_driver', name: 'Your Driver', path: '/assets/driver_avatar.png' },
+                      { id: 'avatar_user', name: 'Standard User', path: '/assets/user.png' }
+                    ].map((avatar) => (
+                      <button
+                        key={avatar.id}
+                        onClick={() => {
+                          setPreviewAvatarUrl(avatar.path);
+                          setPendingFile(null);
+                        }}
+                        className="flex flex-col items-center gap-2 p-2 rounded-2xl hover:bg-gray-50 active:scale-95 transition-all focus:outline-none cursor-pointer border border-transparent hover:border-gray-100"
+                      >
+                        <div className="w-[64px] h-[64px] rounded-full overflow-hidden border border-gray-200">
+                          <img src={avatar.path} alt={avatar.name} className="w-full h-full object-cover scale-[1.05]" />
+                        </div>
+                        <span className="font-roboto text-[11px] font-bold text-[#3C2F2F] text-center leading-tight">
+                          {avatar.name}
+                        </span>
+                      </button>
+                    ))}
+                    
+                    {/* Upload Custom Image option */}
+                    <button
+                      onClick={() => {
+                        fileInputRef.current?.click();
+                      }}
+                      className="flex flex-col items-center justify-center gap-2 p-2 rounded-2xl bg-gray-50 hover:bg-gray-150/40 active:scale-95 transition-all focus:outline-none cursor-pointer border border-dashed border-gray-300"
+                    >
+                      <div className="w-[64px] h-[64px] rounded-full overflow-hidden flex items-center justify-center bg-white border border-gray-200">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#EF2A39" strokeWidth="2.5">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                          <polyline points="17 8 12 3 7 8" />
+                          <line x1="12" y1="3" x2="12" y2="15" />
+                        </svg>
+                      </div>
+                      <span className="font-roboto text-[11px] font-bold text-[#EF2A39] text-center leading-tight">
+                        Upload Custom
+                      </span>
+                    </button>
                   </div>
-                  <span className="font-roboto text-[11px] font-bold text-[#EF2A39] text-center leading-tight">
-                    Upload Custom
-                  </span>
-                </button>
-              </div>
+                  
+                  {/* Delete Current Picture option */}
+                  {profilePicture !== '/assets/avatar.png' && (
+                    <button
+                      onClick={async () => {
+                        if (confirm("Are you sure you want to delete your profile picture?")) {
+                          setProfilePicture('/assets/avatar.png');
+                          if (isAuthenticated) {
+                            await updateProfile({ profile_picture: '/assets/avatar.png' });
+                          }
+                          setShowAvatarModal(false);
+                          setProfileMessage({ type: 'success', text: 'Profile picture deleted!' });
+                          setTimeout(() => setProfileMessage(null), 3000);
+                        }
+                      }}
+                      className="mt-6 w-full h-[46px] border border-red-200 hover:bg-red-50 text-[#EF2A39] rounded-[16px] font-roboto font-bold text-[14px] transition-all cursor-pointer focus:outline-none flex items-center justify-center gap-2"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                      </svg>
+                      Delete Photo
+                    </button>
+                  )}
+                </>
+              ) : (
+                <div className="flex flex-col items-center">
+                  <h3 className="font-poppins font-semibold text-[20px] text-[#3C2F2F] mb-4 text-center shrink-0">
+                    Preview Profile Picture
+                  </h3>
+                  
+                  <div className="w-[120px] h-[120px] rounded-full overflow-hidden border-4 border-gray-100 shadow-[0_4px_12px_rgba(0,0,0,0.1)] mb-6">
+                    <img src={previewAvatarUrl} alt="Preview Avatar" className="w-full h-full object-cover" />
+                  </div>
+                  
+                  <div className="w-full space-y-3">
+                    <button
+                      onClick={async () => {
+                        if (pendingFile) {
+                          await uploadCustomAvatar(pendingFile);
+                        } else if (previewAvatarUrl) {
+                          setProfilePicture(previewAvatarUrl);
+                          if (isAuthenticated) {
+                            await updateProfile({ profile_picture: previewAvatarUrl });
+                          }
+                          setProfileMessage({ type: 'success', text: 'Profile picture updated successfully!' });
+                          setTimeout(() => setProfileMessage(null), 3000);
+                        }
+                        setShowAvatarModal(false);
+                        setPreviewAvatarUrl(null);
+                        setPendingFile(null);
+                      }}
+                      className="w-full h-[50px] bg-[#FFE100] hover:brightness-95 active:scale-98 transition-all rounded-[16px] font-roboto font-bold text-[15px] text-[#3C2F2F] shadow-[0_4px_12px_rgba(255,225,0,0.25)] focus:outline-none cursor-pointer flex items-center justify-center"
+                    >
+                      Apply
+                    </button>
+                    
+                    <button
+                      onClick={() => {
+                        setPreviewAvatarUrl(null);
+                        setPendingFile(null);
+                      }}
+                      className="w-full h-[50px] bg-white border border-gray-200 hover:bg-gray-50 active:scale-98 transition-all rounded-[16px] font-roboto font-bold text-[15px] text-gray-500 focus:outline-none cursor-pointer flex items-center justify-center"
+                    >
+                      Cancel / Delete Selection
+                    </button>
+                  </div>
+                </div>
+              )}
+              
               <input 
                 type="file" 
                 ref={fileInputRef} 
-                onChange={handleAvatarUpload} 
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  if (!file.type.startsWith('image/')) {
+                    alert('Please select an image file.');
+                    return;
+                  }
+                  const previewUrl = URL.createObjectURL(file);
+                  setPreviewAvatarUrl(previewUrl);
+                  setPendingFile(file);
+                }} 
                 accept="image/*" 
                 className="hidden" 
               />
@@ -3719,139 +3862,152 @@ export default function HomePage() {
             {/* Backdrop */}
             <div 
               className="fixed inset-0 bg-black/60 backdrop-blur-xs animate-fadeInSimple"
-              onClick={() => setShowLocationModal(false)}
+              onClick={() => { setShowLocationModal(false); setIsChoosingOnMap(false); }}
             />
             {/* Slide up content */}
             <div className="relative bg-white w-full max-h-[85vh] lg:max-h-[580px] lg:max-w-[480px] rounded-t-[30px] lg:rounded-[28px] p-6 shadow-2xl animate-slideUp flex flex-col z-[310] select-none pb-8 text-left border-t lg:border border-gray-100 overflow-y-auto scrollbar-hide">
               <div className="w-[40px] h-[5px] bg-gray-200 rounded-full mx-auto mb-5 lg:hidden shrink-0" />
               
-              <h3 className="font-poppins font-semibold text-[20px] text-[#3C2F2F] mb-5 text-left shrink-0">
-                Add Saved Location
-              </h3>
-              
-              <div className="space-y-4 flex-1">
-                {/* Location Name Input */}
-                <div className="space-y-1">
-                  <span className="text-[12px] font-semibold text-[#A6A6A6] block text-left">Location Name</span>
-                  <input 
-                    type="text"
-                    placeholder="e.g. Home, Work, Gym, Friend's House"
-                    value={newLocationName}
-                    onChange={(e) => setNewLocationName(e.target.value)}
-                    className="w-full h-[50px] bg-gray-50 border border-gray-100 rounded-[16px] px-4 font-roboto text-[14px] text-[#3C2F2F] outline-none focus:border-[#EF2A39] focus:bg-white transition-all placeholder-gray-400 text-left"
-                  />
-                </div>
-                
-                {/* Street Address Input */}
-                <div className="space-y-1">
-                  <span className="text-[12px] font-semibold text-[#A6A6A6] block text-left">Street Address</span>
-                  <input 
-                    type="text"
-                    placeholder="e.g. 120 Broadway, New York, NY"
-                    value={newLocationAddress}
-                    onChange={(e) => setNewLocationAddress(e.target.value)}
-                    className="w-full h-[50px] bg-gray-50 border border-gray-100 rounded-[16px] px-4 font-roboto text-[14px] text-[#3C2F2F] outline-none focus:border-[#EF2A39] focus:bg-white transition-all placeholder-gray-400 text-left"
-                  />
-                </div>
-
-                {/* Simulator Options */}
-                <div className="grid grid-cols-2 gap-3 pt-2">
-                  {/* Current Position Simulator */}
-                  <button 
-                    onClick={() => {
-                      setIsFetchingLocation(true);
-                      fetchGPSAddress(
-                        (address, name) => {
-                          setIsFetchingLocation(false);
-                          setNewLocationName(name);
-                          setNewLocationAddress(address);
-                        },
-                        (errorMsg) => {
-                          setIsFetchingLocation(false);
-                          alert(`GPS failed: ${errorMsg}\nFalling back to simulated Times Square address.`);
-                          setNewLocationName('Times Square');
-                          setNewLocationAddress('1560 Broadway, New York, NY 10036');
-                        }
-                      );
-                    }}
-
-                    disabled={isFetchingLocation}
-                    className="h-[46px] bg-[#FFE100]/10 hover:bg-[#FFE100]/20 text-[#3C2F2F] rounded-[16px] text-[12.5px] font-roboto font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-all border border-[#FFE100]/30 disabled:opacity-50 cursor-pointer"
-                  >
-                    {isFetchingLocation ? (
-                      <div className="w-[16px] h-[16px] border-2 border-gray-400 border-t-[#EF2A39] rounded-full animate-spin" />
-                    ) : (
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <circle cx="12" cy="12" r="10"/>
-                        <circle cx="12" cy="12" r="3"/>
-                        <line x1="12" y1="1" x2="12" y2="3"/>
-                        <line x1="12" y1="21" x2="12" y2="23"/>
-                        <line x1="1" y1="12" x2="3" y2="12"/>
-                        <line x1="21" y1="12" x2="23" y2="12"/>
-                      </svg>
-                    )}
-                    Use GPS
-                  </button>
-
-                  {/* Map Simulator */}
-                  <button 
-                    onClick={() => {
-                      setNewLocationName('Financial District');
-                      setNewLocationAddress('120 Broadway, New York, NY 10271');
-                      alert("Map Selection Simulation:\nPoint coordinates selected successfully at '120 Broadway (Financial District)'");
-                    }}
-                    className="h-[46px] bg-[#FFE100]/10 hover:bg-[#FFE100]/20 text-[#3C2F2F] rounded-[16px] text-[12.5px] font-roboto font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-all border border-[#FFE100]/30 cursor-pointer"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                      <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/>
-                      <line x1="9" y1="3" x2="9" y2="18"/>
-                      <line x1="15" y1="6" x2="15" y2="21"/>
-                    </svg>
-                    Choose on Map
-                  </button>
-                </div>
-              </div>
-              
-              {/* Actions */}
-              <div className="mt-6 space-y-3 shrink-0">
-                <button 
-                  onClick={async () => {
-                    if (!newLocationName.trim() || !newLocationAddress.trim()) {
-                      alert("Please fill in both Name and Address fields.");
-                      return;
-                    }
-                    let locationId = `loc_${Date.now()}`;
-                    if (getAuthToken()) {
-                      const { street, city } = parseFullAddress(newLocationAddress);
-                      const res = await apiRequest('/addresses', {
-                        method: 'POST',
-                        body: { label: newLocationName, street, city, apt: '', notes: '' },
-                      });
-                      if (res.success && res.data?.id) {
-                        locationId = res.data.id;
-                      }
-                    }
-                    const newLoc = {
-                      id: locationId,
-                      name: newLocationName,
-                      address: newLocationAddress
-                    };
-                    setDeliveryLocations(prev => [...prev, newLoc]);
-                    setShowLocationModal(false);
-                    setProfileMessage({ type: 'success', text: `Saved location "${newLocationName}" added!` });
-                    setTimeout(() => setProfileMessage(null), 3000);
+              {isChoosingOnMap ? (
+                <MapboxPicker 
+                  onConfirm={(address, name) => {
+                    setNewLocationAddress(address);
+                    setNewLocationName(name);
+                    setIsChoosingOnMap(false);
                   }}
-                  className="w-full h-[50px] bg-[#FFE100] hover:brightness-95 active:scale-98 transition-all rounded-[16px] font-roboto font-bold text-[15px] text-[#3C2F2F] shadow-[0_4px_12px_rgba(255,225,0,0.25)] focus:outline-none cursor-pointer"
-                >
-                  Save Location
-                </button>
-                <button 
-                  onClick={() => setShowLocationModal(false)}
-                  className="w-full h-[50px] bg-white border border-gray-200 hover:bg-gray-50 active:scale-98 transition-all rounded-[16px] font-roboto font-bold text-[15px] text-[#3C2F2F] focus:outline-none cursor-pointer"
-                >
-                  Cancel
-                </button>
-              </div>
+                  onCancel={() => setIsChoosingOnMap(false)}
+                />
+              ) : (
+                <>
+                  <h3 className="font-poppins font-semibold text-[20px] text-[#3C2F2F] mb-5 text-left shrink-0">
+                    Add Saved Location
+                  </h3>
+                  
+                  <div className="space-y-4 flex-1">
+                    {/* Location Name Input */}
+                    <div className="space-y-1">
+                      <span className="text-[12px] font-semibold text-[#A6A6A6] block text-left">Location Name</span>
+                      <input 
+                        type="text"
+                        placeholder="e.g. Home, Work, Gym, Friend's House"
+                        value={newLocationName}
+                        onChange={(e) => setNewLocationName(e.target.value)}
+                        className="w-full h-[50px] bg-gray-50 border border-gray-100 rounded-[16px] px-4 font-roboto text-[14px] text-[#3C2F2F] outline-none focus:border-[#EF2A39] focus:bg-white transition-all placeholder-gray-400 text-left"
+                      />
+                    </div>
+                    
+                    {/* Street Address Input */}
+                    <div className="space-y-1">
+                      <span className="text-[12px] font-semibold text-[#A6A6A6] block text-left">Street Address</span>
+                      <input 
+                        type="text"
+                        placeholder="e.g. 120 Broadway, New York, NY"
+                        value={newLocationAddress}
+                        onChange={(e) => setNewLocationAddress(e.target.value)}
+                        className="w-full h-[50px] bg-gray-50 border border-gray-100 rounded-[16px] px-4 font-roboto text-[14px] text-[#3C2F2F] outline-none focus:border-[#EF2A39] focus:bg-white transition-all placeholder-gray-400 text-left"
+                      />
+                    </div>
+
+                    {/* Simulator Options */}
+                    <div className="grid grid-cols-2 gap-3 pt-2">
+                      {/* Current Position Simulator */}
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          setIsFetchingLocation(true);
+                          fetchGPSAddress(
+                            (address, name) => {
+                              setIsFetchingLocation(false);
+                              setNewLocationName(name);
+                              setNewLocationAddress(address);
+                            },
+                            (errorMsg) => {
+                              setIsFetchingLocation(false);
+                              alert(`GPS failed: ${errorMsg}\nFalling back to simulated Times Square address.`);
+                              setNewLocationName('Times Square');
+                              setNewLocationAddress('1560 Broadway, New York, NY 10036');
+                            }
+                          );
+                        }}
+
+                        disabled={isFetchingLocation}
+                        className="h-[46px] bg-[#FFE100]/10 hover:bg-[#FFE100]/20 text-[#3C2F2F] rounded-[16px] text-[12.5px] font-roboto font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-all border border-[#FFE100]/30 disabled:opacity-50 cursor-pointer"
+                      >
+                        {isFetchingLocation ? (
+                          <div className="w-[16px] h-[16px] border-2 border-gray-400 border-t-[#EF2A39] rounded-full animate-spin" />
+                        ) : (
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <circle cx="12" cy="12" r="10"/>
+                            <circle cx="12" cy="12" r="3"/>
+                            <line x1="12" y1="1" x2="12" y2="3"/>
+                            <line x1="12" y1="21" x2="12" y2="23"/>
+                            <line x1="1" y1="12" x2="3" y2="12"/>
+                            <line x1="21" y1="12" x2="23" y2="12"/>
+                          </svg>
+                        )}
+                        Use GPS
+                      </button>
+
+                      {/* Map Picker Trigger */}
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          setIsChoosingOnMap(true);
+                        }}
+                        className="h-[46px] bg-[#FFE100]/10 hover:bg-[#FFE100]/20 text-[#3C2F2F] rounded-[16px] text-[12.5px] font-roboto font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-all border border-[#FFE100]/30 cursor-pointer"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                          <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/>
+                          <line x1="9" y1="3" x2="9" y2="18"/>
+                          <line x1="15" y1="6" x2="15" y2="21"/>
+                        </svg>
+                        Choose on Map
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {/* Actions */}
+                  <div className="mt-6 space-y-3 shrink-0">
+                    <button 
+                      onClick={async () => {
+                        if (!newLocationName.trim() || !newLocationAddress.trim()) {
+                          alert("Please fill in both Name and Address fields.");
+                          return;
+                        }
+                        let locationId = `loc_${Date.now()}`;
+                        if (getAuthToken()) {
+                          const { street, city } = parseFullAddress(newLocationAddress);
+                          const res = await apiRequest('/addresses', {
+                            method: 'POST',
+                            body: { label: newLocationName, street, city, apt: '', notes: '' },
+                          });
+                          if (res.success && res.data?.id) {
+                            locationId = res.data.id;
+                          }
+                        }
+                        const newLoc = {
+                          id: locationId,
+                          name: newLocationName,
+                          address: newLocationAddress
+                        };
+                        setDeliveryLocations(prev => [...prev, newLoc]);
+                        setShowLocationModal(false);
+                        setProfileMessage({ type: 'success', text: `Saved location "${newLocationName}" added!` });
+                        setTimeout(() => setProfileMessage(null), 3000);
+                      }}
+                      className="w-full h-[50px] bg-[#FFE100] hover:brightness-95 active:scale-98 transition-all rounded-[16px] font-roboto font-bold text-[15px] text-[#3C2F2F] shadow-[0_4px_12px_rgba(255,225,0,0.25)] focus:outline-none cursor-pointer"
+                    >
+                      Save Location
+                    </button>
+                    <button 
+                      onClick={() => { setShowLocationModal(false); setIsChoosingOnMap(false); }}
+                      className="w-full h-[50px] bg-white border border-gray-200 hover:bg-gray-50 active:scale-98 transition-all rounded-[16px] font-roboto font-bold text-[15px] text-[#3C2F2F] focus:outline-none cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}
@@ -4123,6 +4279,7 @@ export default function HomePage() {
                 
                 {/* Filter Settings Button (x = 351px, w = 60px, h = 60px, color = #FFE100) */}
                 <button 
+                  onClick={() => setShowFilterModal(true)}
                   className="absolute left-[351px] w-[60px] h-[60px] bg-[#FFE100] rounded-[20px] flex items-center justify-center cursor-pointer hover:brightness-95 active:scale-95 transition-all focus:outline-none"
                 >
                   <img 
@@ -4197,6 +4354,33 @@ export default function HomePage() {
                     if (activeCategory === 'Near Me' && rest.distance > 0.5) return false;
                     if (activeCategory === 'TOP RATING' && rest.rating < 4.7) return false;
                     if (activeCategory === 'CLOSE' && rest.distance > 0.8) return false;
+                    
+                    // Price filter
+                    if (priceFilter === 'under3' && rest.deliveryFee >= 1.00) return false;
+                    if (priceFilter === 'under5' && rest.deliveryFee >= 2.00) return false;
+                    if (priceFilter === 'over5' && rest.deliveryFee < 2.00) return false;
+
+                    // Fee filter
+                    if (feeFilter === 'under1' && rest.deliveryFee >= 1.00) return false;
+                    if (feeFilter === 'under2' && rest.deliveryFee >= 2.00) return false;
+
+                    // Dietary
+                    if (selectedDiets.length > 0) {
+                      const match = selectedDiets.every(diet => 
+                        rest.tags.some(tag => tag.toLowerCase() === diet.toLowerCase()) ||
+                        rest.description.toLowerCase().includes(diet.toLowerCase())
+                      );
+                      if (!match) return false;
+                    }
+
+                    // Cuisine
+                    if (selectedCuisines.length > 0) {
+                      const match = selectedCuisines.some(cuisine =>
+                        rest.tags.some(tag => tag.toLowerCase() === cuisine.toLowerCase())
+                      );
+                      if (!match) return false;
+                    }
+
                     return true;
                   }).length === 0 ? (
                     <div className="w-full flex items-center justify-center h-[120px] bg-gray-50 border border-dashed border-gray-200 rounded-[20px]">
@@ -4213,6 +4397,33 @@ export default function HomePage() {
                       if (activeCategory === 'Near Me' && rest.distance > 0.5) return false;
                       if (activeCategory === 'TOP RATING' && rest.rating < 4.7) return false;
                       if (activeCategory === 'CLOSE' && rest.distance > 0.8) return false;
+                      
+                      // Price filter
+                      if (priceFilter === 'under3' && rest.deliveryFee >= 1.00) return false;
+                      if (priceFilter === 'under5' && rest.deliveryFee >= 2.00) return false;
+                      if (priceFilter === 'over5' && rest.deliveryFee < 2.00) return false;
+
+                      // Fee filter
+                      if (feeFilter === 'under1' && rest.deliveryFee >= 1.00) return false;
+                      if (feeFilter === 'under2' && rest.deliveryFee >= 2.00) return false;
+
+                      // Dietary
+                      if (selectedDiets.length > 0) {
+                        const match = selectedDiets.every(diet => 
+                          rest.tags.some(tag => tag.toLowerCase() === diet.toLowerCase()) ||
+                          rest.description.toLowerCase().includes(diet.toLowerCase())
+                        );
+                        if (!match) return false;
+                      }
+
+                      // Cuisine
+                      if (selectedCuisines.length > 0) {
+                        const match = selectedCuisines.some(cuisine =>
+                          rest.tags.some(tag => tag.toLowerCase() === cuisine.toLowerCase())
+                        );
+                        if (!match) return false;
+                      }
+
                       return true;
                     }).map((rest) => (
                       <div

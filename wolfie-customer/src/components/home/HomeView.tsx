@@ -12,17 +12,40 @@ interface HomeViewProps {
   onSelectRestaurant: (restaurant: Restaurant) => void;
   onSelectFoodItem: (item: FoodItem) => void;
   onProceedToCheckout: () => void;
+  
+  sortBy: 'all' | 'near' | 'rating' | 'best_seller';
+  setSortBy: (val: 'all' | 'near' | 'rating' | 'best_seller') => void;
+  priceFilter: 'all' | 'under3' | 'under5' | 'over5';
+  setPriceFilter: (val: 'all' | 'under3' | 'under5' | 'over5') => void;
+  feeFilter: 'all' | 'under1' | 'under2';
+  setFeeFilter: (val: 'all' | 'under1' | 'under2') => void;
+  selectedDiets: string[];
+  setSelectedDiets: React.Dispatch<React.SetStateAction<string[]>>;
+  selectedCuisines: string[];
+  setSelectedCuisines: React.Dispatch<React.SetStateAction<string[]>>;
 }
 
-export default function HomeView({ onSelectRestaurant, onSelectFoodItem, onProceedToCheckout }: HomeViewProps) {
+export default function HomeView({ 
+  onSelectRestaurant, 
+  onSelectFoodItem, 
+  onProceedToCheckout,
+  sortBy: restaurantFilter,
+  setSortBy: setRestaurantFilter,
+  priceFilter: desktopPriceFilter,
+  setPriceFilter: setDesktopPriceFilter,
+  feeFilter,
+  setFeeFilter,
+  selectedDiets,
+  setSelectedDiets,
+  selectedCuisines,
+  setSelectedCuisines
+}: HomeViewProps) {
   const { restaurants: liveRestaurants, isLoading } = useRestaurants();
   const { items: cartItems, addItem, updateQuantity, getTotalPrice, getTotalItems } = useCartStore();
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [restaurantFilter, setRestaurantFilter] = useState<'all' | 'near' | 'rating' | 'best_seller'>('all');
   
-  // Desktop Filters State
-  const [desktopPriceFilter, setDesktopPriceFilter] = useState<'all' | 'under3' | 'under5' | 'over5'>('all');
+  // Desktop Filters State (Only local rating and speed)
   const [desktopRatingFilter, setDesktopRatingFilter] = useState<'all' | 'high' | 'veryhigh'>('all');
   const [desktopTimeFilter, setDesktopTimeFilter] = useState<'all' | 'fast' | 'veryfast'>('all');
 
@@ -67,10 +90,36 @@ export default function HomeView({ onSelectRestaurant, onSelectFoodItem, onProce
                           item.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
     if (!matchesSearch) return false;
     
-    if (restaurantFilter === 'all') return true;
-    if (restaurantFilter === 'near') return item.deliveryTime.includes('1') || item.deliveryTime.includes('20');
-    if (restaurantFilter === 'rating') return item.rating >= 4.8;
-    if (restaurantFilter === 'best_seller') return item.isBestSeller;
+    if (restaurantFilter === 'near' && item.distance > 0.5) return false;
+    if (restaurantFilter === 'rating' && item.rating < 4.7) return false;
+    if (restaurantFilter === 'best_seller' && !item.isBestSeller) return false;
+
+    // Price Filter Check
+    if (desktopPriceFilter === 'under3' && item.deliveryFee >= 1.00) return false;
+    if (desktopPriceFilter === 'under5' && item.deliveryFee >= 2.00) return false;
+    if (desktopPriceFilter === 'over5' && item.deliveryFee < 2.00) return false;
+
+    // Max Delivery Fee Check
+    if (feeFilter === 'under1' && item.deliveryFee >= 1.00) return false;
+    if (feeFilter === 'under2' && item.deliveryFee >= 2.00) return false;
+
+    // Dietary preferences
+    if (selectedDiets.length > 0) {
+      const match = selectedDiets.every(diet => 
+        item.tags.some(tag => tag.toLowerCase() === diet.toLowerCase()) ||
+        item.description.toLowerCase().includes(diet.toLowerCase())
+      );
+      if (!match) return false;
+    }
+
+    // Cuisine Tags
+    if (selectedCuisines.length > 0) {
+      const match = selectedCuisines.some(cuisine =>
+        item.tags.some(tag => tag.toLowerCase() === cuisine.toLowerCase())
+      );
+      if (!match) return false;
+    }
+
     return true;
   });
 

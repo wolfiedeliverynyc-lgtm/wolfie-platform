@@ -15,7 +15,7 @@ export interface Restaurant {
   distance: number;
   isBestSeller: boolean;
   description: string;
-  address: string;
+  address?: string;
 }
 
 export interface FoodItem {
