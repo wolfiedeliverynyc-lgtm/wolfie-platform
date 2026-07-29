@@ -1,15 +1,9 @@
 """
- aquarium: eventlet/gevent monkey patching must be done before other imports
+╔══════════════════════════════════════════════════════════════╗
+║          WOLFIE DELIVERY — app.py (FULLY INTEGRATED)         ║
+║          All services bolted together. Production ready.     ║
+╚══════════════════════════════════════════════════════════════╝
 """
-try:
-    import eventlet
-    eventlet.monkey_patch()
-except ImportError:
-    try:
-        import gevent.monkey
-        gevent.monkey.patch_all()
-    except ImportError:
-        pass
 
 import os
 import logging
@@ -34,21 +28,14 @@ try:
     _r = redis.Redis.from_url(_MQ_URL, socket_timeout=1)
     _r.ping()
     _message_queue = _MQ_URL
-except Exception as e:
-    logging.getLogger("wolfie").critical(
-        f"Redis message queue unreachable — SocketIO will NOT scale across workers: {e}"
-    )
+except Exception:
+    pass
 
-_async_mode = None
 try:
     import gevent
     _async_mode = "gevent"
 except ImportError:
-    try:
-        import eventlet
-        _async_mode = "eventlet"
-    except ImportError:
-        _async_mode = "threading"
+    _async_mode = "threading"
 
 socketio = SocketIO(
     cors_allowed_origins  = "*",
@@ -76,10 +63,7 @@ def create_app(config_name: str = None) -> Flask:
     _setup_logging(app)
 
     # ── Extensions ────────────────────────────
-    CORS(app, resources={r"/api/*": {
-        "origins": app.config["ALLOWED_ORIGINS"],
-        "supports_credentials": True
-    }})
+    CORS(app, resources={r"/api/*": {"origins": app.config["ALLOWED_ORIGINS"]}})
     socketio.init_app(app)
 
     # ── Database (Supabase) ───────────────────
@@ -98,6 +82,23 @@ def create_app(config_name: str = None) -> Flask:
     except Exception as e:
         app.logger.warning(f"⚠️  Redis init failed: {e} — running without Redis")
         app.redis = None
+
+    # ── Static Files / Uploads ─────────────────
+    # Serve uploaded profile pictures at /uploads/
+    from flask import send_from_directory
+    uploads_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'uploads')
+    os.makedirs(uploads_dir, exist_ok=True)
+    
+    @app.route('/uploads/<path:filename>')
+    def serve_upload(filename):
+        """Serve uploaded files (profile pictures, etc)"""
+        try:
+            return send_from_directory(uploads_dir, filename, as_attachment=False)
+        except Exception as e:
+            app.logger.warning(f"Upload file not found: {filename} — {e}")
+            return jsonify({"error": "File not found"}), 404
+    
+    app.logger.info(f"✅ Uploads serving at /uploads/ (dir: {uploads_dir})")
 
     # ── Services (import here to avoid circular) ──
     _init_services(app)
@@ -118,7 +119,7 @@ def create_app(config_name: str = None) -> Flask:
         return jsonify({
             "status":   "ok",
             "service":  "wolfie-delivery",
-            "version":  "1.1.0",
+            "version":  "1.0.0",
             "database": health_check(),
             "redis":    redis_inst.health() if redis_inst else {"status": "disabled"},
         })
@@ -223,18 +224,12 @@ def _register_blueprints(app: Flask):
     from routes.admin_config import admin_config_bp
     from routes.admin_finance import admin_finance_bp
     from routes.admin_ai_wap import admin_ai_wap_bp
-    from routes.uploads import uploads_bp
     from routes.addresses import addresses_bp
-    from routes.driver_kyc import driver_kyc_bp
-    from routes.legal import legal_bp
-    from routes.testing import testing_bp
-    from routes.ai_support import ai_support_bp
     from routes.chat import chat_bp
     from routes.favorites import favorites_bp
-
+    from routes.driver_kyc import driver_kyc_bp
 
     app.register_blueprint(auth_bp,         url_prefix="/api/v1/auth")
-    app.register_blueprint(legal_bp,        url_prefix="/api/v1/legal")
     app.register_blueprint(orders_bp,       url_prefix="/api/v1/orders")
     app.register_blueprint(payments_bp,     url_prefix="/api/v1/payments")
     app.register_blueprint(drivers_bp,      url_prefix="/api/v1/drivers")
@@ -250,8 +245,6 @@ def _register_blueprints(app: Flask):
     app.register_blueprint(addresses_bp,    url_prefix="/api/v1/addresses")
     app.register_blueprint(chat_bp,         url_prefix="/api/v1/chat")
     app.register_blueprint(favorites_bp,    url_prefix="/api/v1/favorites")
-    app.register_blueprint(ai_support_bp,   url_prefix="/api/v1/support")
-
     app.register_blueprint(admin_bp,        url_prefix="/api/v1/admin")
     app.register_blueprint(admin_orders_bp, url_prefix="/api/v1/admin")
     app.register_blueprint(admin_refunds_bp,url_prefix="/api/v1/admin")
@@ -261,14 +254,6 @@ def _register_blueprints(app: Flask):
     app.register_blueprint(admin_config_bp, url_prefix="/api/v1/admin")
     app.register_blueprint(admin_finance_bp,url_prefix="/api/v1/admin")
     app.register_blueprint(admin_ai_wap_bp, url_prefix="/api/v1/admin")
-    app.register_blueprint(uploads_bp, url_prefix="/api/v1")
-    app.register_blueprint(testing_bp, url_prefix="/api/v1/testing")
-
-    from flask import send_from_directory
-    from services.storage import UPLOAD_DIR
-    @app.route('/uploads/<filename>', methods=['GET'])
-    def serve_static_upload(filename):
-        return send_from_directory(UPLOAD_DIR, filename)
 
     app.logger.info("✅ All blueprints registered")
 
@@ -282,95 +267,12 @@ def _register_socket_events():
     from flask import request
 
     @socketio.on("connect")
-    def on_connect(auth=None):
-        from flask import current_app
-        import jwt
-        from database import get_db_session
-        from services.compliance_manager import ComplianceManager
-        
-        logger = logging.getLogger("wolfie")
-        logger.info(f"WS connected: {request.sid}")
-
-        # Optional Auth & Compliance Check
-        token = None
-        if auth and isinstance(auth, dict):
-            token = auth.get("token")
-            
-        if token:
-            try:
-                secret = current_app.config["JWT_SECRET_KEY"]
-                payload = jwt.decode(token, secret, algorithms=["HS256"])
-                user_id = payload.get("sub")
-                role = payload.get("role")
-                
-                # Store WebSocket session mapping in Redis
-                redis_inst = getattr(current_app, "redis", None)
-                if redis_inst:
-                    try:
-                        redis_inst.cache.set(f"ws:sid:{request.sid}", {"user_id": user_id, "role": role}, ttl=7200)
-                    except Exception as ex:
-                        logger.warning(f"WS sid mapping failed: {ex}")
-
-                join_room(f"user_{user_id}")
-                logger.info(f"WS user {user_id} joined room user_{user_id}")
-                
-                if role == "driver":
-                    try:
-                        with get_db_session() as session:
-                            from database.repositories import UserRepository
-                            user_repo = UserRepository(session)
-                            driver = user_repo.get(user_id)
-                            if driver and not driver.is_available:
-                                user_repo.update(driver, is_available=True)
-                        socketio.emit("driver_status", {"driver_id": user_id, "status": "online"}, room="admin")
-                    except Exception as ex:
-                        logger.warning(f"Failed to update driver online state: {ex}")
-
-                if role == "admin":
-                    join_room("admin")
-                    logger.info(f"WS admin {user_id} joined room admin")
-                
-                with get_db_session() as session:
-                    comp_mgr = ComplianceManager(session)
-                    state = comp_mgr.evaluate_user_compliance(user_id, role)
-                    if state != "compliant":
-                        # Emit a compliance failure event before disconnecting
-                        emit("compliance_error", {"code": "COMPLIANCE_REQUIRED", "message": "Policy Update Required"})
-                        # In production we might disconnect, but for now we'll just emit the error
-                        # disconnect()
-                        logger.warning(f"WS compliance error for user {user_id}: {state}")
-            except Exception as e:
-                logger.error(f"WS Auth/Compliance error: {e}")
-        else:
-            # In DEBUG mode, auto-join admin room for unauthenticated dashboard connections
-            if current_app.config.get("DEBUG") or os.environ.get("FLASK_DEBUG") or os.environ.get("DEBUG"):
-                join_room("admin")
-                logger.info(f"WS {request.sid} auto-joined admin room (DEBUG mode, no token)")
-
+    def on_connect():
+        logging.getLogger("wolfie").info(f"WS connected: {request.sid}")
 
     @socketio.on("disconnect")
     def on_disconnect():
-        logger = logging.getLogger("wolfie")
-        logger.info(f"WS disconnected: {request.sid}")
-        try:
-            redis_inst = getattr(current_app, "redis", None)
-            if redis_inst:
-                mapping = redis_inst.cache.get(f"ws:sid:{request.sid}")
-                if mapping:
-                    redis_inst.cache.delete(f"ws:sid:{request.sid}")
-                    user_id = mapping.get("user_id")
-                    role = mapping.get("role")
-                    if role == "driver" and user_id:
-                        with get_db_session() as session:
-                            from database.repositories import UserRepository
-                            user_repo = UserRepository(session)
-                            driver = user_repo.get(user_id)
-                            if driver and driver.is_available:
-                                user_repo.update(driver, is_available=False)
-                        socketio.emit("driver_status", {"driver_id": user_id, "status": "offline"}, room="admin")
-                        logger.info(f"WS driver {user_id} marked offline on disconnect")
-        except Exception as e:
-            logger.warning(f"WS disconnect handler error: {e}")
+        logging.getLogger("wolfie").info(f"WS disconnected: {request.sid}")
 
     @socketio.on("join_order")
     def on_join_order(data):
@@ -384,19 +286,6 @@ def _register_socket_events():
         order_id = data.get("order_id")
         if order_id:
             leave_room(f"order_{order_id}")
-
-    @socketio.on("join_restaurant")
-    def on_join_restaurant(data):
-        restaurant_id = data.get("restaurant_id")
-        if restaurant_id:
-            join_room(f"restaurant_{restaurant_id}")
-            emit("joined", {"room": f"restaurant_{restaurant_id}"})
-
-    @socketio.on("test_ping")
-    def on_test_ping(data):
-        logging.getLogger("wolfie").info(f"[SocketIO] Received test_ping: {data}")
-        emit("driver_location", {"driver_id": "test_sender", "lat": 1.1, "lng": 2.2})
-        socketio.emit("driver_location", {"driver_id": "test_admin", "lat": 3.3, "lng": 4.4}, room="admin")
 
     @socketio.on("driver_location_update")
     def on_driver_location(data):
@@ -413,23 +302,14 @@ def _register_socket_events():
         # Persist location
         try:
             current_app.realtime.update_driver_location(driver_id, lat, lng, order_id)
-        except Exception as e:
-            current_app.logger.error(
-                f"Failed to persist driver location [driver={driver_id}, order={order_id}]: {e}"
-            )
+        except Exception:
+            pass
 
         # Broadcast to customer
         socketio.emit(
             "driver_location",
             {"lat": lat, "lng": lng, "driver_id": driver_id},
             room=f"order_{order_id}"
-        )
-
-        # Also broadcast to admin room for fleet tracking
-        socketio.emit(
-            "driver_location",
-            {"lat": lat, "lng": lng, "driver_id": driver_id},
-            room="admin"
         )
 
     @socketio.on("order_chat")

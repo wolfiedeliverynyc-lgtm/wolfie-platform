@@ -6,7 +6,7 @@
 
 import uuid, hashlib, hmac, os
 from datetime import datetime, timezone, timedelta
-from sqlalchemy import select
+from sqlalchemy import select, and_
 from database.repositories.base import BaseRepository
 from database.schemas import User, Order
 
@@ -31,25 +31,40 @@ class UserRepository(BaseRepository[User]):
         return self.list(filters={"role": role}, order_by="created_at",
                          limit=limit, offset=offset)
 
-    # Order statuses where a driver is still tied up with a delivery.
-    # "pending" is excluded because it has no driver_id assigned yet.
-    _ACTIVE_DRIVER_ORDER_STATUSES = (
-        "assigned", "accepted", "preparing", "ready", "picked_up", "on_the_way",
-    )
-
     def find_available_drivers(self) -> list[User]:
-        busy_driver_ids = select(Order.driver_id).where(
-            Order.driver_id.isnot(None),
-            Order.status.in_(self._ACTIVE_DRIVER_ORDER_STATUSES),
+        """
+        Find drivers available for assignment.
+        Excludes drivers with active orders (double-booking prevention).
+        Uses row-level locking on PostgreSQL (no-op on SQLite).
+        
+        Active order statuses: assigned, accepted, preparing, picked_up, on_the_way
+        """
+        # Subquery: drivers with active orders
+        active_order_statuses = ["assigned", "accepted", "preparing", "picked_up", "on_the_way"]
+        drivers_with_active_orders = select(Order.driver_id).where(
+            Order.status.in_(active_order_statuses),
+            Order.driver_id.isnot(None)
         )
-        return self.session.scalars(
-            select(User).where(
+        
+        # Main query: available drivers NOT in the subquery
+        stmt = select(User).where(
+            and_(
                 User.role == "driver",
                 User.is_active == True,
                 User.is_available == True,
-                User.id.notin_(busy_driver_ids),
+                ~User.id.in_(drivers_with_active_orders)  # NOT IN subquery
             )
-        ).all()
+        )
+        
+        # Row-level locking: only works on PostgreSQL (no-op on SQLite)
+        # Prevents multiple threads from assigning same driver simultaneously
+        try:
+            stmt = stmt.with_for_update(skip_locked=True)
+        except Exception:
+            # SQLite doesn't support FOR UPDATE — fail gracefully
+            pass
+        
+        return self.session.scalars(stmt).all()
 
     def email_exists(self, email: str) -> bool:
         return self.exists(email=email.lower().strip())
@@ -116,28 +131,10 @@ class UserRepository(BaseRepository[User]):
             user.is_open            = False
             user.subscription_status= "trial"
             user.trial_ends_at      = now + timedelta(days=30)
-            
-            # Map detailed profile fields
-            if extra.get("chef_name"): user.chef_name = extra["chef_name"].strip()
-            if extra.get("chef_bio"): user.chef_bio = extra["chef_bio"].strip()
-            if extra.get("chef_image"): user.chef_image = extra["chef_image"].strip()
-            if extra.get("story"): user.story = extra["story"].strip()
-            if extra.get("bio"): user.bio = extra["bio"].strip()
-            if extra.get("hero_image"): user.hero_image = extra["hero_image"].strip()
-            if extra.get("logo_image"): user.logo_image = extra["logo_image"].strip()
-            if extra.get("address"): user.address = extra["address"].strip()
-            if extra.get("latitude") is not None: user.latitude = float(extra["latitude"])
-            if extra.get("longitude") is not None: user.longitude = float(extra["longitude"])
-            if extra.get("category"): user.category = extra["category"].strip()
-            if extra.get("price_level"): user.price_level = extra["price_level"].strip()
-            if extra.get("delivery_time_min") is not None: user.delivery_time_min = int(extra["delivery_time_min"])
-            if extra.get("delivery_fee") is not None: user.delivery_fee = float(extra["delivery_fee"])
 
         elif role == "customer":
             user.total_orders = 0
             user.rating       = 5.0
-            user.dietary_preferences = extra.get("dietary_preferences", [])
-            user.allergy_preferences = extra.get("allergy_preferences", [])
 
         return self.add(user)
 
@@ -166,9 +163,4 @@ class UserRepository(BaseRepository[User]):
         return self.update(user, commission_rate=rate, updated_at=datetime.now(UTC))
 
     def safe_dict(self, user: User) -> dict:
-        d = self.to_dict(user, exclude={"password_hash"})
-        if user.kyc_documents and isinstance(user.kyc_documents, dict):
-            d["profile_picture"] = user.kyc_documents.get("profile_picture", "/assets/avatar.png")
-        else:
-            d["profile_picture"] = "/assets/avatar.png"
-        return d
+        return self.to_dict(user, exclude={"password_hash"})
