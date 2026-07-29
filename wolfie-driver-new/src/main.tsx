@@ -1,11 +1,24 @@
 import { StrictMode, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
+import * as Sentry from "@sentry/react";
 import App from './App.tsx';
 import DriverAuthPage from './pages/DriverAuthPage';
 import DocumentUploadPage from './pages/DocumentUploadPage';
 import { useDriverStore } from './store/useDriverStore';
 import { Sun, Moon } from 'lucide-react';
 import './index.css';
+
+Sentry.init({
+  dsn: import.meta.env.VITE_SENTRY_DSN,
+  integrations: [
+    Sentry.browserTracingIntegration(),
+    Sentry.replayIntegration(),
+  ],
+  tracesSampleRate: 1.0,
+  tracePropagationTargets: ["localhost", /^https:\/\/wolfie-backend-pt9u\.onrender\.com/],
+  replaysSessionSampleRate: 0.1,
+  replaysOnErrorSampleRate: 1.0,
+});
 
 const AuthGate = () => {
   const { kycStatus, setKycStatus, theme, setTheme } = useDriverStore();

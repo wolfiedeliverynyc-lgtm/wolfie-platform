@@ -2,6 +2,7 @@
 import { create } from 'zustand';
 import { User } from '@/types';
 import authService from '@/services/auth';
+import * as Sentry from '@sentry/nextjs';
 
 interface AuthState {
   user: User | null;
@@ -25,6 +26,16 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const data = await authService.login(email, password);
       
+      // Sentry User Context & Breadcrumbs
+      Sentry.setUser({ id: data.user.id, email: data.user.email, username: data.user.full_name });
+      Sentry.setTag("user_role", "admin");
+      Sentry.setTag("user_id", data.user.id);
+      Sentry.addBreadcrumb({
+        category: "auth",
+        message: `Admin logged in: ${data.user.email}`,
+        level: "info",
+      });
+      
       if (typeof window !== 'undefined') {
         localStorage.setItem('access_token', data.access_token);
         localStorage.setItem('refresh_token', data.refresh_token);
@@ -46,6 +57,15 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   logout: async () => {
     set({ isLoading: true });
+    
+    // Sentry clear user and breadcrumb
+    Sentry.setUser(null);
+    Sentry.addBreadcrumb({
+      category: "auth",
+      message: "Admin logged out",
+      level: "info",
+    });
+
     try {
       await authService.logout();
     } catch (err) {
@@ -76,6 +96,12 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ isLoading: true, error: null });
     try {
       const user = await authService.getProfile();
+      
+      // Sentry setUser and tags on successful reload/init
+      Sentry.setUser({ id: user.id, email: user.email, username: user.full_name });
+      Sentry.setTag("user_role", "admin");
+      Sentry.setTag("user_id", user.id);
+
       set({
         user,
         isAuthenticated: true,

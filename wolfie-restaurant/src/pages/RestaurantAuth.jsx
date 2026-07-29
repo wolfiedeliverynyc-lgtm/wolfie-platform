@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { ArrowRight, Lock, Mail, ArrowLeft, Check } from 'lucide-react';
+import * as Sentry from '@sentry/react';
 import { restaurantAuth, setToken } from '../api';
 import AuthCarousel from '../components/AuthCarousel';
 
@@ -41,6 +42,15 @@ const RestaurantAuth = () => {
     try {
       const data = await restaurantAuth.login({ email, password });
       setToken(data.access_token);
+      
+      // Sentry User Context & Breadcrumbs
+      Sentry.setUser({ id: data.user_id || email, email: email });
+      Sentry.setTag("user_role", "restaurant");
+      Sentry.addBreadcrumb({
+        category: "auth",
+        message: `Restaurant partner logged in: ${email}`,
+        level: "info",
+      });
       
       // Fetch onboarding status to check if it's completed
       try {

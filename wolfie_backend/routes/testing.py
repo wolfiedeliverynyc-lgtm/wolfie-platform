@@ -106,3 +106,18 @@ def testing_status():
         "fixtures": fixtures,
         "environment": os.getenv("FLASK_ENV", "development"),
     }), 200
+
+
+@testing_bp.route("/sentry-debug", methods=["GET"])
+def trigger_error():
+    """
+    GET /api/v1/testing/sentry-debug
+    Triggers a division by zero error to test Sentry exception capturing.
+    """
+    if not _is_test_env():
+        return jsonify({"error": "Not available in production"}), 403
+    
+    # Intentional error
+    logger.info("Triggering intentional Sentry debug error (1/0)...")
+    division_by_zero = 1 / 0
+    return jsonify({"result": division_by_zero})

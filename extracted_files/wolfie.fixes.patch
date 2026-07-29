@@ -1,0 +1,231 @@
+--- a/wolfie_backend/routes/auth.py
++++ b/wolfie_backend/routes/auth.py
+@@ -89,15 +89,36 @@ def refresh_token():
+ @auth_bp.route("/register", methods=["POST"])
+ @rate_limit(limit=5, window=300)   # 5 registrations per 5 min per IP
+ def register():
+     data    = request.get_json(silent=True) or {}
++    
++    # Accept both 'name' and 'full_name' (frontend compatibility)
++    full_name = data.get("full_name") or data.get("name") or ""
++    full_name = full_name.strip()
++    
++    # Set default role to 'customer' if not provided
++    role = (data.get("role") or "customer").strip()
++    
++    # Validate required fields
+-    missing = [f for f in ["email","password","full_name","phone","role"] if not data.get(f)]
++    missing = [f for f in ["email","password","phone"] if not data.get(f)]
++    if not full_name:
++        missing.append("full_name (or name)")
+     if missing:
+         return jsonify({"error": f"Missing fields: {missing}"}), 400
+ 
+     try:
+         with transaction() as session:
+             repo = UserRepository(session)
+             user = repo.create(
+                 email     = data["email"],
+                 password  = data["password"],
+-                full_name = data["full_name"],
++                full_name = full_name,
+                 phone     = data["phone"],
+-                role      = data["role"],
++                role      = role,
+                 extra     = {k: v for k, v in data.items()
+-                             if k not in {"email","password","full_name","phone","role"}},
++                             if k not in {"email","password","full_name","name","phone","role"}},
+             )
+             tokens  = _generate_tokens(user.id, user.role, current_app.config["JWT_SECRET_KEY"])
+             user_id = user.id
+
+--- a/wolfie_backend/app.py
++++ b/wolfie_backend/app.py
+@@ -68,6 +68,30 @@ def create_app(config_name: str = None) -> Flask:
+     # ── Database (Supabase) ───────────────────
+     from database import init_db, health_check
+     init_db(app)
++
++    # ── Static Files / Uploads ─────────────────
++    # Serve uploaded profile pictures at /uploads/
++    from flask import send_from_directory
++    uploads_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'uploads')
++    os.makedirs(uploads_dir, exist_ok=True)
++    
++    @app.route('/uploads/<path:filename>')
++    def serve_upload(filename):
++        """Serve uploaded files (profile pictures, etc)"""
++        try:
++            return send_from_directory(uploads_dir, filename, as_attachment=False)
++        except Exception as e:
++            app.logger.warning(f"Upload file not found: {filename} — {e}")
++            return jsonify({"error": "File not found"}), 404
++    
++    app.logger.info(f"✅ Uploads serving at /uploads/ (dir: {uploads_dir})")
+ 
+     # ── Redis ─────────────────────────────────
+     try:
+
+--- a/wolfie_backend/routes/admin_support.py
++++ b/wolfie_backend/routes/admin_support.py
+@@ -1,10 +1,12 @@
+ """
+-Admin Support Center
++Admin Support Center + AI Agent
+ """
++import os
++import logging
++import json
+-import logging
+ from flask import Blueprint, request, jsonify
++from flask import current_app
+ from routes.auth import require_auth
+ from database import transaction, get_db_session
+ from database.repositories import SupportTicketRepository
+ from services.audit_logger import log_admin_action
+ 
+ admin_support_bp = Blueprint("admin_support", __name__)
+@@ -65,3 +67,69 @@ def escalate_ticket(ticket_id):
+         return jsonify({"error": str(e)}), 400
+     return jsonify({"message": "Ticket escalated", "ticket_id": ticket_id}), 200
+ 
++
++# ── AI Support Agent (Gemini) ──────────────────
++
++@admin_support_bp.route("/support/ai", methods=["POST"])
++@require_auth()
++def ai_support_chat():
++    """
++    AI Support Agent endpoint using Google Gemini API
++    
++    Request:
++        {
++            "message": "Help! My order is late",
++            "order_id": "order_123" (optional),
++            "context": {...} (optional)
++        }
++    
++    Response:
++        {
++            "reply": "AI-generated response",
++            "confidence": 0.95,
++            "escalate": False
++        }
++    """
++    data = request.get_json(silent=True) or {}
++    user_message = data.get("message", "").strip()
++    
++    if not user_message:
++        return jsonify({"error": "message is required"}), 400
++    
++    # Get Gemini API key from environment
++    gemini_api_key = os.getenv("GEMINI_API_KEY")
++    if not gemini_api_key:
++        logger.error("❌ GEMINI_API_KEY not set in environment")
++        return jsonify({
++            "error": "AI support unavailable",
++            "message": "API key not configured",
++            "escalate": True
++        }), 503
++    
++    try:
++        import google.generativeai as genai
++        
++        # Configure Gemini
++        genai.configure(api_key=gemini_api_key)
++        model = genai.GenerativeModel("gemini-pro")
++        
++        # Build context
++        order_id = data.get("order_id")
++        context_prompt = f"""You are a helpful Wolfie Delivery customer support agent.
++Keep responses short, friendly, and actionable.
++User role: {request.user_role}
++Order ID: {order_id or 'N/A'}
++
++User message: {user_message}
++
++Respond in the same language as the user message."""
++        
++        # Call Gemini
++        logger.info(f"🤖 Calling Gemini AI for support — user: {request.user_id}")
++        response = model.generate_content(context_prompt)
++        
++        if not response.text:
++            logger.warning("⚠️  Gemini returned empty response")
++             return jsonify({"error": "No response from AI", "escalate": True}), 500
++        
++         # Determine if escalation needed
++        escalate = any(keyword in user_message.lower() 
++                      for keyword in ["urgent", "asap", "problem", "broken", "bug", "crash"])
++        
++        logger.info(f"✅ Gemini responded — escalate={escalate}")
++        
++        return jsonify({
++            "reply": response.text,
++            "confidence": 0.95,
++            "escalate": escalate,
++            "order_id": order_id
++        }), 200
++        
++    except ImportError:
++        logger.error("❌ google-generativeai not installed")
++        return jsonify({"error": "AI library not installed", "escalate": True}), 500
++    except Exception as e:
++        logger.error(f"❌ Gemini API error: {e}")
++        return jsonify({"error": f"AI error: {str(e)}", "escalate": True}), 500
+
+--- a/wolfie_backend/database/repositories/user.py
++++ b/wolfie_backend/database/repositories/user.py
+@@ -7,6 +7,7 @@
+ 
+ import uuid, hashlib, hmac, os
+ from datetime import datetime, timezone, timedelta
+-from sqlalchemy import select
++from sqlalchemy import select, and_
+ from database.repositories.base import BaseRepository
+ from database.schemas import User
++from database.schemas import Order
+ 
+ UTC = timezone.utc
+ VALID_ROLES = {"customer", "driver", "restaurant", "admin"}
+@@ -33,12 +34,36 @@ class UserRepository(BaseRepository[User]):
+         return self.list(filters={"role": role}, order_by="created_at",
+                          limit=limit, offset=offset)
+ 
+     def find_available_drivers(self) -> list[User]:
+-        return self.session.scalars(
+-            select(User).where(
++        """
++        Find drivers available for assignment.
++        Excludes drivers with active orders (double-booking prevention).
++        Uses row-level locking on PostgreSQL (no-op on SQLite).
++        
++        Active order statuses: assigned, accepted, preparing, picked_up, on_the_way
++        """
++        # Subquery: drivers with active orders
++        active_order_statuses = ["assigned", "accepted", "preparing", "picked_up", "on_the_way"]
++        drivers_with_active_orders = select(Order.driver_id).where(
++            Order.status.in_(active_order_statuses),
++            Order.driver_id.isnot(None)
++        )
++        
++        # Main query: available drivers NOT in the subquery
++        stmt = select(User).where(
++            and_(
+                 User.role == "driver",
+                 User.is_active == True,
+                 User.is_available == True,
++                ~User.id.in_(drivers_with_active_orders)  # NOT IN subquery
+             )
+-        ).all()
++        )
++        
++        # Row-level locking: only works on PostgreSQL (no-op on SQLite)
++        try:
++            stmt = stmt.with_for_update(skip_locked=True)
++        except Exception:
++            pass  # SQLite doesn't support FOR UPDATE
++        
++        return self.session.scalars(stmt).all()
+ 
+     def email_exists(self, email: str) -> bool:

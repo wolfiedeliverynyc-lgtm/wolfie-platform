@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import * as Sentry from '@sentry/react'
 
 export type DriverLifecycleState =
   | 'offline'
@@ -328,7 +329,19 @@ export const useDriverStore = create<DriverStore>()(
       setGpsAccuracy: (accuracy) => set({ gpsAccuracy: accuracy }),
       setKycStatus: (status) => set({ kycStatus: status }),
       setOnboarded: (onboarded) => set({ onboarded }),
-      setDriverProfile: (profile) => set({ driverProfile: profile }),
+      setDriverProfile: (profile) => {
+        set({ driverProfile: profile });
+        if (profile) {
+          Sentry.setUser({ id: profile.email, email: profile.email, username: profile.name });
+          Sentry.setTag("user_role", "driver");
+          Sentry.setTag("user_id", profile.email);
+          Sentry.addBreadcrumb({
+            category: "auth",
+            message: `Driver logged in: ${profile.email}`,
+            level: "info",
+          });
+        }
+      },
       setRouteGeoJSON: (geoJSON) => set({ routeGeoJSON: geoJSON }),
       setSoundEnabled: (enabled) => set({ soundEnabled: enabled }),
       setTheme: (theme) => set({ theme }),
@@ -350,6 +363,15 @@ export const useDriverStore = create<DriverStore>()(
       updatePerformance: (partial) => set((state) => ({ performance: { ...state.performance, ...partial } })),
       resetStore: () => {
         set({ ...defaultState });
+        
+        // Sentry clear user and logout breadcrumb
+        Sentry.setUser(null);
+        Sentry.addBreadcrumb({
+          category: "auth",
+          message: "Driver logged out",
+          level: "info",
+        });
+
         if (typeof window !== 'undefined') {
           document.cookie = 'wolfie_auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
           localStorage.removeItem('wolfie-driver-v3');

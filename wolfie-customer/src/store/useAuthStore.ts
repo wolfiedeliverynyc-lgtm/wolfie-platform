@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import * as Sentry from '@sentry/nextjs';
 
 interface User {
   id: string;
@@ -34,6 +35,17 @@ export const useAuthStore = create<AuthState>()(
       
       setAuth: (user, token) => {
         set({ user, token, isAuthenticated: true });
+        
+        // Sentry Context & Breadcrumbs
+        Sentry.setUser({ id: user.id, email: user.email, username: user.full_name });
+        Sentry.setTag("user_role", "customer");
+        Sentry.setTag("user_id", user.id);
+        Sentry.addBreadcrumb({
+          category: "auth",
+          message: `User logged in: ${user.email}`,
+          level: "info",
+        });
+
         if (typeof window !== 'undefined') {
           // Set unified cookie (expires in 7 days)
           document.cookie = `wolfie_auth_token=${token}; path=/; max-age=604800; SameSite=Lax; Secure`;
@@ -43,6 +55,15 @@ export const useAuthStore = create<AuthState>()(
       
       logout: () => {
         const wasAuthenticated = get().isAuthenticated;
+        
+        // Sentry Context & Breadcrumbs
+        Sentry.setUser(null);
+        Sentry.addBreadcrumb({
+          category: "auth",
+          message: "User logged out",
+          level: "info",
+        });
+
         set({ user: null, token: null, isAuthenticated: false });
         if (typeof window !== 'undefined') {
           // Clear legacy local storage tokens
