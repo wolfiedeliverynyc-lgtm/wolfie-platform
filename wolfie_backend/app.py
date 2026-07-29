@@ -7,13 +7,29 @@
 
 import os
 import logging
-from flask import Flask, jsonify, current_app
+import sentry_sdk
+from sentry_sdk.integrations.flask import FlaskIntegration
+from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
+from flask import Flask, jsonify, current_app, request
 from flask_socketio import SocketIO
 from flask_cors import CORS
 from dotenv import load_dotenv
 from services.redis_service import WolfieRedis
 
 load_dotenv()
+
+# Sentry SDK Initialization
+_SENTRY_DSN = os.getenv("SENTRY_DSN")
+if _SENTRY_DSN:
+    sentry_sdk.init(
+        dsn=_SENTRY_DSN,
+        integrations=[
+            FlaskIntegration(),
+            SqlalchemyIntegration(),
+        ],
+        traces_sample_rate=1.0,
+        profiles_sample_rate=1.0,
+    )
 
 # ──────────────────────────────────────────────
 # GLOBAL SOCKETIO (shared across modules)
@@ -62,8 +78,55 @@ def create_app(config_name: str = None) -> Flask:
     # ── Logging ───────────────────────────────
     _setup_logging(app)
 
+    # ── Sentry Context ────────────────────────
+    @app.before_request
+    def set_sentry_context():
+        raw = request.headers.get("Authorization", "")
+        if raw.startswith("Bearer "):
+            try:
+                import jwt
+                token = raw[7:]
+                secret = app.config.get("JWT_SECRET_KEY")
+                payload = jwt.decode(token, secret, algorithms=["HS256"])
+                if payload:
+                    user_id = payload.get("sub")
+                    role = payload.get("role")
+                    admin_type = payload.get("admin_type")
+                    
+                    user_data = {"id": user_id, "role": role}
+                    sentry_sdk.set_user(user_data)
+                    
+                    sentry_sdk.set_tag("user_id", user_id)
+                    sentry_sdk.set_tag("user_role", role)
+                    if role == "admin" and admin_type:
+                        sentry_sdk.set_tag("admin_type", admin_type)
+            except Exception:
+                pass
+        
+        # Tags for business flows
+        try:
+            # Query params
+            for key in ["order_id", "restaurant_id", "driver_id", "customer_id"]:
+                if key in request.args:
+                    sentry_sdk.set_tag(key, request.args[key])
+            # JSON params
+            if request.is_json:
+                data = request.get_json(silent=True) or {}
+                for key in ["order_id", "restaurant_id", "driver_id", "customer_id"]:
+                    if key in data:
+                        sentry_sdk.set_tag(key, data[key])
+        except Exception:
+            pass
+
+        # Environment & Version tags
+        sentry_sdk.set_tag("environment", app.config.get("ENV", "development"))
+        sentry_sdk.set_tag("app_version", "1.1.0")
+
     # ── Extensions ────────────────────────────
-    CORS(app, resources={r"/api/*": {"origins": app.config["ALLOWED_ORIGINS"]}})
+    CORS(app, resources={r"/api/*": {
+        "origins": app.config["ALLOWED_ORIGINS"],
+        "supports_credentials": True
+    }})
     socketio.init_app(app)
 
     # ── Database (Supabase) ───────────────────
@@ -123,6 +186,30 @@ def create_app(config_name: str = None) -> Flask:
             "database": health_check(),
             "redis":    redis_inst.health() if redis_inst else {"status": "disabled"},
         })
+
+    @app.route("/ready")
+    def ready():
+        db_ok = health_check() == "ok"
+        if db_ok:
+            return jsonify({"status": "ready", "database": "connected"}), 200
+        else:
+            return jsonify({"status": "not_ready", "database": "disconnected"}), 503
+
+    @app.route("/live")
+    def live():
+        return jsonify({"status": "alive"}), 200
+
+    @app.route("/status")
+    def status_endpoint():
+        from datetime import datetime, timezone
+        redis_inst = getattr(current_app, "redis", None)
+        return jsonify({
+            "status": "ok",
+            "environment": current_app.config.get("ENV", "development"),
+            "database": health_check(),
+            "redis": redis_inst.health() if redis_inst else {"status": "disabled"},
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }), 200
 
     # ── Register state machine hooks ──────────
     from hooks import register_hooks
