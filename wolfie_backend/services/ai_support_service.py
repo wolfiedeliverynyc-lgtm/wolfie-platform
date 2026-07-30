@@ -52,7 +52,7 @@ class AISupportService:
             }
             
         try:
-            response = requests.post(url, headers=headers, json=payload, timeout=15)
+            response = requests.post(url, headers=headers, json=payload, timeout=25)
             if response.status_code != 200:
                 return {"error": f"API Error {response.status_code}: {response.text}"}
                 
