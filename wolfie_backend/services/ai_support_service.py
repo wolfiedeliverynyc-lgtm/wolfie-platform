@@ -77,8 +77,7 @@ class AISupportService:
                 "output_tokens": output_tokens
             }
         except Exception as e:
-            import traceback
-            return {"error": traceback.format_exc()}
+            return {"error": str(e)}
 
     @classmethod
     def detect_language(cls, text: str) -> str:

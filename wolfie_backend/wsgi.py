@@ -9,6 +9,12 @@ Render start command:
            --workers 1 --bind 0.0.0.0:$PORT wsgi:app
 """
 
+try:
+    import gevent.monkey
+    gevent.monkey.patch_all()
+except ImportError:
+    pass
+
 import os
 from app import create_app, socketio
 

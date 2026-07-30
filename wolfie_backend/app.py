@@ -5,6 +5,12 @@
 ╚══════════════════════════════════════════════════════════════╝
 """
 
+try:
+    import gevent.monkey
+    gevent.monkey.patch_all()
+except ImportError:
+    pass
+
 import os
 import logging
 import sentry_sdk
