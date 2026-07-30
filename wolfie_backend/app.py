@@ -27,6 +27,7 @@ if _SENTRY_DSN:
             FlaskIntegration(),
             SqlalchemyIntegration(),
         ],
+        default_integrations=False,
         traces_sample_rate=1.0,
         profiles_sample_rate=1.0,
     )
