@@ -27,7 +27,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       const data = await authService.login(email, password);
       
       // Sentry User Context & Breadcrumbs
-      Sentry.setUser({ id: data.user.id, email: data.user.email, username: data.user.full_name });
+      Sentry.setUser({ id: data.user.id, email: data.user.email, username: data.user.name });
       Sentry.setTag("user_role", "admin");
       Sentry.setTag("user_id", data.user.id);
       Sentry.addBreadcrumb({
@@ -98,7 +98,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       const user = await authService.getProfile();
       
       // Sentry setUser and tags on successful reload/init
-      Sentry.setUser({ id: user.id, email: user.email, username: user.full_name });
+      Sentry.setUser({ id: user.id, email: user.email, username: user.name });
       Sentry.setTag("user_role", "admin");
       Sentry.setTag("user_id", user.id);
 
