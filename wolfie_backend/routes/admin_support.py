@@ -114,7 +114,7 @@ def ai_support_chat():
         
         # Configure Gemini
         genai.configure(api_key=gemini_api_key)
-        model = genai.GenerativeModel("gemini-2.5-flash")
+        model = genai.GenerativeModel("gemini-2.0-flash")
         
         # Build context
         order_id = data.get("order_id")
