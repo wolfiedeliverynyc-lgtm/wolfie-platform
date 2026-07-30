@@ -12,4 +12,6 @@ export default withSentryConfig(nextConfig, {
   project: "wolfie-admin",
   silent: true,
   widenClientFileUpload: true,
+  disableServerWebpackPlugin: !process.env.SENTRY_AUTH_TOKEN,
+  disableClientWebpackPlugin: !process.env.SENTRY_AUTH_TOKEN,
 });

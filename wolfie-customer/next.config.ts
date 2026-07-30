@@ -20,4 +20,6 @@ export default withSentryConfig(pwaConfig, {
   project: "javascript-nextjs",
   silent: true,
   widenClientFileUpload: true,
+  disableServerWebpackPlugin: !process.env.SENTRY_AUTH_TOKEN,
+  disableClientWebpackPlugin: !process.env.SENTRY_AUTH_TOKEN,
 });
