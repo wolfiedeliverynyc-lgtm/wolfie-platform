@@ -12,6 +12,4 @@ export default withSentryConfig(nextConfig, {
   project: "wolfie-admin",
   silent: true,
   widenClientFileUpload: true,
-  hideSourceMaps: true,
-  disableLogger: true,
 });

@@ -1,16 +1,17 @@
 import type { NextConfig } from "next";
-import withPWA from "@next/pwa";
+import withPWA from "@ducanh2912/next-pwa";
 import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  turbopack: {},
 };
 
-const pwaConfig = withPWA(nextConfig, {
+const pwaConfig = withPWA({
   dest: "public",
-  disable: process.env.NEXT_PUBLIC_DISABLE_PWA === "true",
-  reloadOnOnline: true,
-});
+  disable: process.env.NODE_ENV === "development",
+  register: true,
+} as any)(nextConfig);
 
 export default withSentryConfig(pwaConfig, {
   // For all available options, see:
@@ -19,9 +20,4 @@ export default withSentryConfig(pwaConfig, {
   project: "javascript-nextjs",
   silent: true,
   widenClientFileUpload: true,
-  hideSourceMaps: true,
-  disableLogger: true,
 });
-
-// Add fallback page handler in the middleware or config
-export const pwaFallback = '/offline.html';
