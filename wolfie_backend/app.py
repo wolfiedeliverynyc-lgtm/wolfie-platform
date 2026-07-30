@@ -196,11 +196,12 @@ def create_app(config_name: str = None) -> Flask:
 
     @app.route("/ready")
     def ready():
-        db_ok = health_check() == "ok"
+        db_res = health_check()
+        db_ok = db_res.get("status") == "ok"
         if db_ok:
             return jsonify({"status": "ready", "database": "connected"}), 200
         else:
-            return jsonify({"status": "not_ready", "database": "disconnected"}), 503
+            return jsonify({"status": "not_ready", "database": db_res.get("database", "disconnected")}), 503
 
     @app.route("/live")
     def live():
