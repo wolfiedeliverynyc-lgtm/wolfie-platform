@@ -6,6 +6,9 @@ import json
 class AICostMonitor:
     # Costs per 1 million tokens (in USD)
     MODEL_RATES = {
+        'gemini-3.6-flash':      {'input': 0.075, 'output': 0.30},
+        'gemini-3.5-flash':      {'input': 0.075, 'output': 0.30},
+        'gemini-3.5-flash-lite': {'input': 0.03, 'output': 0.12},
         'gemini-2.5-flash-lite': {'input': 0.25, 'output': 1.50},
         'gemini-2.5-flash':      {'input': 0.075, 'output': 0.30}, # Gemini 2.5 Flash is highly optimized and cheap
         'gemini-2.5-pro':        {'input': 2.00, 'output': 12.00},

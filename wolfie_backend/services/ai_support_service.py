@@ -108,7 +108,7 @@ class AISupportService:
         }
         
         res = cls.call_gemini_api(
-            model_name="gemini-2.0-flash",
+            model_name="gemini-3.5-flash",
             system_instruction=system_instruction,
             prompt=f"Classify this message: '{message}'",
             schema=schema
@@ -165,7 +165,7 @@ class AISupportService:
             
         system_instruction = "Summarize the key events and resolution status of the support conversation in a single short paragraph."
         res = cls.call_gemini_api(
-            model_name="gemini-2.0-flash",
+            model_name="gemini-3.5-flash",
             system_instruction=system_instruction,
             prompt=f"Summarize this conversation so far:\n{history_text}"
         )
@@ -214,9 +214,9 @@ class AISupportService:
                 
                 # 6. Model selection
                 if intent == "refund_request":
-                    model_name = "gemini-2.0-flash"
+                    model_name = "gemini-3.5-flash"
                 else:
-                    model_name = "gemini-2.0-flash"
+                    model_name = "gemini-3.5-flash"
                     
                 # 7. Context building (Function simulation / context tools)
                 # Retrieve relevant contextual details based on intent
