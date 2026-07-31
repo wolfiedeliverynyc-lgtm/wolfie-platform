@@ -235,3 +235,50 @@ def revenue_summary():
     with get_db_session() as session:
         repo = OrderRepository(session)
         return jsonify(repo.revenue_summary()), 200
+
+
+@admin_bp.route("/metrics-summary", methods=["GET"])
+@require_auth(roles=["admin"])
+def metrics_summary():
+    from services.metrics import (
+        system_cpu, system_ram, system_disk, system_open_fds, system_uptime,
+        redis_mem, redis_clients, redis_ping_latency, redis_queue_size,
+        db_pool_size, db_pool_checked_out, db_pool_overflow,
+        update_system_metrics, update_redis_metrics
+    )
+    from flask import current_app
+    from database import health_check
+
+    def _val(gauge):
+        try:
+            return gauge._value.get()
+        except Exception:
+            return 0
+
+    # Update metrics
+    update_system_metrics()
+    redis_inst = getattr(current_app, "redis", None)
+    update_redis_metrics(redis_inst)
+
+    return jsonify({
+        "status": "success",
+        "system": {
+            "cpu_usage_percent": _val(system_cpu),
+            "memory_usage_percent": _val(system_ram),
+            "disk_usage_percent": _val(system_disk),
+            "open_file_descriptors": _val(system_open_fds),
+            "uptime_seconds": _val(system_uptime)
+        },
+        "redis": {
+            "used_memory_bytes": _val(redis_mem),
+            "connected_clients": _val(redis_clients),
+            "latency_seconds": _val(redis_ping_latency),
+            "queue_size": _val(redis_queue_size)
+        },
+        "database": {
+            "pool_size": _val(db_pool_size),
+            "pool_checked_out": _val(db_pool_checked_out),
+            "pool_overflow": _val(db_pool_overflow),
+            "health": health_check()
+        }
+    }), 200

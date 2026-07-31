@@ -16,28 +16,8 @@ import {
   Legend
 } from "recharts";
 
-const HOURLY_ORDER_DATA = [
-  { hour: "08:00", orders: 12, slaRate: 98 },
-  { hour: "10:00", orders: 24, slaRate: 96 },
-  { hour: "12:00", orders: 48, slaRate: 91 },
-  { hour: "14:00", orders: 35, slaRate: 93 },
-  { hour: "16:00", orders: 20, slaRate: 95 },
-  { hour: "18:00", orders: 55, slaRate: 89 },
-  { hour: "20:00", orders: 72, slaRate: 85 },
-  { hour: "22:00", orders: 30, slaRate: 94 },
-];
-
-const ZONE_DISTRIBUTION_DATA = [
-  { name: "Algiers Centre", active: 18, idle: 6 },
-  { name: "El Biar",        active: 12, idle: 3 },
-  { name: "Bab Ezzouar",    active: 9,  idle: 4 },
-  { name: "Hussein Dey",    active: 6,  idle: 2 },
-  { name: "Kouba",          active: 8,  idle: 3 },
-  { name: "Ain Taya",       active: 4,  idle: 1 },
-];
-
 export default function AnalyticsIntelligencePage() {
-  const { orders, fetchDashboardData } = useDashboardStore();
+  const { orders, drivers, fetchDashboardData } = useDashboardStore();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -48,11 +28,76 @@ export default function AnalyticsIntelligencePage() {
     return () => clearTimeout(timer);
   }, [fetchDashboardData]);
 
+  // Dynamically compute hourly order distribution and traffic spikes
+  const hourlyOrderData = useMemo(() => {
+    const hours = ["08:00", "10:00", "12:00", "14:00", "16:00", "18:00", "20:00", "22:00"];
+    const buckets = hours.map(h => ({ hour: h, orders: 0, completed: 0, cancelled: 0 }));
+
+    orders.forEach(o => {
+      if (!o.created_at) return;
+      const date = new Date(o.created_at);
+      const h = date.getUTCHours();
+      
+      let bucketIdx = 0;
+      if (h >= 22) bucketIdx = 7;
+      else if (h >= 20) bucketIdx = 6;
+      else if (h >= 18) bucketIdx = 5;
+      else if (h >= 16) bucketIdx = 4;
+      else if (h >= 14) bucketIdx = 3;
+      else if (h >= 12) bucketIdx = 2;
+      else if (h >= 10) bucketIdx = 1;
+      else bucketIdx = 0;
+
+      buckets[bucketIdx].orders += 1;
+      if (o.status === "completed" || o.status === "delivered") {
+        buckets[bucketIdx].completed += 1;
+      } else if (o.status === "cancelled") {
+        buckets[bucketIdx].cancelled += 1;
+      }
+    });
+
+    return buckets.map(b => {
+      const totalFulfill = b.completed + b.cancelled;
+      const slaRate = totalFulfill > 0 ? Math.round((b.completed / totalFulfill) * 100) : 95;
+      return {
+        hour: b.hour,
+        orders: b.orders,
+        slaRate
+      };
+    });
+  }, [orders]);
+
+  // Dynamically compute zone distribution and idle driver counts
+  const zoneDistributionData = useMemo(() => {
+    const zones = ["Algiers Centre", "El Biar", "Bab Ezzouar", "Hussein Dey", "Kouba", "Ain Taya"];
+    const dataMap: Record<string, { active: number; idle: number }> = {};
+    zones.forEach(z => {
+      dataMap[z] = { active: 0, idle: 0 };
+    });
+
+    drivers.forEach(d => {
+      const z = d.zone || "Algiers Centre";
+      if (!dataMap[z]) {
+        dataMap[z] = { active: 0, idle: 0 };
+      }
+      if (d.status === "preparing" || d.status === "delivering") {
+        dataMap[z].active += 1;
+      } else if (d.status === "available") {
+        dataMap[z].idle += 1;
+      }
+    });
+
+    return Object.entries(dataMap).map(([name, counts]) => ({
+      name,
+      active: counts.active,
+      idle: counts.idle
+    }));
+  }, [drivers]);
+
   // SLA Performance Calculation
   const slaTargetRate = useMemo(() => {
-    // Return mock SLA rate or live calculated rate
     const cancelledCount = orders.filter(o => o.status === 'cancelled').length;
-    const completedCount = orders.filter(o => o.status === 'completed').length;
+    const completedCount = orders.filter(o => o.status === 'completed' || o.status === 'delivered').length;
     const total = completedCount + cancelledCount;
     if (total === 0) return 92;
     return Math.round((completedCount / total) * 100);
@@ -111,7 +156,7 @@ export default function AnalyticsIntelligencePage() {
             </div>
             <div style={{ width: "100%", height: 260 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={HOURLY_ORDER_DATA}>
+                <AreaChart data={hourlyOrderData}>
                   <defs>
                     <linearGradient id="colorOrders" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.2}/>
@@ -135,7 +180,7 @@ export default function AnalyticsIntelligencePage() {
             </div>
             <div style={{ width: "100%", height: 260 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={HOURLY_ORDER_DATA}>
+                <LineChart data={hourlyOrderData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                   <XAxis dataKey="hour" stroke="var(--text-muted)" fontSize={11} />
                   <YAxis domain={[70, 100]} stroke="var(--text-muted)" fontSize={11} />
@@ -158,7 +203,7 @@ export default function AnalyticsIntelligencePage() {
             </div>
             <div style={{ width: "100%", height: 260 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={ZONE_DISTRIBUTION_DATA}>
+                <BarChart data={zoneDistributionData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                   <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={10} />
                   <YAxis stroke="var(--text-muted)" fontSize={11} />

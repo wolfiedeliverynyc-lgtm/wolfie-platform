@@ -136,9 +136,24 @@ def create_app(config_name: str = None) -> Flask:
     }})
     socketio.init_app(app)
 
+    # ── Prometheus Exporter ───────────────────
+    from prometheus_flask_exporter import PrometheusMetrics
+    metrics = PrometheusMetrics(app, path="/metrics")
+
+    @app.before_request
+    def update_custom_gauges():
+        if request.path == "/metrics":
+            from services.metrics import update_system_metrics, update_redis_metrics
+            update_system_metrics()
+            redis_inst = getattr(current_app, "redis", None)
+            update_redis_metrics(redis_inst)
+
     # ── Database (Supabase) ───────────────────
     from database import init_db, health_check
-    init_db(app)
+    engine = init_db(app)
+
+    from services.metrics import setup_db_metrics
+    setup_db_metrics(engine)
 
     # ── Redis ─────────────────────────────────
     try:

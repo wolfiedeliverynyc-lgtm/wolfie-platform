@@ -48,6 +48,7 @@ interface DashboardState {
   fetchRefunds: () => Promise<void>;
   fetchFlags: () => Promise<void>;
   fetchAiMetrics: () => Promise<void>;
+  fetchSystemStatus: () => Promise<void>;
 
   // Mutative Actions (API Calls + Local Store Updates)
   addOrder: (order: Order) => void;
@@ -110,15 +111,6 @@ const MOCK_ALERTS: OperationalAlert[] = [];
 const MOCK_ZONE_STATS: Array<{ zone: string; orders: number; pct: number }> = [];
 const MOCK_ACTIVITY: ActivityItem[] = [];
 
-const MOCK_SYSTEM_STATUS: SystemStatusItem[] = [
-  { label: "Order Service",       value: "Healthy",  up: true  },
-  { label: "Driver Tracking",      value: "Healthy",  up: true  },
-  { label: "Payment Gateway",      value: "Healthy",  up: true  },
-  { label: "Notification Service", value: "Healthy",  up: true  },
-  { label: "Merchant API",         value: "Healthy",  up: true  },
-  { label: "Analytics Pipeline",   value: "Healthy",  up: true  },
-];
-
 export const useDashboardStore = create<DashboardState>((set, get) => ({
   orders: MOCK_ORDERS,
   drivers: MOCK_DRIVERS,
@@ -129,7 +121,7 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
   alerts: MOCK_ALERTS,
   zoneStats: MOCK_ZONE_STATS,
   activityFeed: MOCK_ACTIVITY,
-  systemStatus: MOCK_SYSTEM_STATUS,
+  systemStatus: [],
   merchants: MOCK_MERCHANTS,
   isLoading: false,
   error: null,
@@ -145,7 +137,8 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
         get().fetchRefunds(),
         get().fetchFlags(),
         get().fetchAiMetrics(),
-        get().fetchMerchants()
+        get().fetchMerchants(),
+        get().fetchSystemStatus()
       ]);
       set({ isLoading: false });
     } catch (err: unknown) {
@@ -160,15 +153,33 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
       const data = res.data;
       const rawList = Array.isArray(data) 
         ? data 
-        : (data.orders || data.data || MOCK_ORDERS);
+        : (data.orders || data.data);
+      if (!rawList) {
+        throw new Error("Invalid response format for orders");
+      }
       const ordersList: Order[] = rawList.map((o: any) => ({
         ...o,
         amount: o.amount !== undefined ? o.amount : (o.total || 0),
         currency: o.currency || "DA"
       }));
-      set({ orders: ordersList });
-    } catch (err) {
-      console.warn("API fallback to mock orders:", err);
+
+      // Calculate zoneStats dynamically from real orders
+      const zones = ordersList.map(o => o.zone || "Algiers Centre");
+      const zoneCounts: Record<string, number> = {};
+      zones.forEach(z => {
+        zoneCounts[z] = (zoneCounts[z] || 0) + 1;
+      });
+      const maxCount = Math.max(...Object.values(zoneCounts), 1);
+      const zoneStatsList = Object.entries(zoneCounts).map(([zone, count]) => ({
+        zone,
+        orders: count,
+        pct: Math.round((count / maxCount) * 100)
+      })).sort((a, b) => b.orders - a.orders);
+
+      set({ orders: ordersList, zoneStats: zoneStatsList, error: null });
+    } catch (err: any) {
+      console.error("API failed to fetch orders:", err);
+      set({ error: err.message || "Failed to fetch orders" });
     }
   },
 
@@ -195,9 +206,13 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
         kyc_documents?: any;
       }
 
-      const driversList = (Array.isArray(data) 
+      const rawList = Array.isArray(data) 
         ? data 
-        : (data.drivers || data.data || MOCK_DRIVERS)) as RawDriverPayload[];
+        : (data.drivers || data.data);
+      if (!rawList) {
+        throw new Error("Invalid response format for drivers");
+      }
+      const driversList = rawList as RawDriverPayload[];
       
       // Map backend fields if needed
       const normalizedDrivers = driversList.map((d: RawDriverPayload) => ({
@@ -214,9 +229,10 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
         kyc_status: d.kyc_status || 'not_started',
         kyc_documents: d.kyc_documents || {}
       }));
-      set({ drivers: normalizedDrivers });
-    } catch (err) {
-      console.warn("API fallback to mock drivers:", err);
+      set({ drivers: normalizedDrivers, error: null });
+    } catch (err: any) {
+      console.error("API failed to fetch drivers:", err);
+      set({ error: err.message || "Failed to fetch drivers" });
     }
   },
 
@@ -226,10 +242,14 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
       const data = res.data;
       const list: SupportTicket[] = Array.isArray(data) 
         ? data 
-        : (data.tickets || data.data || MOCK_TICKETS);
-      set({ tickets: list });
-    } catch (err) {
-      console.warn("API fallback to mock tickets:", err);
+        : (data.tickets || data.data);
+      if (!list) {
+        throw new Error("Invalid response format for support tickets");
+      }
+      set({ tickets: list, error: null });
+    } catch (err: any) {
+      console.error("API failed to fetch tickets:", err);
+      set({ error: err.message || "Failed to fetch tickets" });
     }
   },
 
@@ -239,10 +259,14 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
       const data = res.data;
       const list: RefundRequest[] = Array.isArray(data) 
         ? data 
-        : (data.refunds || data.data || MOCK_REFUNDS);
-      set({ refunds: list });
-    } catch (err) {
-      console.warn("API fallback to mock refunds:", err);
+        : (data.refunds || data.data);
+      if (!list) {
+        throw new Error("Invalid response format for refunds");
+      }
+      set({ refunds: list, error: null });
+    } catch (err: any) {
+      console.error("API failed to fetch refunds:", err);
+      set({ error: err.message || "Failed to fetch refunds" });
     }
   },
 
@@ -252,10 +276,14 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
       const data = res.data;
       const list: FraudFlag[] = Array.isArray(data) 
         ? data 
-        : (data.flags || data.data || MOCK_FLAGS);
-      set({ flags: list });
-    } catch (err) {
-      console.warn("API fallback to mock flags:", err);
+        : (data.flags || data.data);
+      if (!list) {
+        throw new Error("Invalid response format for fraud flags");
+      }
+      set({ flags: list, error: null });
+    } catch (err: any) {
+      console.error("API failed to fetch fraud flags:", err);
+      set({ error: err.message || "Failed to fetch fraud flags" });
     }
   },
 
@@ -265,10 +293,37 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
       const data = res.data;
       const list: WAPModelMetrics[] = Array.isArray(data) 
         ? data 
-        : (data.metrics || data.data || MOCK_AI_METRICS);
-      set({ aiMetrics: list });
+        : (data.metrics || data.data);
+      if (!list) {
+        throw new Error("Invalid response format for AI metrics");
+      }
+      set({ aiMetrics: list, error: null });
+    } catch (err: any) {
+      console.error("API failed to fetch AI metrics:", err);
+      set({ error: err.message || "Failed to fetch AI metrics" });
+    }
+  },
+
+  fetchSystemStatus: async () => {
+    try {
+      const res = await api.get('/health');
+      const data = res.data;
+      const dbStatus = data.database?.status === 'ok';
+      const redisStatus = data.redis?.status === 'ok';
+      const systemStatusList: SystemStatusItem[] = [
+        { label: "Backend API", value: "Healthy", up: true },
+        { label: "Database Connection", value: dbStatus ? "Healthy" : "Degraded", up: dbStatus },
+        { label: "Redis Cache Service", value: redisStatus ? "Healthy" : "Disabled/Degraded", up: redisStatus },
+      ];
+      set({ systemStatus: systemStatusList });
     } catch (err) {
-      console.warn("API fallback to mock AI metrics:", err);
+      set({
+        systemStatus: [
+          { label: "Backend API", value: "Offline", up: false },
+          { label: "Database Connection", value: "Offline", up: false },
+          { label: "Redis Cache Service", value: "Offline", up: false },
+        ]
+      });
     }
   },
 
@@ -670,7 +725,10 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
     try {
       const res = await api.get('/admin/restaurants');
       const data = res.data;
-      const rawList = Array.isArray(data) ? data : (data.restaurants || data.data || []);
+      const rawList = Array.isArray(data) ? data : (data.restaurants || data.data);
+      if (!rawList) {
+        throw new Error("Invalid response format for merchants");
+      }
       const mapped: Merchant[] = rawList.map((r: any) => ({
         id: r.id,
         name: r.restaurant_name || r.full_name || "Merchant",
@@ -683,12 +741,10 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
         kyc_status: r.kyc_status || 'not_started',
         kyc_documents: r.kyc_documents || {}
       }));
-      set({ merchants: mapped });
-    } catch (err) {
-      console.warn("API fallback to mock merchants:", err);
-      if (get().merchants.length === 0) {
-        set({ merchants: MOCK_MERCHANTS });
-      }
+      set({ merchants: mapped, error: null });
+    } catch (err: any) {
+      console.error("API failed to fetch merchants:", err);
+      set({ error: err.message || "Failed to fetch merchants" });
     }
   },
 

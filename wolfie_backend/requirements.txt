@@ -53,3 +53,5 @@ pydantic==2.7.4
 # Monitoring
 sentry-sdk[flask]==2.12.0
 google-generativeai==0.8.6
+prometheus-flask-exporter==0.23.0
+psutil==5.9.8
