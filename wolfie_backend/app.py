@@ -499,7 +499,24 @@ def _setup_logging(app: Flask):
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S"
     )
-    logging.getLogger("wolfie").setLevel(level)
+    logger = logging.getLogger("wolfie")
+    logger.setLevel(level)
+
+    loki_url = os.getenv("LOKI_URL")
+    if loki_url:
+        try:
+            from services.loki_logger import LokiHandler
+            labels = {
+                "service": "wolfie-backend",
+                "environment": os.getenv("FLASK_ENV", "production")
+            }
+            loki_handler = LokiHandler(url=loki_url, labels=labels, level=level)
+            formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+            loki_handler.setFormatter(formatter)
+            logging.getLogger().addHandler(loki_handler)
+            logger.info("✅ Loki Centralized Logging handler active")
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to initialize Loki logger: {e}")
 
 
 # ──────────────────────────────────────────────────────────────
