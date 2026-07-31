@@ -461,12 +461,14 @@ export default function HomePage() {
       setProfilePhone(user.phone || '');
       setProfilePreferFood(user.dietary_preferences || []);
       setProfileAllergies(user.allergy_preferences || []);
+      setProfilePicture(user.profile_picture || '/assets/avatar.png');
     } else {
       setProfileName('');
       setProfileEmail('');
       setProfilePhone('');
       setProfilePreferFood([]);
       setProfileAllergies([]);
+      setProfilePicture('/assets/avatar.png');
     }
   }, [user]);
 
@@ -725,6 +727,7 @@ export default function HomePage() {
         setProfilePhone(profileRes.data.phone || '');
         setProfilePreferFood(profileRes.data.dietary_preferences || []);
         setProfileAllergies(profileRes.data.allergy_preferences || []);
+        setProfilePicture(profileRes.data.profile_picture || '/assets/avatar.png');
       } else {
         setProfileName(res.data.full_name || res.data.email || email);
         setProfileEmail(email);
@@ -1809,6 +1812,7 @@ export default function HomePage() {
           setProfilePhone(profileRes.data.phone || '');
           setProfilePreferFood(profileRes.data.dietary_preferences || []);
           setProfileAllergies(profileRes.data.allergy_preferences || []);
+          setProfilePicture(profileRes.data.profile_picture || '/assets/avatar.png');
         }
         connectSocket();
       }

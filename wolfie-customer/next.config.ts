@@ -22,4 +22,4 @@ export default withSentryConfig(pwaConfig, {
   widenClientFileUpload: true,
   disableServerWebpackPlugin: !process.env.SENTRY_AUTH_TOKEN,
   disableClientWebpackPlugin: !process.env.SENTRY_AUTH_TOKEN,
-});
+} as any);
