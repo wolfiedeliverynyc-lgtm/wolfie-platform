@@ -35,7 +35,7 @@ class MapboxClient:
         Returns: {distance_km, duration_min, pickup_coords, geometry}
         """
         if self._mock:
-            return self._mock_route()
+            raise RuntimeError("Mapbox token is not configured. Cannot compute real route or coordinates.")
 
         try:
             # Geocode if address strings given
@@ -78,32 +78,33 @@ class MapboxClient:
             }
 
         except Exception as e:
-            logger.warning(f"Mapbox get_route failed: {e} — using mock")
-            return self._mock_route()
+            logger.error(f"Mapbox get_route failed: {e}")
+            raise RuntimeError(f"Could not compute route: {e}")
 
     # ── Geocode ───────────────────────────────
 
     def geocode(self, address: str) -> dict:
         """Forward geocode: address → {lat, lng}"""
         if self._mock:
-            return {"lat": 36.7525, "lng": 3.0588}   # Algiers Centre default
+            raise RuntimeError("Mapbox token is not configured. Cannot geocode real addresses.")
 
         try:
             encoded = requests.utils.quote(address)
             url     = (
                 f"{MAPBOX_BASE}/geocoding/v5/mapbox.places/{encoded}.json"
                 f"?access_token={self.token}&limit=1"
-                f"&proximity=3.0588,36.7525"   # bias toward Algiers Centre
             )
             resp = requests.get(url, timeout=5)
             resp.raise_for_status()
             data    = resp.json()
+            if not data.get("features"):
+                raise ValueError(f"No geocoding results for address: {address}")
             feature = data["features"][0]
             coords  = feature["geometry"]["coordinates"]
             return {"lat": coords[1], "lng": coords[0], "place_name": feature["place_name"]}
         except Exception as e:
-            logger.warning(f"Mapbox geocode failed: {e}")
-            return {"lat": 36.7525, "lng": 3.0588}
+            logger.error(f"Mapbox geocode failed for '{address}': {e}")
+            raise RuntimeError(f"Could not geocode address '{address}': {e}")
 
     # ── Reverse Geocode ───────────────────────
 

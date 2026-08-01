@@ -44,15 +44,29 @@ export default function MapComponent({
   // Read merchants state directly from Zustand for real-time operations overlay
   const merchants = useDashboardStore((state) => state.merchants);
 
+  // Compute the real center from actual driver GPS coordinates
+  const computeRealCenter = (): [number, number] => {
+    const realDrivers = drivers.filter(d => d.lat != null && d.lng != null);
+    if (realDrivers.length > 0) {
+      const avgLat = realDrivers.reduce((sum, d) => sum + d.lat!, 0) / realDrivers.length;
+      const avgLng = realDrivers.reduce((sum, d) => sum + d.lng!, 0) / realDrivers.length;
+      return [avgLat, avgLng];
+    }
+    // No real GPS data yet — show a world-level view centered on 0,0
+    // The map will auto-zoom to markers once data arrives
+    return [20, 0];
+  };
+
   // Initialize Map
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
 
-    // Algiers Center
-    const center: [number, number] = [36.7525, 3.0588];
+    const center = computeRealCenter();
+    const hasRealData = drivers.some(d => d.lat != null && d.lng != null);
+
     const map = L.map(mapContainerRef.current, {
       center,
-      zoom: 12.5,
+      zoom: hasRealData ? 13 : 2,
       zoomControl: false
     });
 
@@ -74,6 +88,18 @@ export default function MapComponent({
       }
     };
   }, []);
+
+  // Auto-pan to real data center whenever drivers with GPS load in
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const realDrivers = drivers.filter(d => d.lat != null && d.lng != null);
+    if (realDrivers.length > 0) {
+      const avgLat = realDrivers.reduce((sum, d) => sum + d.lat!, 0) / realDrivers.length;
+      const avgLng = realDrivers.reduce((sum, d) => sum + d.lng!, 0) / realDrivers.length;
+      map.setView([avgLat, avgLng], 13, { animate: true });
+    }
+  }, [drivers]);
 
   // Helpers for coordinates
   const getMerchantCoords = (merchantId: string | undefined, zone: string | undefined): [number, number] => {
