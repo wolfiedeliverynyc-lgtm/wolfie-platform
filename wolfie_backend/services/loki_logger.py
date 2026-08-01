@@ -85,8 +85,12 @@ class LokiHandler(logging.Handler):
                 }
                 if self.auth:
                     kwargs["auth"] = self.auth
-                    
-                requests.post(self.url, **kwargs)
-            except Exception:
-                # Silently drop failed logs to prevent crashing the main app
-                pass
+                
+                res = requests.post(self.url, **kwargs)
+                if res.status_code >= 400:
+                    import sys
+                    print(f"⚠️ Loki push failed with status {res.status_code}: {res.text}", file=sys.stderr)
+            except Exception as e:
+                import sys
+                print(f"⚠️ Loki push error: {e}", file=sys.stderr)
+
