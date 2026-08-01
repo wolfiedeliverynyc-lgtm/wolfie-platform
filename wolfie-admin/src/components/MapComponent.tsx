@@ -44,7 +44,7 @@ export default function MapComponent({
   // Read merchants state directly from Zustand for real-time operations overlay
   const merchants = useDashboardStore((state) => state.merchants);
 
-  // Compute the real center from actual driver GPS coordinates
+  // Compute the real center from actual driver or order coordinates
   const computeRealCenter = (): [number, number] => {
     const realDrivers = drivers.filter(d => d.lat != null && d.lng != null);
     if (realDrivers.length > 0) {
@@ -52,9 +52,14 @@ export default function MapComponent({
       const avgLng = realDrivers.reduce((sum, d) => sum + d.lng!, 0) / realDrivers.length;
       return [avgLat, avgLng];
     }
-    // No real GPS data yet — show a world-level view centered on 0,0
-    // The map will auto-zoom to markers once data arrives
-    return [20, 0];
+    const realOrders = orders.filter((o: any) => o.pickup_lat != null && o.pickup_lng != null);
+    if (realOrders.length > 0) {
+      const avgLat = realOrders.reduce((sum, o: any) => sum + o.pickup_lat!, 0) / realOrders.length;
+      const avgLng = realOrders.reduce((sum, o: any) => sum + o.pickup_lng!, 0) / realOrders.length;
+      return [avgLat, avgLng];
+    }
+    // Default fallback to Algiers Centre
+    return [36.7525, 3.0588];
   };
 
   // Initialize Map
@@ -62,11 +67,11 @@ export default function MapComponent({
     if (!mapContainerRef.current || mapRef.current) return;
 
     const center = computeRealCenter();
-    const hasRealData = drivers.some(d => d.lat != null && d.lng != null);
+    const hasRealData = drivers.some(d => d.lat != null && d.lng != null) || orders.some((o: any) => o.pickup_lat != null && o.pickup_lng != null);
 
     const map = L.map(mapContainerRef.current, {
       center,
-      zoom: hasRealData ? 13 : 2,
+      zoom: hasRealData ? 13 : 12.5,
       zoomControl: false
     });
 
@@ -89,7 +94,7 @@ export default function MapComponent({
     };
   }, []);
 
-  // Auto-pan to real data center whenever drivers with GPS load in
+  // Auto-pan to real data center whenever drivers or orders with GPS load in
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -98,8 +103,15 @@ export default function MapComponent({
       const avgLat = realDrivers.reduce((sum, d) => sum + d.lat!, 0) / realDrivers.length;
       const avgLng = realDrivers.reduce((sum, d) => sum + d.lng!, 0) / realDrivers.length;
       map.setView([avgLat, avgLng], 13, { animate: true });
+      return;
     }
-  }, [drivers]);
+    const realOrders = orders.filter((o: any) => o.pickup_lat != null && o.pickup_lng != null);
+    if (realOrders.length > 0) {
+      const avgLat = realOrders.reduce((sum, o: any) => sum + o.pickup_lat!, 0) / realOrders.length;
+      const avgLng = realOrders.reduce((sum, o: any) => sum + o.pickup_lng!, 0) / realOrders.length;
+      map.setView([avgLat, avgLng], 13, { animate: true });
+    }
+  }, [drivers, orders]);
 
   // Helpers for coordinates — always prefer real GPS coords stored on the record
   const getMerchantCoords = (order: Order): [number, number] | null => {
