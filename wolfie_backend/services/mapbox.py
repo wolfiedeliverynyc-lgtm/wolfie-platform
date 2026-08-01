@@ -86,14 +86,14 @@ class MapboxClient:
     def geocode(self, address: str) -> dict:
         """Forward geocode: address → {lat, lng}"""
         if self._mock:
-            return {"lat": 40.7128, "lng": -74.0060}   # NYC default
+            return {"lat": 36.7525, "lng": 3.0588}   # Algiers Centre default
 
         try:
             encoded = requests.utils.quote(address)
             url     = (
                 f"{MAPBOX_BASE}/geocoding/v5/mapbox.places/{encoded}.json"
                 f"?access_token={self.token}&limit=1"
-                f"&proximity=-73.9566,40.7128"   # bias toward Brooklyn
+                f"&proximity=3.0588,36.7525"   # bias toward Algiers Centre
             )
             resp = requests.get(url, timeout=5)
             resp.raise_for_status()
@@ -103,14 +103,14 @@ class MapboxClient:
             return {"lat": coords[1], "lng": coords[0], "place_name": feature["place_name"]}
         except Exception as e:
             logger.warning(f"Mapbox geocode failed: {e}")
-            return {"lat": 40.7128, "lng": -74.0060}
+            return {"lat": 36.7525, "lng": 3.0588}
 
     # ── Reverse Geocode ───────────────────────
 
     def reverse_geocode(self, lat: float, lng: float) -> str:
         """Coordinates → address string"""
         if self._mock:
-            return "Brooklyn, New York, NY"
+            return "Algiers Centre, Algiers"
 
         try:
             url  = (
@@ -181,10 +181,10 @@ class MapboxClient:
     # ── Geofence check ────────────────────────
 
     def is_in_brooklyn(self, lat: float, lng: float) -> bool:
-        """Simple bounding box check for Brooklyn"""
+        """Simple bounding box check for Algiers (formerly Brooklyn)"""
         return (
-            40.5700 <= lat <= 40.7390 and
-            -74.0420 <= lng <= -73.8330
+            36.7000 <= lat <= 36.8000 and
+            2.9000 <= lng <= 3.2000
         )
 
     # ── Static map ────────────────────────────
@@ -215,7 +215,7 @@ class MapboxClient:
         return {
             "distance_km":   2.3,
             "duration_min":  18,
-            "pickup_coords": {"lat": 40.7128, "lng": -73.9866},
-            "delivery_coords": {"lat": 40.7250, "lng": -73.9600},
+            "pickup_coords": {"lat": 36.7525, "lng": 3.0588},
+            "delivery_coords": {"lat": 36.7275, "lng": 3.0861},
             "geometry":      None,
         }
