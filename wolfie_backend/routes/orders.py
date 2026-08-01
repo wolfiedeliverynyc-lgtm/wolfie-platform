@@ -231,6 +231,19 @@ def create_order():
             logger.warning(f"Mapbox fallback: {e}")
 
     subtotal = sum(i.get("price", 0) * i.get("quantity", 1) for i in data["items"])
+    
+    # Inject client-provided coordinates if backend Mapbox geocoding was skipped or failed
+    if data.get("delivery_lat") is not None and data.get("delivery_lng") is not None:
+        if "delivery_coords" not in route_info:
+            route_info["delivery_coords"] = {}
+        route_info["delivery_coords"]["lat"] = data["delivery_lat"]
+        route_info["delivery_coords"]["lng"] = data["delivery_lng"]
+    if data.get("pickup_lat") is not None and data.get("pickup_lng") is not None:
+        if "pickup_coords" not in route_info:
+            route_info["pickup_coords"] = {}
+        route_info["pickup_coords"]["lat"] = data["pickup_lat"]
+        route_info["pickup_coords"]["lng"] = data["pickup_lng"]
+
     pricing  = _calc_pricing(svc, subtotal, route_info, data)
 
     assigned_driver = None

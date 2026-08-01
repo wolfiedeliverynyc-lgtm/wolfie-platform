@@ -209,7 +209,7 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
           else if (addr.includes("hussein dey") || pAddr.includes("hussein dey")) resolvedZone = "Hussein Dey";
           else if (addr.includes("kouba") || pAddr.includes("kouba")) resolvedZone = "Kouba";
           else if (addr.includes("ain taya") || pAddr.includes("ain taya")) resolvedZone = "Ain Taya";
-          else resolvedZone = "Algiers Centre";
+          else resolvedZone = null;
         }
 
         return {
@@ -224,8 +224,8 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
         };
       }));
 
-      // Calculate zoneStats dynamically from real orders
-      const zones = ordersList.map(o => o.zone || "Algiers Centre");
+      // Calculate zoneStats dynamically from real orders (only real matched/saved zones)
+      const zones = ordersList.map(o => o.zone).filter((z): z is string => !!z);
       const zoneCounts: Record<string, number> = {};
       zones.forEach(z => {
         zoneCounts[z] = (zoneCounts[z] || 0) + 1;

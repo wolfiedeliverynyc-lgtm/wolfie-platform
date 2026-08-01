@@ -872,13 +872,38 @@ export default function HomePage() {
       quantity: item.quantity
     }));
 
+    // Geocode addresses client-side before sending order to API
+    let deliveryLat: number | undefined = undefined;
+    let deliveryLng: number | undefined = undefined;
+    let pickupLat: number | undefined = undefined;
+    let pickupLng: number | undefined = undefined;
+
+    try {
+      const deliveryCoords = await geocodeAddress(deliveryAddress);
+      if (deliveryCoords && deliveryCoords.length === 2) {
+        deliveryLng = deliveryCoords[0];
+        deliveryLat = deliveryCoords[1];
+      }
+      const pickupCoords = await geocodeAddress(selectedRestaurant.address);
+      if (pickupCoords && pickupCoords.length === 2) {
+        pickupLng = pickupCoords[0];
+        pickupLat = pickupCoords[1];
+      }
+    } catch (e) {
+      console.warn("Client geocoding failed on checkout", e);
+    }
+
     const orderPayload = {
       customer_id: customerId,
       restaurant_id: selectedRestaurant.id,
       items: itemsPayload,
       pickup_address: selectedRestaurant.address,
       delivery_address: deliveryAddress,
-      payment_method: 'cash'
+      payment_method: 'cash',
+      delivery_lat: deliveryLat,
+      delivery_lng: deliveryLng,
+      pickup_lat: pickupLat,
+      pickup_lng: pickupLng
     };
 
     const res = await apiRequest('/orders/', {

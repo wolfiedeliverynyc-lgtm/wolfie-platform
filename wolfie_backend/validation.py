@@ -52,6 +52,10 @@ class OrderCreateSchema(BaseModel):
     payment_method: Optional[str] = "stripe"
     customer_id: Optional[str] = None
     promo_code: Optional[str] = None
+    delivery_lat: Optional[float] = None
+    delivery_lng: Optional[float] = None
+    pickup_lat: Optional[float] = None
+    pickup_lng: Optional[float] = None
 
     @field_validator("payment_method")
     def validate_payment_method(cls, v):
