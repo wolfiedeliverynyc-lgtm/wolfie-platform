@@ -99,7 +99,7 @@ export default function MapComponent({
   };
 
   const getDriverCoords = (driver: Driver): [number, number] => {
-    if (driver.lat !== undefined && driver.lng !== undefined) {
+    if (driver.lat != null && driver.lng != null) {
       return [driver.lat, driver.lng];
     }
     const base = ZONE_COORDS[driver.zone] || ZONE_COORDS["Algiers Centre"];
