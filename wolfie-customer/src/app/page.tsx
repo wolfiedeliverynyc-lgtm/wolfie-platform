@@ -850,6 +850,20 @@ export default function HomePage() {
     setIsProcessingPayment(true);
     const activeCard = paymentCards.find(c => c.id === selectedCardId);
     const customerId = getAuthUserId() || 'guest_id';
+
+    // Require a real delivery address — never allow a hardcoded fallback
+    if (!deliveryAddress || deliveryAddress.trim().length < 5) {
+      setIsProcessingPayment(false);
+      alert('Please set your real delivery address before placing an order. Tap "Use GPS" or enter your address manually.');
+      return;
+    }
+
+    // Require a restaurant address — never allow a hardcoded fallback
+    if (!selectedRestaurant.address || selectedRestaurant.address.trim().length < 5) {
+      setIsProcessingPayment(false);
+      alert('Restaurant address is not available. Please try again or contact support.');
+      return;
+    }
     
     const itemsPayload = cartItems.map(item => ({
       id: item.foodItem.id,
@@ -862,8 +876,8 @@ export default function HomePage() {
       customer_id: customerId,
       restaurant_id: selectedRestaurant.id,
       items: itemsPayload,
-      pickup_address: selectedRestaurant.address || '123 Main St, New York, NY',
-      delivery_address: deliveryAddress || '123 Main St, NY',
+      pickup_address: selectedRestaurant.address,
+      delivery_address: deliveryAddress,
       payment_method: 'cash'
     };
 
@@ -1062,7 +1076,7 @@ export default function HomePage() {
   const desktopMapContainerRef = useRef<HTMLDivElement>(null);
   const desktopMapRef = useRef<any>(null);
   
-  const [driverCoords, setDriverCoords] = useState<number[]>([8.4410, 36.8990]);
+  const [driverCoords, setDriverCoords] = useState<number[] | null>(null);
   const [restaurantCoords, setRestaurantCoords] = useState<number[] | null>(null);
   const [clientCoords, setClientCoords] = useState<number[] | null>(null);
   const [routeCoordinates, setRouteCoordinates] = useState<number[][] | null>(null);
@@ -1255,7 +1269,7 @@ export default function HomePage() {
       elDriver.appendChild(carIcon);
       
       const driverMarker = new mapboxgl.Marker(elDriver)
-        .setLngLat(driverCoords || restaurantCoords)
+        .setLngLat(driverCoords ?? restaurantCoords)
         .addTo(map);
         
       driverMarkerRef.current = driverMarker;
@@ -2644,9 +2658,8 @@ export default function HomePage() {
                 },
                 (errorMsg) => {
                   setIsFetchingGPS(false);
-                  alert(`GPS failed: ${errorMsg}\nFalling back to simulated Times Square address.`);
-                  setAddressSearchInput('123 Times Square, New York, NY 10036');
-                  setShowAddressSuggestions(false);
+                  alert(`GPS Error: ${errorMsg}\nPlease enter your delivery address manually.`);
+                  // Do NOT set a fake address — leave field empty so user enters real one
                 }
               );
             }}
@@ -3927,9 +3940,8 @@ export default function HomePage() {
                             },
                             (errorMsg) => {
                               setIsFetchingLocation(false);
-                              alert(`GPS failed: ${errorMsg}\nFalling back to simulated Times Square address.`);
-                              setNewLocationName('Times Square');
-                              setNewLocationAddress('1560 Broadway, New York, NY 10036');
+                              alert(`GPS Error: ${errorMsg}\nPlease enter your address manually.`);
+                              // Do NOT set a fake address — leave field empty so user enters real one
                             }
                           );
                         }}
