@@ -101,39 +101,32 @@ export default function MapComponent({
     }
   }, [drivers]);
 
-  // Helpers for coordinates
-  const getMerchantCoords = (merchantId: string | undefined, zone: string | undefined): [number, number] => {
-    const safeZone = zone || "Algiers Centre";
-    const base = ZONE_COORDS[safeZone] || ZONE_COORDS["Algiers Centre"];
-    if (!merchantId) return base;
-    const seed = merchantId.charCodeAt(0) + (merchantId.charCodeAt(merchantId.length - 1) || 0);
-    return [
-      base[0] + (Math.sin(seed) * 0.006),
-      base[1] + (Math.cos(seed) * 0.006)
-    ];
+  // Helpers for coordinates — always prefer real GPS coords stored on the record
+  const getMerchantCoords = (order: Order): [number, number] | null => {
+    // Prefer real pickup coords on the order
+    const o = order as any;
+    if (o.pickup_lat != null && o.pickup_lng != null) return [o.pickup_lat, o.pickup_lng];
+    if (o.merchant_lat != null && o.merchant_lng != null) return [o.merchant_lat, o.merchant_lng];
+    // Fallback to ZONE_COORDS only if merchant zone label matches one we have
+    if (order.zone && ZONE_COORDS[order.zone]) return ZONE_COORDS[order.zone];
+    return null; // No coords available — skip this marker
   };
 
-  const getCustomerCoords = (customerId: string | undefined, zone: string | undefined): [number, number] => {
-    const safeZone = zone || "Algiers Centre";
-    const base = ZONE_COORDS[safeZone] || ZONE_COORDS["Algiers Centre"];
-    if (!customerId) return base;
-    const seed = customerId.charCodeAt(0) + (customerId.charCodeAt(customerId.length - 1) || 0);
-    return [
-      base[0] + (Math.sin(seed) * 0.016),
-      base[1] + (Math.cos(seed) * 0.016)
-    ];
-  };
-
-  const getDriverCoords = (driver: Driver): [number, number] => {
-    if (driver.lat != null && driver.lng != null) {
-      return [driver.lat, driver.lng];
+  const getCustomerCoords = (order: Order): [number, number] | null => {
+    const o = order as any;
+    if (o.delivery_lat != null && o.delivery_lng != null) return [o.delivery_lat, o.delivery_lng];
+    if (order.zone && ZONE_COORDS[order.zone]) {
+      // offset slightly so customer pin doesn't overlap restaurant
+      const base = ZONE_COORDS[order.zone];
+      const seed = (order.customer_id || order.id).charCodeAt(0);
+      return [base[0] + Math.sin(seed) * 0.016, base[1] + Math.cos(seed) * 0.016];
     }
-    const base = ZONE_COORDS[driver.zone] || ZONE_COORDS["Algiers Centre"];
-    const seed = driver.id.charCodeAt(0) + (driver.id.charCodeAt(driver.id.length - 1) || 0);
-    return [
-      base[0] + (Math.sin(seed) * 0.012),
-      base[1] + (Math.cos(seed) * 0.012)
-    ];
+    return null; // No coords available — skip this marker
+  };
+
+  const getDriverCoords = (driver: Driver): [number, number] | null => {
+    if (driver.lat != null && driver.lng != null) return [driver.lat, driver.lng];
+    return null; // Don't show driver with no real GPS
   };
 
   // Update Markers and lines
@@ -174,7 +167,9 @@ export default function MapComponent({
     // 2. Render Restaurants / Merchants
     if (viewMode === 'overview' || viewMode === 'orders' || selectedMerchantId) {
       merchants.forEach((merchant) => {
-        const coords = getMerchantCoords(merchant.id, merchant.zone);
+        const m = merchant as any;
+        if (!m.lat && !m.lng) return; // skip merchants with no real GPS
+        const coords: [number, number] = [m.lat, m.lng];
         const isSelected = selectedMerchantId === merchant.id;
         
         let statusColor = 'var(--status-green)';
@@ -241,12 +236,14 @@ export default function MapComponent({
       });
     }
 
-    // 3. Render Drivers
+    // 3. Render Drivers — only those with real GPS
     if (viewMode === 'overview' || viewMode === 'drivers' || selectedDriverId) {
       drivers.forEach((driver) => {
         if (driver.status === 'offline' && viewMode === 'drivers') return;
 
         const coords = getDriverCoords(driver);
+        if (!coords) return; // No real GPS — don't show a fake marker
+
         const isSelected = selectedDriverId === driver.id;
 
         const color = driver.status === 'delivering' ? 'var(--status-blue)' 
@@ -302,7 +299,7 @@ export default function MapComponent({
           .bindTooltip(`
             <div style="font-family: var(--font-sans); font-size: 11px; padding: 2px;">
               <b>${driver.name}</b> (${driver.status})<br/>
-              Zone: ${driver.zone} · Rating: ★ ${driver.rating}<br/>
+              ${driver.zone ? `Zone: ${driver.zone} · ` : ''}Rating: ★ ${driver.rating}<br/>
               ${driver.current_order_id ? `Active order: ${driver.current_order_id}` : 'Idle (Available)'}
             </div>
           `, { direction: 'top' })
@@ -320,14 +317,16 @@ export default function MapComponent({
       });
     }
 
-    // 4. Render Active Orders (Restaurant -> Customer) and Driver Polylines
+    // 4. Render Active Orders (Restaurant -> Customer) — only with real GPS coords
     orders.forEach((order) => {
       if (order.status === 'completed' || order.status === 'cancelled') return;
 
-      const merchantIdToUse = (order as any).restaurant_id || order.merchant_id || "unknown";
-      const restCoords = getMerchantCoords(merchantIdToUse, order.zone);
-      const custCoords = getCustomerCoords(order.customer_id, order.zone);
+      const restCoords = getMerchantCoords(order);
+      const custCoords = getCustomerCoords(order);
       const isSelected = selectedOrderId === order.id;
+
+      // Skip orders that have no real GPS coordinates yet
+      if (!restCoords || !custCoords) return;
 
       // Filter modes
       if (viewMode === 'drivers' && !isSelected) return;
@@ -400,16 +399,16 @@ export default function MapComponent({
         const driverObj = drivers.find(d => d.id === order.driver_id);
         if (driverObj) {
           const driverCoords = getDriverCoords(driverObj);
-          
-          // Only draw connection to merchant if not completed
-          L.polyline([driverCoords, restCoords], {
-            color: '#a855f7', // Purple dash line for driver pickup heading
-            weight: isSelected ? 3 : 1.5,
-            opacity: isSelected ? 0.8 : 0.35,
-            dashArray: '4, 6'
-          })
-          .bindTooltip(`Driver ${driverObj.name} heading to pickup`, { sticky: true })
-          .addTo(layer);
+          if (driverCoords) {
+            L.polyline([driverCoords, restCoords], {
+              color: '#a855f7',
+              weight: isSelected ? 3 : 1.5,
+              opacity: isSelected ? 0.8 : 0.35,
+              dashArray: '4, 6'
+            })
+            .bindTooltip(`Driver ${driverObj.name} heading to pickup`, { sticky: true })
+            .addTo(layer);
+          }
         }
       }
 

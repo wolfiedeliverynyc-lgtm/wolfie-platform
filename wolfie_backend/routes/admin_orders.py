@@ -47,7 +47,6 @@ def list_orders():
                 if cust:
                     o_dict["customer_name"] = cust.full_name
             
-            # Fetch merchant
             if getattr(o, "restaurant_id", None):
                 merch = users_by_id.get(o.restaurant_id)
                 if merch:
@@ -56,7 +55,15 @@ def list_orders():
                     o_dict["merchant_lat"] = getattr(merch, "latitude", None)
                     o_dict["merchant_lng"] = getattr(merch, "longitude", None)
                     zones = getattr(merch, "delivery_zones", [])
-                    o_dict["zone"] = zones[0] if zones and len(zones) > 0 else "Algiers Centre"
+                    o_dict["zone"] = zones[0] if zones and len(zones) > 0 else None
+
+            # Always expose real coordinates stored on the order itself
+            o_dict["pickup_lat"]   = getattr(o, "pickup_lat", None)
+            o_dict["pickup_lng"]   = getattr(o, "pickup_lng", None)
+            o_dict["delivery_lat"] = getattr(o, "delivery_lat", None)
+            o_dict["delivery_lng"] = getattr(o, "delivery_lng", None)
+            o_dict["pickup_address"]   = getattr(o, "pickup_address", None)
+            o_dict["delivery_address"] = getattr(o, "delivery_address", None)
                     
             # Fetch driver
             if getattr(o, "driver_id", None):
@@ -97,7 +104,15 @@ def get_order(order_id):
                 o_dict["merchant_lat"] = getattr(merch, "latitude", None)
                 o_dict["merchant_lng"] = getattr(merch, "longitude", None)
                 zones = getattr(merch, "delivery_zones", [])
-                o_dict["zone"] = zones[0] if zones and len(zones) > 0 else "Algiers Centre"
+                o_dict["zone"] = zones[0] if zones and len(zones) > 0 else None
+
+        # Always expose real coordinates stored on the order itself
+        o_dict["pickup_lat"]   = getattr(order, "pickup_lat", None)
+        o_dict["pickup_lng"]   = getattr(order, "pickup_lng", None)
+        o_dict["delivery_lat"] = getattr(order, "delivery_lat", None)
+        o_dict["delivery_lng"] = getattr(order, "delivery_lng", None)
+        o_dict["pickup_address"]   = getattr(order, "pickup_address", None)
+        o_dict["delivery_address"] = getattr(order, "delivery_address", None)
                 
         if getattr(order, "driver_id", None):
             driver = user_repo.get(order.driver_id)
