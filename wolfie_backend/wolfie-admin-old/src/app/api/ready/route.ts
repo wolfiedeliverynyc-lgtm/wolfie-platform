@@ -1,0 +1,9 @@
+import { NextResponse } from "next/server";
+
+export async function GET() {
+  return NextResponse.json({
+    status: "ready",
+    service: "wolfie-admin",
+    timestamp: new Date().toISOString()
+  });
+}

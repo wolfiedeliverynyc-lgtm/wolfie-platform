@@ -48,6 +48,7 @@ interface DashboardState {
   fetchRefunds: () => Promise<void>;
   fetchFlags: () => Promise<void>;
   fetchAiMetrics: () => Promise<void>;
+  fetchSystemStatus: () => Promise<void>;
 
   // Mutative Actions (API Calls + Local Store Updates)
   addOrder: (order: Order) => void;
@@ -64,6 +65,7 @@ interface DashboardState {
 
   updateDriver: (driver: Partial<Driver> & { id: string }) => void;
   activateDriver: (driverId: string) => Promise<boolean>;
+  reviewKyc: (id: string, role: 'driver' | 'restaurant', status: 'approved' | 'rejected', rejectionReason?: string) => Promise<boolean>;
 
   resolveTicket: (ticketId: string, resolution: string) => Promise<boolean>;
   escalateTicket: (ticketId: string, reason: string) => Promise<boolean>;
@@ -98,83 +100,16 @@ interface DashboardState {
 }
 
 // ── Initial Mock Data Fallbacks ──────────────────────────────────
-const MOCK_ORDERS: Order[] = [
-  { id: "WLF-2941", customer_id: "c1", customer_name: "Amira Benali", merchant_id: "m1", merchant_name: "Pizza Bleu", driver_id: "d1", driver_name: "Karim Dris", amount: 2450, currency: "DA", status: "delivering", zone: "Algiers Centre", eta_minutes: 8, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: "WLF-2940", customer_id: "c2", customer_name: "Youssef Ait", merchant_id: "m2", merchant_name: "Burgers Co", driver_id: "d2", driver_name: "Samir Meziane", amount: 1200, currency: "DA", status: "preparing", zone: "El Biar", eta_minutes: 14, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: "WLF-2939", customer_id: "c3", customer_name: "Fatima Zahra", merchant_id: "m3", merchant_name: "Sushi House", driver_id: undefined, driver_name: "Unassigned", amount: 3800, currency: "DA", status: "pending", zone: "Hussein Dey", eta_minutes: 2, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: "WLF-2938", customer_id: "c4", customer_name: "Mehdi Oussama", merchant_id: "m4", merchant_name: "Tacos Grill", driver_id: "d3", driver_name: "Riad Khelil", amount: 980, currency: "DA", status: "completed", zone: "Bab Ezzouar", eta_minutes: undefined, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: "WLF-2937", customer_id: "c5", customer_name: "Nadia Cherif", merchant_id: "m5", merchant_name: "Crepe Box", driver_id: "d4", driver_name: "Amine Tahir", amount: 4100, currency: "DA", status: "completed", zone: "Kouba", eta_minutes: undefined, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: "WLF-2936", customer_id: "c6", customer_name: "Idir Hamid", merchant_id: "m6", merchant_name: "Salad Bar", driver_id: undefined, driver_name: "Unassigned", amount: 560, currency: "DA", status: "cancelled", zone: "Ain Taya", eta_minutes: undefined, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-];
-
-const MOCK_DRIVERS: Driver[] = [
-  { id: "d1", name: "Karim Dris", phone: "+213550123456", zone: "Algiers Centre", status: "delivering", rating: 4.9, completed_trips: 154, current_order_id: "WLF-2941" },
-  { id: "d2", name: "Samir Meziane", phone: "+213550123457", zone: "El Biar", status: "preparing", rating: 4.7, completed_trips: 98, current_order_id: "WLF-2940" },
-  { id: "d3", name: "Riad Khelil", phone: "+213550123458", zone: "Bab Ezzouar", status: "available", rating: 4.8, completed_trips: 212, current_order_id: undefined },
-  { id: "d4", name: "Amine Tahir", phone: "+213550123459", zone: "Kouba", status: "available", rating: 4.6, completed_trips: 84, current_order_id: undefined },
-  { id: "d5", name: "Omar Belaib", phone: "+213550123460", zone: "Ain Taya", status: "offline", rating: 4.5, completed_trips: 120, current_order_id: undefined },
-];
-
-const MOCK_MERCHANTS: Merchant[] = [
-  { id: "m1", name: "Pizza Bleu", category: "Italian", rating: 4.8, commissionPct: 18, status: "active", zone: "Algiers Centre", operational_status: "open", prep_delay_minutes: 0, kitchen_delay: false },
-  { id: "m2", name: "Burgers Co", category: "Fast Food", rating: 4.5, commissionPct: 15, status: "active", zone: "El Biar", operational_status: "open", prep_delay_minutes: 5, kitchen_delay: false },
-  { id: "m3", name: "Sushi House", category: "Japanese", rating: 4.9, commissionPct: 20, status: "active", zone: "Hussein Dey", operational_status: "busy", prep_delay_minutes: 12, kitchen_delay: true },
-  { id: "m4", name: "Tacos Grill", category: "Mexican", rating: 4.2, commissionPct: 12, status: "active", zone: "Bab Ezzouar", operational_status: "open", prep_delay_minutes: 0, kitchen_delay: false },
-  { id: "m5", name: "Crepe Box", category: "Dessert", rating: 4.6, commissionPct: 15, status: "paused", zone: "Kouba", operational_status: "paused", prep_delay_minutes: 0, kitchen_delay: false },
-  { id: "m6", name: "Salad Bar", category: "Healthy", rating: 4.4, commissionPct: 15, status: "suspended", zone: "Ain Taya", operational_status: "delayed", prep_delay_minutes: 20, kitchen_delay: true },
-];
-
-const MOCK_TICKETS: SupportTicket[] = [
-  { id: "t1", user_id: "c1", customer_name: "Amira Benali", order_id: "WLF-2941", category: "Late Delivery", priority: "medium", status: "open", created_at: new Date().toISOString(), updated_at: new Date().toISOString(), ai_summary: "Customer complains about delayed delivery of Pizza Bleu order." },
-  { id: "t2", user_id: "c3", customer_name: "Fatima Zahra", order_id: "WLF-2939", category: "Missing Items", priority: "high", status: "open", created_at: new Date().toISOString(), updated_at: new Date().toISOString(), ai_summary: "Sushi box is missing ginger and chopsticks." },
-  { id: "t3", user_id: "c4", customer_name: "Mehdi Oussama", order_id: "WLF-2938", category: "Payment Issue", priority: "low", status: "resolved", resolution: "Stripe transaction verified.", created_at: new Date().toISOString(), updated_at: new Date().toISOString() }
-];
-
-const MOCK_REFUNDS: RefundRequest[] = [
-  { id: "r1", order_id: "WLF-2936", user_id: "c6", customer_name: "Idir Hamid", refund_type: "full", amount_requested: 560, recommended_amount: 560, fraud_score: 0.12, status: "pending", created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: "r2", order_id: "WLF-2937", user_id: "c5", customer_name: "Nadia Cherif", refund_type: "partial", amount_requested: 1500, recommended_amount: 1000, fraud_score: 0.45, status: "pending", created_at: new Date().toISOString(), updated_at: new Date().toISOString() }
-];
-
-const MOCK_FLAGS: FraudFlag[] = [
-  { id: "f1", user_id: "c2", customer_name: "Youssef Ait", risk_type: "Card Velocity", severity: "high", notes: "Multiple failed payment attempts in 5 minutes.", status: "open", created_at: new Date().toISOString() },
-  { id: "f2", user_id: "d5", customer_name: "Omar Belaib", risk_type: "GPS Spoofing", severity: "medium", notes: "Driver location pinged outside of operational range.", status: "open", created_at: new Date().toISOString() }
-];
-
-const MOCK_AI_METRICS: WAPModelMetrics[] = [
-  { id: "m1", restaurant_id: "m1", restaurant_name: "Pizza Bleu", mae: 2.4, rmse: 3.1, mape: 9.8, r2_score: 0.88, training_samples: 1200, model_version: "wap-v2.1", trained_at: new Date().toISOString() },
-  { id: "m2", restaurant_id: "m2", restaurant_name: "Burgers Co", mae: 3.2, rmse: 4.0, mape: 12.1, r2_score: 0.81, training_samples: 850, model_version: "wap-v2.1", trained_at: new Date().toISOString() }
-];
-
-const MOCK_ALERTS: OperationalAlert[] = [
-  { id: "a1", type: "driver_shortage", severity: "high", message: "High demand in El Biar, only 1 driver available.", acknowledged: false, created_at: new Date().toISOString() },
-  { id: "a2", type: "wap_prediction_drift", severity: "medium", message: "WAP Model drift detected for Pizza Bleu (MAE > 4.5)", acknowledged: false, created_at: new Date().toISOString() }
-];
-
-const MOCK_ZONE_STATS = [
-  { zone: "Algiers Centre", orders: 38, pct: 90 },
-  { zone: "El Biar",        orders: 24, pct: 57 },
-  { zone: "Bab Ezzouar",    orders: 19, pct: 45 },
-  { zone: "Hussein Dey",    orders: 15, pct: 36 },
-  { zone: "Kouba",          orders: 11, pct: 26 },
-];
-
-const MOCK_ACTIVITY: ActivityItem[] = [
-  { id: "a1", text: "Order #WLF-2941 picked up by Karim D.",   time: "1 min ago",  color: "var(--accent)" },
-  { id: "a2", text: "New order in Hussein Dey — unassigned",    time: "2 min ago",  color: "var(--status-amber)" },
-  { id: "a3", text: "Karim D. delivered #WLF-2935 ✓",          time: "6 min ago",  color: "var(--status-green)" },
-  { id: "a4", text: "Merchant 'Pizza Bleu' paused menu",        time: "11 min ago", color: "var(--status-red)" },
-  { id: "a5", text: "Riad K. went online in Bab Ezzouar",       time: "14 min ago", color: "var(--status-green)" },
-  { id: "a6", text: "Order #WLF-2936 cancelled by customer",    time: "18 min ago", color: "var(--status-red)" },
-];
-
-const MOCK_SYSTEM_STATUS: SystemStatusItem[] = [
-  { label: "Order Service",       value: "Healthy",  up: true  },
-  { label: "Driver Tracking",      value: "Healthy",  up: true  },
-  { label: "Payment Gateway",      value: "Healthy",  up: true  },
-  { label: "Notification Service", value: "Degraded", up: false },
-  { label: "Merchant API",         value: "Healthy",  up: true  },
-  { label: "Analytics Pipeline",   value: "Healthy",  up: true  },
-];
+const MOCK_ORDERS: Order[] = [];
+const MOCK_DRIVERS: Driver[] = [];
+const MOCK_MERCHANTS: Merchant[] = [];
+const MOCK_TICKETS: SupportTicket[] = [];
+const MOCK_REFUNDS: RefundRequest[] = [];
+const MOCK_FLAGS: FraudFlag[] = [];
+const MOCK_AI_METRICS: WAPModelMetrics[] = [];
+const MOCK_ALERTS: OperationalAlert[] = [];
+const MOCK_ZONE_STATS: Array<{ zone: string; orders: number; pct: number }> = [];
+const MOCK_ACTIVITY: ActivityItem[] = [];
 
 export const useDashboardStore = create<DashboardState>((set, get) => ({
   orders: MOCK_ORDERS,
@@ -186,7 +121,7 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
   alerts: MOCK_ALERTS,
   zoneStats: MOCK_ZONE_STATS,
   activityFeed: MOCK_ACTIVITY,
-  systemStatus: MOCK_SYSTEM_STATUS,
+  systemStatus: [],
   merchants: MOCK_MERCHANTS,
   isLoading: false,
   error: null,
@@ -202,7 +137,8 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
         get().fetchRefunds(),
         get().fetchFlags(),
         get().fetchAiMetrics(),
-        get().fetchMerchants()
+        get().fetchMerchants(),
+        get().fetchSystemStatus()
       ]);
       set({ isLoading: false });
     } catch (err: unknown) {
@@ -215,12 +151,35 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
     try {
       const res = await api.get('/admin/orders');
       const data = res.data;
-      const ordersList: Order[] = Array.isArray(data) 
+      const rawList = Array.isArray(data) 
         ? data 
-        : (data.orders || data.data || MOCK_ORDERS);
-      set({ orders: ordersList });
-    } catch (err) {
-      console.warn("API fallback to mock orders:", err);
+        : (data.orders || data.data);
+      if (!rawList) {
+        throw new Error("Invalid response format for orders");
+      }
+      const ordersList: Order[] = rawList.map((o: any) => ({
+        ...o,
+        amount: o.amount !== undefined ? o.amount : (o.total || 0),
+        currency: o.currency || "DA"
+      }));
+
+      // Calculate zoneStats dynamically from real orders
+      const zones = ordersList.map(o => o.zone || "Algiers Centre");
+      const zoneCounts: Record<string, number> = {};
+      zones.forEach(z => {
+        zoneCounts[z] = (zoneCounts[z] || 0) + 1;
+      });
+      const maxCount = Math.max(...Object.values(zoneCounts), 1);
+      const zoneStatsList = Object.entries(zoneCounts).map(([zone, count]) => ({
+        zone,
+        orders: count,
+        pct: Math.round((count / maxCount) * 100)
+      })).sort((a, b) => b.orders - a.orders);
+
+      set({ orders: ordersList, zoneStats: zoneStatsList, error: null });
+    } catch (err: any) {
+      console.error("API failed to fetch orders:", err);
+      set({ error: err.message || "Failed to fetch orders" });
     }
   },
 
@@ -241,11 +200,19 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
         completed_trips?: number;
         total_deliveries?: number;
         current_order_id?: string;
+        lat?: number;
+        lng?: number;
+        kyc_status?: string;
+        kyc_documents?: any;
       }
 
-      const driversList = (Array.isArray(data) 
+      const rawList = Array.isArray(data) 
         ? data 
-        : (data.drivers || data.data || MOCK_DRIVERS)) as RawDriverPayload[];
+        : (data.drivers || data.data);
+      if (!rawList) {
+        throw new Error("Invalid response format for drivers");
+      }
+      const driversList = rawList as RawDriverPayload[];
       
       // Map backend fields if needed
       const normalizedDrivers = driversList.map((d: RawDriverPayload) => ({
@@ -256,11 +223,16 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
         status: d.is_available ? (d.status || "available") : "offline",
         rating: d.rating || 5.0,
         completed_trips: d.total_deliveries || d.completed_trips || 0,
-        current_order_id: d.current_order_id || undefined
+        current_order_id: d.current_order_id || undefined,
+        lat: d.lat,
+        lng: d.lng,
+        kyc_status: d.kyc_status || 'not_started',
+        kyc_documents: d.kyc_documents || {}
       }));
-      set({ drivers: normalizedDrivers });
-    } catch (err) {
-      console.warn("API fallback to mock drivers:", err);
+      set({ drivers: normalizedDrivers, error: null });
+    } catch (err: any) {
+      console.error("API failed to fetch drivers:", err);
+      set({ error: err.message || "Failed to fetch drivers" });
     }
   },
 
@@ -270,10 +242,14 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
       const data = res.data;
       const list: SupportTicket[] = Array.isArray(data) 
         ? data 
-        : (data.tickets || data.data || MOCK_TICKETS);
-      set({ tickets: list });
-    } catch (err) {
-      console.warn("API fallback to mock tickets:", err);
+        : (data.tickets || data.data);
+      if (!list) {
+        throw new Error("Invalid response format for support tickets");
+      }
+      set({ tickets: list, error: null });
+    } catch (err: any) {
+      console.error("API failed to fetch tickets:", err);
+      set({ error: err.message || "Failed to fetch tickets" });
     }
   },
 
@@ -283,10 +259,14 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
       const data = res.data;
       const list: RefundRequest[] = Array.isArray(data) 
         ? data 
-        : (data.refunds || data.data || MOCK_REFUNDS);
-      set({ refunds: list });
-    } catch (err) {
-      console.warn("API fallback to mock refunds:", err);
+        : (data.refunds || data.data);
+      if (!list) {
+        throw new Error("Invalid response format for refunds");
+      }
+      set({ refunds: list, error: null });
+    } catch (err: any) {
+      console.error("API failed to fetch refunds:", err);
+      set({ error: err.message || "Failed to fetch refunds" });
     }
   },
 
@@ -296,10 +276,14 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
       const data = res.data;
       const list: FraudFlag[] = Array.isArray(data) 
         ? data 
-        : (data.flags || data.data || MOCK_FLAGS);
-      set({ flags: list });
-    } catch (err) {
-      console.warn("API fallback to mock flags:", err);
+        : (data.flags || data.data);
+      if (!list) {
+        throw new Error("Invalid response format for fraud flags");
+      }
+      set({ flags: list, error: null });
+    } catch (err: any) {
+      console.error("API failed to fetch fraud flags:", err);
+      set({ error: err.message || "Failed to fetch fraud flags" });
     }
   },
 
@@ -309,10 +293,37 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
       const data = res.data;
       const list: WAPModelMetrics[] = Array.isArray(data) 
         ? data 
-        : (data.metrics || data.data || MOCK_AI_METRICS);
-      set({ aiMetrics: list });
+        : (data.metrics || data.data);
+      if (!list) {
+        throw new Error("Invalid response format for AI metrics");
+      }
+      set({ aiMetrics: list, error: null });
+    } catch (err: any) {
+      console.error("API failed to fetch AI metrics:", err);
+      set({ error: err.message || "Failed to fetch AI metrics" });
+    }
+  },
+
+  fetchSystemStatus: async () => {
+    try {
+      const res = await api.get('/health');
+      const data = res.data;
+      const dbStatus = data.database?.status === 'ok';
+      const redisStatus = data.redis?.status === 'ok';
+      const systemStatusList: SystemStatusItem[] = [
+        { label: "Backend API", value: "Healthy", up: true },
+        { label: "Database Connection", value: dbStatus ? "Healthy" : "Degraded", up: dbStatus },
+        { label: "Redis Cache Service", value: redisStatus ? "Healthy" : "Disabled/Degraded", up: redisStatus },
+      ];
+      set({ systemStatus: systemStatusList });
     } catch (err) {
-      console.warn("API fallback to mock AI metrics:", err);
+      set({
+        systemStatus: [
+          { label: "Backend API", value: "Offline", up: false },
+          { label: "Database Connection", value: "Offline", up: false },
+          { label: "Redis Cache Service", value: "Offline", up: false },
+        ]
+      });
     }
   },
 
@@ -540,7 +551,7 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
       await api.patch(`/admin/drivers/${driverId}/approve`);
       set((state) => ({
         drivers: state.drivers.map((d) => 
-          d.id === driverId ? { ...d, status: 'available' } : d
+          d.id === driverId ? { ...d, status: 'available', kyc_status: 'approved' } : d
         )
       }));
       get().addActivity({
@@ -550,6 +561,39 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
       return true;
     } catch (err) {
       console.error("Failed to activate driver:", err);
+      return false;
+    }
+  },
+
+  reviewKyc: async (id, role, status, rejectionReason) => {
+    try {
+      await api.post(`/drivers/kyc/review`, {
+        driver_id: id,
+        status,
+        rejection_reason: rejectionReason || ""
+      });
+
+      if (role === 'driver') {
+        set((state) => ({
+          drivers: state.drivers.map((d) => 
+            d.id === id ? { ...d, kyc_status: status } : d
+          )
+        }));
+      } else {
+        set((state) => ({
+          merchants: state.merchants.map((m) => 
+            m.id === id ? { ...m, kyc_status: status } : m
+          )
+        }));
+      }
+
+      get().addActivity({
+        text: `Updated ${role} ${id} KYC status to ${status}`,
+        color: status === 'approved' ? "var(--status-green)" : "var(--status-red)"
+      });
+      return true;
+    } catch (err) {
+      console.error("Failed to review KYC:", err);
       return false;
     }
   },
@@ -679,15 +723,28 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
 
   fetchMerchants: async () => {
     try {
-      const res = await api.get('/admin/merchants');
+      const res = await api.get('/admin/restaurants');
       const data = res.data;
-      const list: Merchant[] = Array.isArray(data) ? data : (data.merchants || data.data || MOCK_MERCHANTS);
-      set({ merchants: list });
-    } catch (err) {
-      console.warn("API fallback to mock merchants:", err);
-      if (get().merchants.length === 0) {
-        set({ merchants: MOCK_MERCHANTS });
+      const rawList = Array.isArray(data) ? data : (data.restaurants || data.data);
+      if (!rawList) {
+        throw new Error("Invalid response format for merchants");
       }
+      const mapped: Merchant[] = rawList.map((r: any) => ({
+        id: r.id,
+        name: r.restaurant_name || r.full_name || "Merchant",
+        category: r.category || "General",
+        rating: r.rating || 5.0,
+        commissionPct: r.commission_rate ? Math.round(r.commission_rate * 100) : 18,
+        status: r.is_active ? (r.is_open ? 'active' : 'paused') : 'suspended',
+        zone: (r.delivery_zones && r.delivery_zones[0]) || "Algiers Centre",
+        operational_status: r.busy_mode ? 'busy' : (r.is_open ? 'open' : 'paused'),
+        kyc_status: r.kyc_status || 'not_started',
+        kyc_documents: r.kyc_documents || {}
+      }));
+      set({ merchants: mapped, error: null });
+    } catch (err: any) {
+      console.error("API failed to fetch merchants:", err);
+      set({ error: err.message || "Failed to fetch merchants" });
     }
   },
 
@@ -730,18 +787,18 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
 
   suspendDriver: async (driverId) => {
     let newStatus: 'available' | 'offline' = 'offline';
+    const driver = get().drivers.find(d => d.id === driverId);
+    const currentlyActive = driver ? driver.status !== 'offline' : true;
+    newStatus = currentlyActive ? 'offline' : 'available';
+
     set((state) => ({
-      drivers: state.drivers.map((d) => {
-        if (d.id === driverId) {
-          newStatus = d.status === 'offline' ? 'available' : 'offline';
-          return { ...d, status: newStatus };
-        }
-        return d;
-      })
+      drivers: state.drivers.map((d) =>
+        d.id === driverId ? { ...d, status: newStatus } : d
+      )
     }));
 
     try {
-      await api.post(`/admin/drivers/${driverId}/suspend`);
+      await api.patch(`/admin/users/${driverId}/activate`, { is_active: !currentlyActive });
       get().addActivity({
         text: `Toggled suspension for Driver ${driverId} to status [${newStatus}]`,
         color: "var(--status-red)"
@@ -760,12 +817,16 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
   setMerchantStatus: async (merchantId, status) => {
     set((state) => ({
       merchants: state.merchants.map((m) =>
-        m.id === merchantId ? { ...m, operational_status: status } : m
+        m.id === merchantId ? { ...m, operational_status: status, status: status === 'open' ? 'active' : 'paused' } : m
       )
     }));
 
     try {
-      await api.patch(`/admin/merchants/${merchantId}/status`, { status });
+      if (status === 'open') {
+        await api.patch(`/admin/users/${merchantId}/activate`, { is_active: true });
+      } else {
+        await api.patch(`/admin/restaurants/${merchantId}/suspend`, { reason: `Status set to ${status}` });
+      }
       get().addActivity({
         text: `Updated Merchant ${merchantId} status to [${status}]`,
         color: "var(--accent)"
