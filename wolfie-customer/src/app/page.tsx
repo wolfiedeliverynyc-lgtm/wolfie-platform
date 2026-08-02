@@ -2176,6 +2176,21 @@ export default function HomePage() {
 
         {currentView !== 'onboarding' && currentView !== 'login' && currentView !== 'register' && currentView !== 'otp' && currentView !== 'forgot' && currentView !== 'reset' && currentView !== 'address_entry' ? (
           <div className="flex items-center gap-5">
+            {/* Notifications Bell Button */}
+            <button 
+              onClick={() => setShowNotificationsModal(true)}
+              className="w-12 h-12 rounded-full bg-gray-50 border border-gray-100 hover:bg-gray-100 flex items-center justify-center relative shadow-sm cursor-pointer hover:scale-105 active:scale-95 transition-all focus:outline-none"
+              title="Notifications"
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3C2F2F" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+              </svg>
+              {notifications.some(n => !n.read) && (
+                <span className="absolute top-[3px] right-[3px] w-3 h-3 bg-[#EF2A39] border-2 border-white rounded-full animate-bounce" />
+              )}
+            </button>
+
             <button 
               onClick={() => setCurrentView(currentView === 'cart' ? 'home' : 'cart')}
               className="w-12 h-12 rounded-full bg-[#FFE100] hover:brightness-95 hover:scale-105 active:scale-95 transition-all flex items-center justify-center relative shadow-sm cursor-pointer focus:outline-none"
@@ -6692,8 +6707,8 @@ export default function HomePage() {
         {/* CART VIEW (Checkout Page) */}
         {currentView === 'cart' && (() => {
           const subtotal = cartItems.reduce((sum, item) => sum + (item.pricePerUnit * item.quantity), 0);
-          const deliveryFee = subtotal > 0 ? 3.00 : 0.00;
-          const serviceFee = subtotal > 0 ? 1.50 : 0.00;
+          const deliveryFee = subtotal > 0 ? 4.49 : 0.00;
+          const serviceFee = subtotal > 0 ? Math.max(3.49, Math.min(7.49, Math.round(subtotal * 0.12 * 100) / 100)) : 0.00;
           const taxFee = subtotal > 0 ? subtotal * 0.08875 : 0.00;
 
           return (
@@ -6977,8 +6992,8 @@ export default function HomePage() {
         {/* CHECKOUT VIEW */}
         {currentView === 'checkout' && (() => {
           const subtotal = cartItems.reduce((sum, item) => sum + (item.pricePerUnit * item.quantity), 0);
-          const deliveryFee = subtotal > 0 ? 3.00 : 0.00;
-          const serviceFee = subtotal > 0 ? 1.50 : 0.00;
+          const deliveryFee = subtotal > 0 ? 4.49 : 0.00;
+          const serviceFee = subtotal > 0 ? Math.max(3.49, Math.min(7.49, Math.round(subtotal * 0.12 * 100) / 100)) : 0.00;
           const taxFee = subtotal > 0 ? subtotal * 0.08875 : 0.00;
           const total = subtotal + deliveryFee + serviceFee + taxFee;
 
@@ -7542,7 +7557,7 @@ export default function HomePage() {
                     />
                   </div>
                   <div className="min-w-0">
-                    <span className="font-roboto font-bold text-[15px] block truncate">{activeOrder?.driverName || 'Kenji Sato'}</span>
+                    <span className="font-roboto font-bold text-[15px] block truncate">{activeOrder?.driverName || 'Assigned Driver'}</span>
                     <span className="font-roboto font-medium text-[12px] text-[#FFE100] block mt-0.5">{activeOrder?.driverRating || '4.9'} ★ • Delivery Driver</span>
                   </div>
                 </div>
@@ -7565,7 +7580,7 @@ export default function HomePage() {
                   {/* Call */}
                   <button 
                     onClick={() => {
-                      alert(`Call Simulator:\nConnecting secure line to Driver ${activeOrder?.driverName || 'Kenji Sato'} (+1 555-019-2831)...`);
+                      alert(`Call Simulator:\nConnecting secure line to Driver ${activeOrder?.driverName || 'Courier'}...`);
                     }}
                     className="w-[40px] h-[40px] bg-white/15 hover:bg-white/20 active:scale-90 transition-all rounded-[12px] flex items-center justify-center focus:outline-none"
                   >
@@ -7650,7 +7665,7 @@ export default function HomePage() {
                           <img src={activeOrder?.driverAvatar || "/assets/driver_avatar.png"} alt={activeOrder?.driverName || 'Driver'} className="w-full h-full object-cover scale-[1.05]" />
                         </div>
                         <div>
-                          <h4 className="font-roboto font-bold text-[15px] text-[#3C2F2F]">{activeOrder?.driverName || 'Kenji Sato'} (Driver)</h4>
+                          <h4 className="font-roboto font-bold text-[15px] text-[#3C2F2F]">{activeOrder?.driverName || 'Assigned Driver'} (Driver)</h4>
                           <span className="font-roboto text-[11px] text-[#A6A6A6] block mt-0.5">Rate the delivery service</span>
                         </div>
                       </div>
