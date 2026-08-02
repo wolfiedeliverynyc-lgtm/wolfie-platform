@@ -44,8 +44,12 @@ class SmartMatchingEngine:
                 logger.info("SmartMatching: no available drivers")
                 return None
             
-            p_lat = float(pickup_coords.get("lat", 36.7525)) if pickup_coords else 36.7525
-            p_lng = float(pickup_coords.get("lng", 3.0588)) if pickup_coords else 3.0588
+            if not pickup_coords or pickup_coords.get("lat") is None or pickup_coords.get("lng") is None:
+                logger.error(f"Cannot dispatch order {order_id} — missing pickup coordinates")
+                return None
+
+            p_lat = float(pickup_coords["lat"])
+            p_lng = float(pickup_coords["lng"])
             
             # 2. Get coordinates and compute Haversine distance as pre-filtering step
             candidates = []
@@ -76,6 +80,16 @@ class SmartMatchingEngine:
                         "lng": None,
                         "h_dist": 999.0
                     })
+                    # Send alert to driver to activate their location
+                    from tasks.notify import send_sms
+                    try:
+                        send_sms.delay(
+                            to=driver.phone,
+                            body="🐺 Wolfie: You are online but we cannot detect your GPS location. Please turn on location services on your device to receive orders."
+                        )
+                        logger.info(f"Sent GPS activation notification to driver {driver.id}")
+                    except Exception as ex:
+                        logger.warning(f"Could not notify driver {driver.id} about missing GPS: {ex}")
 
             # Filter candidates with valid coordinates
             valid_candidates = [c for c in candidates if c["lat"] is not None and c["lng"] is not None]

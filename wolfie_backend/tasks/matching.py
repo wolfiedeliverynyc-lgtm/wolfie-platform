@@ -67,6 +67,9 @@ def assign_driver(self, order_id: str, restaurant_id: str,
                     lat = order.restaurant.latitude
                     lng = order.restaurant.longitude
 
+            if lat is None or lng is None:
+                return _handle_missing_coords(order_id, order, session, order_repo)
+
             if svc:
                 best_driver = svc.find_best_driver(
                     order_id      = order_id,
@@ -227,3 +230,26 @@ def _handle_no_driver(order_id, order, session, order_repo) -> dict:
         )
 
     return {"status": "cancelled", "reason": "no_driver_available"}
+
+
+def _handle_missing_coords(order_id, order, session, order_repo) -> dict:
+    """Called when coordinates are missing — cancel immediately and alert customer."""
+    logger.error(f"Order {order_id} has missing coordinates — cancelling order")
+    order_repo.cancel(order, actor_role="system", actor_id="auto",
+                      reason="Missing delivery location coordinates")
+
+    user_repo = UserRepository(session)
+    customer  = user_repo.get(order.customer_id)
+    if customer:
+        from tasks.notify import send_sms
+        try:
+            send_sms.delay(
+                to=customer.phone,
+                body="🐺 Wolfie: Your order was cancelled because your location coordinates are missing. Please enable location/GPS services or select your address on the map."
+            )
+            logger.info(f"Sent location alert to customer {customer.id} for missing order coords")
+        except Exception as e:
+            logger.warning(f"Could not notify customer about missing coordinates: {e}")
+
+    return {"status": "cancelled", "reason": "missing_coordinates"}
+

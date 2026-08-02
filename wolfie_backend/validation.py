@@ -20,9 +20,16 @@ def validate_request(schema_cls):
                 errors = e.errors()
                 formatted_errors = []
                 for err in errors:
+                    msg = err["msg"]
+                    # Customize messages for missing coordinates
+                    if any(f in err["loc"] for f in ("delivery_lat", "delivery_lng")):
+                        msg = "Delivery coordinates are required. Please enable location services or select your address on the map."
+                    elif any(f in err["loc"] for f in ("pickup_lat", "pickup_lng")):
+                        msg = "Pickup/Restaurant coordinates are required. Please ensure the restaurant location is configured."
+
                     formatted_errors.append({
                         "field": ".".join(str(p) for p in err["loc"]),
-                        "message": err["msg"]
+                        "message": msg
                     })
                 return jsonify({"error": "Validation failed", "details": formatted_errors}), 400
             return f(*args, **kwargs)
@@ -52,10 +59,10 @@ class OrderCreateSchema(BaseModel):
     payment_method: Optional[str] = "stripe"
     customer_id: Optional[str] = None
     promo_code: Optional[str] = None
-    delivery_lat: Optional[float] = None
-    delivery_lng: Optional[float] = None
-    pickup_lat: Optional[float] = None
-    pickup_lng: Optional[float] = None
+    delivery_lat: float = Field(..., description="Delivery latitude is required")
+    delivery_lng: float = Field(..., description="Delivery longitude is required")
+    pickup_lat: float = Field(..., description="Pickup latitude is required")
+    pickup_lng: float = Field(..., description="Pickup longitude is required")
 
     @field_validator("payment_method")
     def validate_payment_method(cls, v):
