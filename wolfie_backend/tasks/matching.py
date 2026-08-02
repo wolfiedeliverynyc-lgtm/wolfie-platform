@@ -241,13 +241,22 @@ def _handle_missing_coords(order_id, order, session, order_repo) -> dict:
     user_repo = UserRepository(session)
     customer  = user_repo.get(order.customer_id)
     if customer:
+        from routes.notifications import push_notification
         from tasks.notify import send_sms
         try:
+            push_notification(
+                user_id=customer.id,
+                type_="order_cancelled",
+                title="Order Cancelled — GPS Missing",
+                body="Your order was cancelled because your location coordinates are missing. Please enable location services or select your address on the map.",
+                icon="bell",
+                order_id=order.id
+            )
             send_sms.delay(
                 to=customer.phone,
                 body="🐺 Wolfie: Your order was cancelled because your location coordinates are missing. Please enable location/GPS services or select your address on the map."
             )
-            logger.info(f"Sent location alert to customer {customer.id} for missing order coords")
+            logger.info(f"Sent location alert and in-app warning to customer {customer.id} for missing order coords")
         except Exception as e:
             logger.warning(f"Could not notify customer about missing coordinates: {e}")
 

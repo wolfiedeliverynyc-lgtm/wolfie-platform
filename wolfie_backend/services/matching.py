@@ -80,14 +80,23 @@ class SmartMatchingEngine:
                         "lng": None,
                         "h_dist": 999.0
                     })
-                    # Send alert to driver to activate their location
+                    # Send in-app notification & SMS warning to driver
+                    from routes.notifications import push_notification
                     from tasks.notify import send_sms
                     try:
+                        push_notification(
+                            user_id=driver.id,
+                            type_="gps_warning",
+                            title="GPS Location Required",
+                            body="You are online but we cannot detect your GPS. Please turn on location services on your device to start receiving orders.",
+                            icon="bell",
+                            link="/settings"
+                        )
                         send_sms.delay(
                             to=driver.phone,
                             body="🐺 Wolfie: You are online but we cannot detect your GPS location. Please turn on location services on your device to receive orders."
                         )
-                        logger.info(f"Sent GPS activation notification to driver {driver.id}")
+                        logger.info(f"Sent GPS activation notification and in-app alert to driver {driver.id}")
                     except Exception as ex:
                         logger.warning(f"Could not notify driver {driver.id} about missing GPS: {ex}")
 
