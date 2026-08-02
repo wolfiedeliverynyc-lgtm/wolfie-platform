@@ -166,6 +166,7 @@ class Order(Base):
     delivery_lng    = Column(Float, nullable=True)
     pickup_lat      = Column(Float, nullable=True)
     pickup_lng      = Column(Float, nullable=True)
+    zone            = Column(String(100), nullable=True, index=True)
 
     # Payment
     payment_method  = Column(String(20), nullable=False)

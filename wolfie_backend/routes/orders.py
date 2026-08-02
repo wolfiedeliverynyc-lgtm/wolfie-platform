@@ -246,6 +246,17 @@ def create_order():
 
     pricing  = _calc_pricing(svc, subtotal, route_info, data)
 
+    # Resolve zone name dynamically from Mapbox using delivery address coordinates
+    resolved_zone = "Unknown Zone"
+    if svc["mapbox"]:
+        d_lat = route_info.get("delivery_coords", {}).get("lat")
+        d_lng = route_info.get("delivery_coords", {}).get("lng")
+        if d_lat is not None and d_lng is not None:
+            try:
+                resolved_zone = svc["mapbox"].resolve_zone(d_lat, d_lng)
+            except Exception as e:
+                logger.warning(f"Failed to resolve zone on order creation: {e}")
+
     assigned_driver = None
     order_data = None
     trigger_async_matching = False
@@ -262,6 +273,7 @@ def create_order():
                 pricing          = pricing,
                 route_info       = route_info,
                 promo_code       = data.get("promo_code"),
+                zone             = resolved_zone,
             )
 
             # Skip driver matching/dispatch for non-cash orders at creation time.

@@ -123,8 +123,16 @@ def seed():
             }
         ]
 
+        mapbox = getattr(app, "mapbox", None)
         restaurants = {}
         for rdata in restaurants_data:
+            resolved_zone = "El Kala Center"
+            if mapbox:
+                try:
+                    resolved_zone = mapbox.resolve_zone(rdata["extra"]["latitude"], rdata["extra"]["longitude"])
+                except Exception:
+                    pass
+
             r = User(
                 email=rdata["email"],
                 password_hash=UserRepository.hash_password(rdata["password"]),
@@ -148,11 +156,12 @@ def seed():
                 category=rdata["extra"]["category"],
                 price_level=rdata["extra"]["price_level"],
                 delivery_time_min=rdata["extra"]["delivery_time_min"],
-                delivery_fee=rdata["extra"]["delivery_fee"]
+                delivery_fee=rdata["extra"]["delivery_fee"],
+                delivery_zones=[resolved_zone]
             )
             session.add(r)
             session.commit()
-            print(f"Restaurant {rdata['extra']['restaurant_name']} seeded successfully!")
+            print(f"Restaurant {rdata['extra']['restaurant_name']} seeded successfully with zone {resolved_zone}!")
             restaurants[r.restaurant_name] = r
 
         # 3. Seed Menu Items
@@ -207,7 +216,7 @@ def seed():
         driver = User(
             email="driver_demo@wolfie.delivery",
             password_hash=UserRepository.hash_password("password123"),
-            full_name="Kenji Sato",
+            full_name="Wolfie Courier",
             phone="+1 (555) 019-4444",
             role="driver",
             is_active=True,

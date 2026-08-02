@@ -126,6 +126,59 @@ class MapboxClient:
             logger.warning(f"Mapbox reverse_geocode failed: {e}")
             return f"{lat},{lng}"
 
+    def resolve_zone(self, lat: float, lng: float) -> str:
+        """Resolves the zone name dynamically using Mapbox geocoding features (neighborhood/locality/postcode)."""
+        if self._mock:
+            # Check if lat/lng is near El Kala (Algiers region coordinates used for testing)
+            if 36.8 <= lat <= 36.95 and 8.3 <= lng <= 8.5:
+                return "El Kala Center"
+            # Brooklyn/NYC coordinates
+            if 40.6 <= lat <= 40.85 and -74.15 <= lng <= -73.85:
+                return "Williamsburg Central"
+            return "Test Zone"
+
+        try:
+            url  = (
+                f"{MAPBOX_BASE}/geocoding/v5/mapbox.places/{lng},{lat}.json"
+                f"?access_token={self.token}&limit=1"
+            )
+            resp = requests.get(url, timeout=5)
+            resp.raise_for_status()
+            data = resp.json()
+            if not data.get("features"):
+                return "Unknown Zone"
+                
+            feature = data["features"][0]
+            # Try to check if the feature itself is a neighborhood or locality
+            place_type = feature.get("place_type", [])
+            if "neighborhood" in place_type or "locality" in place_type:
+                return feature.get("text", "Unknown Zone")
+
+            # Check context
+            context = feature.get("context", [])
+            # Prefer neighborhood, then postcode, then locality/district, then place/city
+            for c in context:
+                cid = c.get("id", "")
+                if cid.startswith("neighborhood"):
+                    return c.get("text")
+            for c in context:
+                cid = c.get("id", "")
+                if cid.startswith("postcode"):
+                    return c.get("text")
+            for c in context:
+                cid = c.get("id", "")
+                if cid.startswith("locality") or cid.startswith("district"):
+                    return c.get("text")
+            for c in context:
+                cid = c.get("id", "")
+                if cid.startswith("place"):
+                    return c.get("text")
+
+            return feature.get("text", "Unknown Zone")
+        except Exception as e:
+            logger.warning(f"Mapbox resolve_zone failed: {e}")
+            return "Unknown Zone"
+
     # ── ETA ───────────────────────────────────
 
     def get_eta(self, driver_lat: float, driver_lng: float,

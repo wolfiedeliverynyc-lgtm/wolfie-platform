@@ -192,6 +192,17 @@ def list_drivers():
             
             d_dict["lat"] = lat
             d_dict["lng"] = lng
+            
+            # Resolve zone dynamically from coordinates if available
+            mapbox = getattr(current_app, "mapbox", None)
+            if mapbox and lat is not None and lng is not None:
+                try:
+                    d_dict["zone"] = mapbox.resolve_zone(lat, lng)
+                except Exception as e:
+                    logger.warning(f"Failed to resolve zone for driver: {e}")
+            else:
+                d_dict["zone"] = getattr(d, "zone", None) or "Unknown Zone"
+
             driver_list.append(d_dict)
             
         return jsonify({

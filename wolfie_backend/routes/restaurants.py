@@ -371,6 +371,19 @@ def update_profile():
     if not update_data:
         return jsonify({"error": "No update fields provided"}), 400
 
+    # Auto-resolve delivery zone if coordinates are updated
+    lat = update_data.get("latitude")
+    lng = update_data.get("longitude")
+    if lat is not None and lng is not None:
+        from flask import current_app
+        mapbox = getattr(current_app, "mapbox", None)
+        if mapbox:
+            try:
+                resolved_zone = mapbox.resolve_zone(lat, lng)
+                update_data["delivery_zones"] = [resolved_zone]
+            except Exception as e:
+                logger.warning(f"Could not auto-resolve zone on profile update: {e}")
+
     try:
         with transaction() as session:
             repo = UserRepository(session)

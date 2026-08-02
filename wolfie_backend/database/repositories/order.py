@@ -60,7 +60,8 @@ class OrderRepository(BaseRepository[Order]):
     def create(self, customer_id: str, restaurant_id: str, items: list,
                pickup_address: str, delivery_address: str,
                payment_method: str, pricing: dict,
-               route_info: dict = None, promo_code: str = None) -> Order:
+               route_info: dict = None, promo_code: str = None,
+               zone: str = None) -> Order:
 
         if not items:
             raise ValueError("Order must have at least one item")
@@ -93,6 +94,7 @@ class OrderRepository(BaseRepository[Order]):
             delivery_lng     = delivery_coords.get("lng"),
             pickup_lat       = pickup_coords.get("lat"),
             pickup_lng       = pickup_coords.get("lng"),
+            zone             = zone,
             promo_code       = promo_code,
             created_at       = now,
             updated_at       = now,

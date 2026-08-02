@@ -55,7 +55,7 @@ def list_orders():
                     o_dict["merchant_lat"] = getattr(merch, "latitude", None)
                     o_dict["merchant_lng"] = getattr(merch, "longitude", None)
                     zones = getattr(merch, "delivery_zones", [])
-                    o_dict["zone"] = zones[0] if zones and len(zones) > 0 else None
+                    o_dict["zone"] = getattr(o, "zone", None) or (zones[0] if zones and len(zones) > 0 else None)
 
             # Always expose real coordinates stored on the order itself
             o_dict["pickup_lat"]   = getattr(o, "pickup_lat", None)
@@ -104,7 +104,7 @@ def get_order(order_id):
                 o_dict["merchant_lat"] = getattr(merch, "latitude", None)
                 o_dict["merchant_lng"] = getattr(merch, "longitude", None)
                 zones = getattr(merch, "delivery_zones", [])
-                o_dict["zone"] = zones[0] if zones and len(zones) > 0 else None
+                o_dict["zone"] = getattr(order, "zone", None) or (zones[0] if zones and len(zones) > 0 else None)
 
         # Always expose real coordinates stored on the order itself
         o_dict["pickup_lat"]   = getattr(order, "pickup_lat", None)

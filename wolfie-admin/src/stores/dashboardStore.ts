@@ -158,27 +158,12 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
         throw new Error("Invalid response format for orders");
       }
 
-      const ordersList: Order[] = rawList.map((o: any) => {
-        // Determine zone dynamically from address strings if not present
-        let resolvedZone = o.zone;
-        if (!resolvedZone) {
-          const addr = (o.delivery_address || "").toLowerCase();
-          const pAddr = (o.pickup_address || "").toLowerCase();
-          if (addr.includes("el biar") || pAddr.includes("el biar")) resolvedZone = "El Biar";
-          else if (addr.includes("bab ezzouar") || pAddr.includes("bab ezzouar")) resolvedZone = "Bab Ezzouar";
-          else if (addr.includes("hussein dey") || pAddr.includes("hussein dey")) resolvedZone = "Hussein Dey";
-          else if (addr.includes("kouba") || pAddr.includes("kouba")) resolvedZone = "Kouba";
-          else if (addr.includes("ain taya") || pAddr.includes("ain taya")) resolvedZone = "Ain Taya";
-          else resolvedZone = null;
-        }
-
-        return {
-          ...o,
-          zone: resolvedZone,
-          amount: o.amount !== undefined ? o.amount : (o.total || 0),
-          currency: o.currency || "DA"
-        };
-      });
+      const ordersList: Order[] = rawList.map((o: any) => ({
+        ...o,
+        zone: o.zone || null,
+        amount: o.amount !== undefined ? o.amount : (o.total || 0),
+        currency: o.currency || "DA"
+      }));
 
       // Calculate zoneStats dynamically from real orders (only real matched/saved zones)
       const zones = ordersList.map(o => o.zone).filter((z): z is string => !!z);
