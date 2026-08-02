@@ -158,47 +158,7 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
         throw new Error("Invalid response format for orders");
       }
 
-      const MAPBOX_TOKEN = 'pk.eyJ1Ijoid29sZmllZGVsaXZlcnkiLCJhIjoiY21vcjV2YW41MXlrYTJxcGhocWtqOGRhayJ9.bDuoURrNHs2QoZQcMBQhCQ';
-
-      const ordersList: Order[] = await Promise.all(rawList.map(async (o: any) => {
-        let p_lat = o.pickup_lat;
-        let p_lng = o.pickup_lng;
-        let d_lat = o.delivery_lat;
-        let d_lng = o.delivery_lng;
-
-        // Dynamic client-side geocoding fallback
-        if ((p_lat == null || p_lng == null) && o.pickup_address) {
-          try {
-            const geocodeRes = await fetch(
-              `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(o.pickup_address)}.json?access_token=${MAPBOX_TOKEN}&limit=1`
-            );
-            const geocodeData = await geocodeRes.json();
-            if (geocodeData?.features?.length > 0) {
-              const center = geocodeData.features[0].center;
-              p_lng = center[0];
-              p_lat = center[1];
-            }
-          } catch (e) {
-            console.warn("Client geocode failed for pickup:", o.pickup_address, e);
-          }
-        }
-
-        if ((d_lat == null || d_lng == null) && o.delivery_address) {
-          try {
-            const geocodeRes = await fetch(
-              `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(o.delivery_address)}.json?access_token=${MAPBOX_TOKEN}&limit=1`
-            );
-            const geocodeData = await geocodeRes.json();
-            if (geocodeData?.features?.length > 0) {
-              const center = geocodeData.features[0].center;
-              d_lng = center[0];
-              d_lat = center[1];
-            }
-          } catch (e) {
-            console.warn("Client geocode failed for delivery:", o.delivery_address, e);
-          }
-        }
-
+      const ordersList: Order[] = rawList.map((o: any) => {
         // Determine zone dynamically from address strings if not present
         let resolvedZone = o.zone;
         if (!resolvedZone) {
@@ -214,15 +174,11 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
 
         return {
           ...o,
-          pickup_lat: p_lat,
-          pickup_lng: p_lng,
-          delivery_lat: d_lat,
-          delivery_lng: d_lng,
           zone: resolvedZone,
           amount: o.amount !== undefined ? o.amount : (o.total || 0),
           currency: o.currency || "DA"
         };
-      }));
+      });
 
       // Calculate zoneStats dynamically from real orders (only real matched/saved zones)
       const zones = ordersList.map(o => o.zone).filter((z): z is string => !!z);
