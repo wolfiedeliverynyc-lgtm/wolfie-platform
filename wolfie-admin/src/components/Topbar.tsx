@@ -1,6 +1,6 @@
 "use client";
 import React, { useMemo, useState, useEffect } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useRealtime } from "@/hooks/useRealtime";
 import { useDashboardStore } from "@/stores/dashboardStore";
 
@@ -15,6 +15,7 @@ export default function Topbar({
   title,
   isLive: isLiveProp,
 }: TopbarProps) {
+  const router = useRouter();
   const { status } = useRealtime();
   const isLive = isLiveProp ?? (status === "connected");
   const pathname = usePathname();
@@ -195,7 +196,12 @@ export default function Topbar({
         <div className="topbar-divider" />
 
         {/* Alerts */}
-        <button className="topbar-btn" id="topbar-alerts" title="Alerts">
+        <button
+          className="topbar-btn"
+          id="topbar-alerts"
+          title="Alerts"
+          onClick={() => router.push('/alerts')}
+        >
           <svg
             width="16"
             height="16"
@@ -208,11 +214,18 @@ export default function Topbar({
           >
             <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9zM13.73 21a2 2 0 01-3.46 0" />
           </svg>
-          <span className="topbar-btn-dot" />
+          {alerts.filter(a => !a.acknowledged).length > 0 && (
+            <span className="topbar-btn-dot" />
+          )}
         </button>
 
         {/* Settings */}
-        <button className="topbar-btn" id="topbar-settings" title="Settings">
+        <button
+          className="topbar-btn"
+          id="topbar-settings"
+          title="Settings"
+          onClick={() => router.push('/settings')}
+        >
           <svg
             width="16"
             height="16"
