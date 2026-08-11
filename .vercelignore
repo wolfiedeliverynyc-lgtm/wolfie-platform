@@ -1,11 +1,8 @@
-# Exclude everything except wolfie-customer during customer builds
+# Ignore development artifacts, media, and backend files
 .git
 .agents
 ai-agents
 juin files clean
-wolfie-landing
-wolfie-restaurant
-wolfie-driver-new
 wolfie_backend
 venv
 **/venv
