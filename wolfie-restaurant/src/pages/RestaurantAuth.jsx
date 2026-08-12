@@ -67,7 +67,11 @@ const RestaurantAuth = () => {
       }
     } catch (err) {
       console.error(err);
-      setError(err.message || 'Invalid email or password. Please try again.');
+      if (err.data && err.data.status === 'pending') {
+        navigate('/pending-approval');
+      } else {
+        setError(err.message || 'Invalid email or password. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }

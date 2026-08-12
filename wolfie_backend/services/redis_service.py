@@ -130,8 +130,17 @@ class CacheService:
 
     def get(self, key: str) -> Any | None:
         try:
+            from services.metrics import redis_hits, redis_misses, dep_latency
+            import time
+            t0 = time.monotonic()
             val = self._r.get(self._key(key))
-            return json.loads(val) if val else None
+            dep_latency.labels(service="redis").observe(time.monotonic() - t0)
+            if val is not None:
+                redis_hits.inc()
+                return json.loads(val)
+            else:
+                redis_misses.inc()
+                return None
         except Exception as e:
             logger.warning(f"Cache GET failed [{key}]: {e}")
             return None
@@ -139,7 +148,11 @@ class CacheService:
     def set(self, key: str, value: Any, ttl: int = 300) -> bool:
         """ttl in seconds. Default 5 minutes."""
         try:
+            from services.metrics import dep_latency
+            import time
+            t0 = time.monotonic()
             self._r.setex(self._key(key), ttl, json.dumps(value, default=str))
+            dep_latency.labels(service="redis").observe(time.monotonic() - t0)
             return True
         except Exception as e:
             logger.warning(f"Cache SET failed [{key}]: {e}")
@@ -147,7 +160,11 @@ class CacheService:
 
     def delete(self, key: str) -> bool:
         try:
+            from services.metrics import dep_latency
+            import time
+            t0 = time.monotonic()
             self._r.delete(self._key(key))
+            dep_latency.labels(service="redis").observe(time.monotonic() - t0)
             return True
         except Exception as e:
             logger.warning(f"Cache DELETE failed [{key}]: {e}")
@@ -156,11 +173,15 @@ class CacheService:
     def invalidate_prefix(self, prefix: str):
         """Delete all keys matching a prefix."""
         try:
+            from services.metrics import dep_latency
+            import time
+            t0 = time.monotonic()
             pattern = f"{self.PREFIX}{prefix}*"
             keys    = self._r.keys(pattern)
             if keys:
                 self._r.delete(*keys)
                 logger.info(f"Cache invalidated {len(keys)} keys matching '{prefix}*'")
+            dep_latency.labels(service="redis").observe(time.monotonic() - t0)
         except Exception as e:
             logger.warning(f"Cache invalidate_prefix failed: {e}")
 
@@ -306,14 +327,51 @@ class DriverLocationCache:
         self._r = redis_manager.client(db=4)
 
     def update(self, driver_id: str, lat: float, lng: float,
-               order_id: str = None) -> bool:
+               order_id: str = None, timestamp: float = None) -> bool:
         from datetime import datetime, timezone
         key  = f"{self.PREFIX}{driver_id}"
+
+        # If timestamp is in milliseconds, convert to seconds
+        new_ts = timestamp
+        if new_ts is not None:
+            try:
+                new_ts = float(new_ts)
+                if new_ts > 1e11:
+                    new_ts = new_ts / 1000.0
+            except ValueError:
+                new_ts = None
+
+        if new_ts is None:
+            new_ts = datetime.now(timezone.utc).timestamp()
+
+        # Out-of-order check
+        try:
+            existing = self.get(driver_id)
+            if existing and "ts" in existing:
+                existing_ts = existing["ts"]
+                if isinstance(existing_ts, str):
+                    try:
+                        from dateutil.parser import isoparse
+                        existing_ts = isoparse(existing_ts).timestamp()
+                    except Exception:
+                        existing_ts = 0.0
+                else:
+                    try:
+                        existing_ts = float(existing_ts)
+                    except (ValueError, TypeError):
+                        existing_ts = 0.0
+
+                if existing_ts > new_ts:
+                    logger.warning(f"Out-of-order location update dropped for driver {driver_id}: existing {existing_ts} > new {new_ts}")
+                    return False
+        except Exception as e:
+            logger.warning(f"Error executing out-of-order check: {e}")
+
         data = json.dumps({
             "lat":      lat,
             "lng":      lng,
             "order_id": order_id,
-            "ts":       datetime.now(timezone.utc).isoformat(),
+            "ts":       new_ts,
         })
         try:
             self._r.setex(key, self.TTL, data)

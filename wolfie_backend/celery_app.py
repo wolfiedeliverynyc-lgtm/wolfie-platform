@@ -92,7 +92,7 @@ def make_celery(app=None) -> Celery:
 class _CeleryConfig:
     # ── Broker ────────────────────────────────
     broker_url                  = BROKER_URL
-    result_backend              = None
+    result_backend              = BACKEND_URL
     broker_connection_retry_on_startup = True
     task_always_eager           = IS_TESTING or USE_EAGER
     task_eager_propagates       = IS_TESTING or USE_EAGER

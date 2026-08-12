@@ -6,6 +6,7 @@
 """
 
 import logging
+import time
 from datetime import datetime, timezone, timedelta
 from celery_app import celery
 from celery.exceptions import MaxRetriesExceededError
@@ -33,26 +34,52 @@ def assign_driver(self, order_id: str, restaurant_id: str,
                   pickup_lat: float = None, pickup_lng: float = None):
     """
     Attempts to assign the best available driver to an order.
-    Retries every 60s for up to 5 minutes before cancelling.
+    Retries every 20s for up to MAX_MATCHING_ATTEMPTS before cancelling.
+
+    Race Condition Protection:
+    - The Order row is locked with SELECT FOR UPDATE at the start of each
+      attempt. This prevents two concurrent Celery workers from assigning
+      different drivers to the same order simultaneously.
+    - The Driver row is also locked with FOR UPDATE inside assign_driver()
+      in the repository to prevent double-booking.
     """
     from flask import current_app
     from database import transaction
     from database.repositories import OrderRepository, UserRepository
     from database.repositories.rating import DriverLocationRepository
+    from sqlalchemy import select
+    from database.schemas import Order as OrderModel
 
-    logger.info(f"Matching attempt {self.request.retries + 1}/{MAX_MATCHING_ATTEMPTS} for order {order_id}")
+    attempt = self.request.retries + 1
+    logger.info(f"[Dispatch] Matching attempt {attempt}/{MAX_MATCHING_ATTEMPTS} for order {order_id}")
+    t_start = time.monotonic()
 
     try:
         with transaction() as session:
+            # ── RACE CONDITION GUARD ──────────────────────────────────────────
+            # Lock the order row immediately. On PostgreSQL this prevents a
+            # second concurrent worker from reading the same order as 'pending'
+            # and assigning a different driver at the same time.
+            # On SQLite (testing) WITH FOR UPDATE is a no-op — safe to ignore.
+            try:
+                order = session.scalar(
+                    select(OrderModel)
+                    .where(OrderModel.id == order_id)
+                    .with_for_update()
+                )
+            except Exception:
+                # SQLite doesn't support FOR UPDATE — fall back to normal get
+                order_repo_tmp = OrderRepository(session)
+                order = order_repo_tmp.get(order_id)
+
             order_repo = OrderRepository(session)
-            order      = order_repo.get(order_id)
 
             if not order:
-                logger.error(f"Order {order_id} not found — aborting matching")
+                logger.error(f"[Dispatch] Order {order_id} not found — aborting matching")
                 return {"status": "aborted", "reason": "order_not_found"}
 
             if order.status not in ("pending", "assigned"):
-                logger.info(f"Order {order_id} already {order.status} — skipping matching")
+                logger.info(f"[Dispatch] Order {order_id} already {order.status} — skipping matching")
                 return {"status": "skipped", "reason": f"order_is_{order.status}"}
 
             # ── Find best driver ──────────────────────
@@ -91,20 +118,29 @@ def assign_driver(self, order_id: str, restaurant_id: str,
                                    "name": available[0].full_name}
 
             if not best_driver:
-                # No driver found — retry later
-                logger.warning(f"No driver for order {order_id} — retry {self.request.retries + 1}")
+                elapsed = round(time.monotonic() - t_start, 2)
+                logger.warning(
+                    f"[Dispatch Metric] order={order_id} attempt={attempt} "
+                    f"result=no_driver elapsed={elapsed}s — scheduling retry"
+                )
                 try:
                     from celery_app import USE_EAGER
                     if USE_EAGER:
                         logger.warning("EAGER MODE: aborting driver matching retry to prevent API blocking.")
                         return _handle_no_driver(order_id, order, session, order_repo)
-                    
+
                     raise self.retry(countdown=RETRY_DELAY_SECONDS)
                 except MaxRetriesExceededError:
                     return _handle_no_driver(order_id, order, session, order_repo)
 
             # ── Assign driver ─────────────────────────
             order_repo.assign_driver(order, best_driver["id"])
+
+            elapsed = round(time.monotonic() - t_start, 2)
+            logger.info(
+                f"[Dispatch Metric] order={order_id} driver={best_driver['id']} "
+                f"attempt={attempt} result=assigned elapsed={elapsed}s"
+            )
 
             # Notify driver
             from tasks.notify import notify_driver
@@ -148,41 +184,66 @@ def assign_driver(self, order_id: str, restaurant_id: str,
 def reassign_driver(order_id: str, previous_driver_id: str):
     """
     Driver dropped the order — find a replacement immediately.
-    Adds penalty note to previous driver.
+    - Fully releases the order (status→pending, driver_id→None).
+    - Records a drop/warning on the previous driver.
+    - Re-triggers matching with a short countdown.
     """
-    logger.info(f"Reassigning order {order_id} (previous driver: {previous_driver_id})")
+    logger.info(f"[Dispatch] Reassigning order {order_id} (previous driver: {previous_driver_id})")
 
     from database import transaction
     from database.repositories import OrderRepository, UserRepository
+    from datetime import datetime, timezone
+
+    saved_restaurant_id = None
+    saved_pickup_lat    = None
+    saved_pickup_lng    = None
 
     try:
         with transaction() as session:
             order_repo = OrderRepository(session)
             order      = order_repo.get(order_id)
             if not order:
+                logger.error(f"[Dispatch] Reassign: order {order_id} not found")
                 return
 
-            # Reset to pending so matching can retry
-            order_repo.update(order, status="pending", driver_id=None)
+            # Save coords before reset (needed for re-matching)
+            saved_restaurant_id = order.restaurant_id
+            saved_pickup_lat    = order.pickup_lat
+            saved_pickup_lng    = order.pickup_lng
 
-            # Record drop on driver profile
+            # Fully release the order — reset driver_id AND status back to pending
+            # This is critical: without driver_id=None, the order stays "reserved"
+            # for a driver that has already dropped it.
+            order_repo.update(
+                order,
+                status="pending",
+                driver_id=None,
+                updated_at=datetime.now(timezone.utc)
+            )
+            logger.info(f"[Dispatch] Order {order_id} fully released back to pending (driver_id cleared)")
+
+            # Record drop on driver profile — mark rating warning
             user_repo = UserRepository(session)
             driver    = user_repo.get(previous_driver_id)
             if driver:
-                drops = (driver.total_deliveries or 0) - 1   # placeholder logic
                 user_repo.update(driver, rating_warning=True)
-
-        # Trigger fresh matching
-        assign_driver.apply_async(
-            args   = [order_id, order.restaurant_id],
-            kwargs = {},
-            countdown = 5,
-        )
-        logger.info(f"Reassignment triggered for order {order_id}")
+                logger.warning(
+                    f"[Dispatch Metric] driver={previous_driver_id} event=order_dropped "
+                    f"order={order_id} — rating_warning set"
+                )
 
     except Exception as e:
         logger.error(f"reassign_driver failed [{order_id}]: {e}")
         raise
+
+    # Trigger fresh matching AFTER the transaction commits
+    # (so the order is fully released before the new matching attempt reads it)
+    assign_driver.apply_async(
+        args     = [order_id, saved_restaurant_id],
+        kwargs   = {"pickup_lat": saved_pickup_lat, "pickup_lng": saved_pickup_lng},
+        countdown = 5,
+    )
+    logger.info(f"[Dispatch] Fresh matching triggered for order {order_id}")
 
 
 # ══════════════════════════════════════════════════════════════════════════════

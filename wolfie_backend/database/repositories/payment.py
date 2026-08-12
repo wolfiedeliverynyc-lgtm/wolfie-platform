@@ -63,18 +63,35 @@ class PaymentRepository(BaseRepository[Payment]):
         return self.update(payment, **updates)
 
     def platform_summary(self) -> dict:
-        payments   = self.list(limit=100_000)
-        completed  = [p for p in payments if p.status == "completed"]
-        by_method  = {}
-        for p in completed:
-            by_method[p.method] = round(by_method.get(p.method, 0) + p.amount, 2)
+        total = self.session.execute(select(func.count(Payment.id))).scalar() or 0
+        completed = self.session.execute(
+            select(func.count(Payment.id)).where(Payment.status == "completed")
+        ).scalar() or 0
+        failed = self.session.execute(
+            select(func.count(Payment.id)).where(Payment.status == "failed")
+        ).scalar() or 0
+        refunded = self.session.execute(
+            select(func.count(Payment.id)).where(Payment.status == "refunded")
+        ).scalar() or 0
+        
+        total_volume = self.session.execute(
+            select(func.sum(Payment.amount)).where(Payment.status == "completed")
+        ).scalar() or 0.0
+
+        method_rows = self.session.execute(
+            select(Payment.method, func.sum(Payment.amount))
+            .where(Payment.status == "completed")
+            .group_by(Payment.method)
+        ).all()
+        by_method = {row[0]: round(float(row[1]), 2) for row in method_rows}
+
         return {
-            "total":         len(payments),
-            "completed":     len(completed),
-            "failed":        len([p for p in payments if p.status == "failed"]),
-            "refunded":      len([p for p in payments if p.status == "refunded"]),
-            "total_volume":  round(sum(p.amount for p in completed), 2),
-            "by_method":     by_method,
+            "total": total,
+            "completed": completed,
+            "failed": failed,
+            "refunded": refunded,
+            "total_volume": round(float(total_volume), 2),
+            "by_method": by_method,
         }
 
 

@@ -301,9 +301,10 @@ export default function DriverAuthPage() {
       document.cookie = `wolfie_auth_token=${data.access_token}; path=/; max-age=604800; SameSite=Lax; Secure`;
       setToken(data.access_token);
       
-      setKycStatus('approved')
-      setOnboarded(true)
-      setOnline(true)
+      const userKycStatus = data.kyc_status || 'not_started';
+      setKycStatus(userKycStatus);
+      setOnboarded(userKycStatus === 'approved');
+      setOnline(userKycStatus === 'approved');
     } catch (err: any) {
       setLoginError(err.message)
     }

@@ -62,7 +62,7 @@ export default function TrackingView({
   restaurantLogo = '/assets/restaurant_logo_wendys.png',
   restaurantName = "Wendy's Burgers",
   initialStatus,
-  driverName = "Kenji Sato",
+  driverName = "Assigned Driver",
   driverRating = 4.9,
   driverAvatar = "/assets/driver_avatar.png",
 }: TrackingViewProps) {

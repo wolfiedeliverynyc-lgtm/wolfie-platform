@@ -15,7 +15,7 @@ def test_password_recovery_flow(client):
             # Setup clean test user
             uid = str(uuid.uuid4())[:8]
             email = f"customer_{uid}@test.com"
-            password = "old_password_123"
+            password = "OldPass123!"
 
             with transaction() as session:
                 user = User(
@@ -52,7 +52,7 @@ def test_password_recovery_flow(client):
             assert res_correct.json["verified"] is True
 
             # 3. Reset password
-            new_password = "new_password_123"
+            new_password = "NewPass123!"
             res_reset = client.post("/api/v1/auth/customer/reset-password", json={
                 "email": email,
                 "otp": "999999",

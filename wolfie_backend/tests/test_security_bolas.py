@@ -182,7 +182,11 @@ class TestSecurityBolas:
                                   "items": [{"id": "item_001", "name": "Burger", "price": 1.0, "quantity": 1}],
                                   "pickup_address": "456 Diner Rd",
                                   "delivery_address": "123 Alpha St",
-                                  "payment_method": "cash"
+                                  "payment_method": "cash",
+                                  "delivery_lat": 40.7128,
+                                  "delivery_lng": -74.0060,
+                                  "pickup_lat": 40.7128,
+                                  "pickup_lng": -74.0060
                               },
                               headers={"Authorization": f"Bearer {_token(cust_id, 'customer')}"})
             
@@ -239,7 +243,11 @@ class TestSecurityBolas:
                                       "items": [{"id": "item_001", "name": "Burger", "price": 1.0, "quantity": 1}], # Tampered/Spoofed price!
                                       "pickup_address": "456 Diner Rd",
                                       "delivery_address": "123 Alpha St",
-                                      "payment_method": "cash"
+                                      "payment_method": "cash",
+                                      "delivery_lat": 40.7128,
+                                      "delivery_lng": -74.0060,
+                                      "pickup_lat": 40.7128,
+                                      "pickup_lng": -74.0060
                                   },
                                   headers={"Authorization": f"Bearer {_token(cust_id, 'customer')}"})
                 

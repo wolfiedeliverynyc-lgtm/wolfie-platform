@@ -157,7 +157,7 @@ class EmailOTPService:
         return cls.send_otp(email, otp, user_type)
 
     @classmethod
-    def verify_otp_code(cls, session, email: str, otp: str) -> tuple[bool, str]:
+    def verify_otp_code(cls, session, email: str, otp: str, mark_used: bool = False) -> tuple[bool, str]:
         """
         Returns (success: bool, error_message: str)
         """
@@ -191,6 +191,10 @@ class EmailOTPService:
         input_hash = cls.hash_otp(otp)
         if entry.otp_hash != input_hash:
             return False, "Invalid verification code."
+
+        if mark_used:
+            entry.is_used = True
+            session.flush()
 
         return True, ""
 

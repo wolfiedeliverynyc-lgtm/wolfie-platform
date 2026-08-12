@@ -31,7 +31,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Dict, Optional, Tuple
 from dataclasses import dataclass
 
-from database import get_db_session
+from database import get_db_session, transaction
 from database.schemas import KitchenMetric, Order, RestaurantScore
 from services.mapbox import MapboxClient
 
@@ -301,7 +301,7 @@ class WAPEngine:
         Called automatically when order status = DELIVERED.
         """
 
-        with get_db_session() as session:
+        with transaction() as session:
             order = session.query(Order).get(order_id)
             metric = session.query(KitchenMetric).filter_by(order_id=order_id).first()
 
@@ -352,8 +352,6 @@ class WAPEngine:
             if self._should_retrain(session, order.restaurant_id):
                 self._retrain_model(session, order.restaurant_id)
                 feedback.learned = True
-
-            session.commit()
 
             return feedback
 
@@ -497,7 +495,7 @@ class WAPEngine:
     def _store_prediction(self, order_id: str, prediction: WAPPrediction):
         """Store prediction in order record."""
 
-        with get_db_session() as session:
+        with transaction() as session:
             order = session.query(Order).get(order_id)
             if order:
                 order.prediction_data = {
@@ -510,4 +508,3 @@ class WAPEngine:
                     'wap_version': prediction.wap_version
                 }
                 order.eta_predicted = prediction.total_eta_min
-                session.commit()

@@ -12,8 +12,9 @@ interface DocumentSlot {
 }
 
 export default function DocumentUploadPage({ onComplete }: { onComplete: () => void }) {
-  const { driverProfile } = useDriverStore()
+  const { driverProfile, kycStatus, setKycStatus, resetStore } = useDriverStore()
   const vehicleType = driverProfile?.vehicleType || 'Motorcycle'
+  const [isSubmitted, setIsSubmitted] = useState(false)
 
   // Initialize slots dynamically based on vehicleType
   const [docs, setDocs] = useState<DocumentSlot[]>([])
@@ -59,6 +60,31 @@ export default function DocumentUploadPage({ onComplete }: { onComplete: () => v
   }
 
   const allUploaded = docs.length > 0 && docs.every(d => d.status === 'pending_review' || d.status === 'approved')
+
+  const handleSubmit = () => {
+    setIsSubmitted(true)
+    setKycStatus('pending')
+  }
+
+  if (isSubmitted || kycStatus === 'pending') {
+    return (
+      <div className="flex flex-col items-center justify-center h-full px-6 py-12 text-center bg-bg-app space-y-6">
+        <div className="w-20 h-20 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary text-3xl animate-pulse">
+          ⏳
+        </div>
+        <h1 className="text-xl font-black uppercase tracking-wider text-text-primary">KYC Review In Progress</h1>
+        <p className="text-xs text-text-secondary leading-relaxed max-w-xs">
+          Verifying KYC. Please wait, we will send you an email.
+        </p>
+        <button 
+          onClick={() => resetStore()} 
+          className="w-full py-4 bg-bg-card hover:bg-bg-card-hover border border-slate-800 text-text-primary font-bold uppercase text-xs tracking-wider rounded-xl transition-all cursor-pointer"
+        >
+          LOGOUT / RETURN TO LOGIN
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full px-6 py-10 overflow-y-auto bg-bg-app">
@@ -108,7 +134,7 @@ export default function DocumentUploadPage({ onComplete }: { onComplete: () => v
       </div>
 
       <div className="pt-6 mt-auto">
-        <button onClick={onComplete} disabled={!allUploaded} className={`w-full py-4 rounded-2xl text-base font-extrabold uppercase tracking-widest transition-all border-none ${allUploaded ? 'bg-primary text-black hover:bg-primary-hover active:scale-[0.98] cursor-pointer' : 'bg-bg-card text-text-secondary cursor-not-allowed'}`}>{allUploaded ? 'SUBMIT FOR REVIEW →' : 'UPLOAD ALL DOCUMENTS'}</button>
+        <button onClick={handleSubmit} disabled={!allUploaded} className={`w-full py-4 rounded-2xl text-base font-extrabold uppercase tracking-widest transition-all border-none ${allUploaded ? 'bg-primary text-black hover:bg-primary-hover active:scale-[0.98] cursor-pointer' : 'bg-bg-card text-text-secondary cursor-not-allowed'}`}>{allUploaded ? 'SUBMIT FOR REVIEW →' : 'UPLOAD ALL DOCUMENTS'}</button>
       </div>
     </div>
   )

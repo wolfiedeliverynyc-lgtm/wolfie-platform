@@ -18,17 +18,33 @@ def get_chat_history(order_id):
     if request.user_id not in [order.customer_id, order.driver_id, order.restaurant_id] and request.user_role != "admin":
         return jsonify({"error": "Unauthorized to view this chat"}), 403
 
-    messages = session.query(ChatMessage).filter(ChatMessage.order_id == order_id).order_by(ChatMessage.created_at.asc()).all()
+    page     = int(request.args.get("page", 1))
+    per_page = min(int(request.args.get("per_page", 50)), 200)
+    offset   = (page - 1) * per_page
+
+    messages = session.query(ChatMessage).filter(ChatMessage.order_id == order_id).order_by(ChatMessage.created_at.asc()).limit(per_page).offset(offset).all()
     
-    return jsonify([{
-        "id": m.id,
-        "order_id": m.order_id,
-        "sender_id": m.sender_id,
-        "sender_type": m.sender_type,
-        "message": m.message,
-        "is_read": m.is_read,
-        "created_at": m.created_at.isoformat()
-    } for m in messages]), 200
+    from sqlalchemy import func
+    import math
+    total = session.query(func.count(ChatMessage.id)).filter(ChatMessage.order_id == order_id).scalar()
+    
+    return jsonify({
+        "messages": [{
+            "id": m.id,
+            "order_id": m.order_id,
+            "sender_id": m.sender_id,
+            "sender_type": m.sender_type,
+            "message": m.message,
+            "is_read": m.is_read,
+            "created_at": m.created_at.isoformat()
+        } for m in messages],
+        "pagination": {
+            "page": page,
+            "per_page": per_page,
+            "total": total,
+            "pages": math.ceil(total / per_page) if total else 0
+        }
+    }), 200
 
 @chat_bp.route("/<order_id>", methods=["POST"])
 @require_auth()

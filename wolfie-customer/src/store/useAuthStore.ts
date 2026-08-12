@@ -48,7 +48,8 @@ export const useAuthStore = create<AuthState>()(
 
         if (typeof window !== 'undefined') {
           // Set unified cookie (expires in 7 days)
-          document.cookie = `wolfie_auth_token=${token}; path=/; max-age=604800; SameSite=Lax; Secure`;
+          const isSecure = window.location.protocol === 'https:';
+          document.cookie = `wolfie_auth_token=${token}; path=/; max-age=604800; SameSite=Lax${isSecure ? '; Secure' : ''}`;
           localStorage.setItem('wolfie_auth_user_id', user.id);
         }
       },

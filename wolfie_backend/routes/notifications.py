@@ -75,9 +75,10 @@ def push_notification(user_id: str, *, type_: str, title: str, body: str,
 def list_notifications():
     """GET /api/v1/notifications/ — return all notifications for current user."""
     user_id = request.user_id
-    limit   = int(request.args.get("limit", 30))
+    limit  = int(request.args.get("limit", 30))
+    offset = int(request.args.get("offset", 0))
     with get_db_session() as session:
-        notifs = session.query(Notification).filter_by(user_id=user_id).order_by(Notification.created_at.desc()).limit(limit).all()
+        notifs = session.query(Notification).filter_by(user_id=user_id).order_by(Notification.created_at.desc()).limit(limit).offset(offset).all()
         unread = session.query(Notification).filter_by(user_id=user_id, is_read=False).count()
         
         return jsonify({

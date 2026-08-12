@@ -166,6 +166,7 @@ def stripe_payout(self, driver_id: str, amount: float, stripe_account_id: str):
             currency    = "usd",
             destination = stripe_account_id,
             metadata    = {"driver_id": driver_id},
+            idempotency_key = f"stripe_payout_{self.request.id}",
         )
 
         logger.info(f"Stripe transfer {transfer.id} — ${amount:.2f} to driver {driver_id}")

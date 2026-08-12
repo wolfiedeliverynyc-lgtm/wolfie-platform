@@ -33,11 +33,10 @@ def _emit(order_id, event, data):
 def restaurant_orders():
     status = request.args.get("status")
     limit  = int(request.args.get("limit", 20))
+    offset = int(request.args.get("offset", 0))
     with get_db_session() as session:
         repo   = OrderRepository(session)
-        orders = repo.find_by_restaurant(request.user_id, limit=limit)
-        if status:
-            orders = [o for o in orders if o.status == status]
+        orders = repo.find_by_restaurant(request.user_id, limit=limit, offset=offset, status=status)
         return jsonify({
             "orders": [repo.to_dict(o) for o in orders],
             "count":  len(orders),
@@ -98,17 +97,64 @@ def toggle_open():
 @require_auth(["restaurant", "customer"])
 def get_menu():
     restaurant_id = request.args.get("restaurant_id") or request.user_id
+    limit = request.args.get("limit")
+    offset = request.args.get("offset")
+    category = request.args.get("category")
+
+    # Redis Cache integration (Observation 1)
+    from flask import current_app
+    redis = getattr(current_app, "redis", None)
+    cache_key = f"menu:{restaurant_id}:{request.user_role}:{limit}:{offset}:{category}"
+    if redis:
+        try:
+            cached_data = redis.cache.get(cache_key)
+            if cached_data is not None:
+                return jsonify(cached_data), 200
+        except Exception as e:
+            logger.warning(f"Failed to fetch menu from Redis: {e}")
+
     with get_db_session() as session:
         query = session.query(MenuItem).filter_by(restaurant_id=restaurant_id)
         if request.user_role == "customer":
             query = query.filter_by(is_available=True)
             
+        if category:
+            query = query.filter_by(category=category.strip())
+            
+        # Get total count for pagination response
+        total_count = query.count()
+        
+        # Pagination (Observation 2)
+        if limit is not None:
+            try:
+                query = query.limit(int(limit))
+            except ValueError:
+                pass
+        if offset is not None:
+            try:
+                query = query.offset(int(offset))
+            except ValueError:
+                pass
+
         items = query.order_by(MenuItem.category).all()
         menu = [
             {c.name: getattr(i, c.name) for c in i.__table__.columns}
             for i in items
         ]
-        return jsonify({"menu": menu, "count": len(menu)}), 200
+        
+        response_data = {
+            "menu": menu,
+            "count": len(menu),
+            "total_count": total_count
+        }
+        
+        if redis:
+            try:
+                redis.cache.set(cache_key, response_data, ttl=300)
+            except Exception as e:
+                logger.warning(f"Failed to set menu in Redis: {e}")
+                
+        return jsonify(response_data), 200
 
 
 @restaurants_bp.route("/menu", methods=["POST"])
@@ -121,8 +167,23 @@ def add_menu_item():
     if float(data["price"]) <= 0:
         return jsonify({"error": "Price must be greater than 0"}), 400
 
+    description = data.get("description", "") or ""
+    if len(description) > 2000:
+        return jsonify({"error": "Menu Description must be 2000 characters or less"}), 400
+
+    # Origin source tracking (Observation 4)
+    created_source = data.get("created_source", "manual").strip()
+    if created_source not in ["manual", "AI", "POS Sync"]:
+        created_source = "manual"
+
     try:
         with transaction() as session:
+            # Increment Menu Version (Observation 3)
+            from database.schemas import User
+            user = session.get(User, request.user_id)
+            if user:
+                user.menu_version = (user.menu_version or 1) + 1
+
             now  = datetime.now(UTC)
             item = MenuItem(
                 id            = str(uuid.uuid4()),
@@ -134,11 +195,22 @@ def add_menu_item():
                 image_url     = data.get("image_url"),
                 is_available  = data.get("is_available", True),
                 sizes         = data.get("sizes", []),
+                created_source= created_source,
                 created_at    = now,
                 updated_at    = now,
             )
             session.add(item)
             item_id = item.id
+            
+        # Cache Invalidation (Observation 1)
+        from flask import current_app
+        redis = getattr(current_app, "redis", None)
+        if redis:
+            try:
+                redis.cache.invalidate_prefix(f"menu:{request.user_id}:")
+            except Exception as e:
+                logger.warning(f"Failed to invalidate menu cache prefix: {e}")
+                
     except Exception as e:
         logger.error(f"add_menu_item: {e}")
         return jsonify({"error": "Failed to add item"}), 500
@@ -153,14 +225,44 @@ def update_menu_item(item_id):
     if "price" in data and float(data["price"]) <= 0:
         return jsonify({"error": "Price must be greater than 0"}), 400
 
-    with transaction() as session:
-        item = session.get(MenuItem, item_id)
-        if not item or item.restaurant_id != request.user_id:
-            return jsonify({"error": "Item not found"}), 404
-        for field in ["name","description","price","category","image_url","is_available","sizes"]:
-            if field in data:
-                setattr(item, field, data[field])
-        item.updated_at = datetime.now(UTC)
+    if "description" in data:
+        desc = data["description"] or ""
+        if len(desc) > 2000:
+            return jsonify({"error": "Menu Description must be 2000 characters or less"}), 400
+
+    try:
+        with transaction() as session:
+            item = session.get(MenuItem, item_id)
+            if not item or item.restaurant_id != request.user_id:
+                return jsonify({"error": "Item not found"}), 404
+                
+            # Increment Menu Version (Observation 3)
+            from database.schemas import User
+            user = session.get(User, request.user_id)
+            if user:
+                user.menu_version = (user.menu_version or 1) + 1
+
+            allowed_fields = ["name", "description", "price", "category", "image_url", "is_available", "sizes", "created_source"]
+            for field in allowed_fields:
+                if field in data:
+                    val = data[field]
+                    if field == "created_source" and val not in ["manual", "AI", "POS Sync"]:
+                        continue
+                    setattr(item, field, val)
+            item.updated_at = datetime.now(UTC)
+
+        # Cache Invalidation (Observation 1)
+        from flask import current_app
+        redis = getattr(current_app, "redis", None)
+        if redis:
+            try:
+                redis.cache.invalidate_prefix(f"menu:{request.user_id}:")
+            except Exception as e:
+                logger.warning(f"Failed to invalidate menu cache prefix: {e}")
+                
+    except Exception as e:
+        logger.error(f"update_menu_item: {e}")
+        return jsonify({"error": "Failed to update item"}), 500
 
     return jsonify({"message": "Item updated"}), 200
 
@@ -168,31 +270,52 @@ def update_menu_item(item_id):
 @restaurants_bp.route("/menu/<item_id>", methods=["DELETE"])
 @require_auth(["restaurant"])
 def delete_menu_item(item_id):
-    with transaction() as session:
-        item = session.get(MenuItem, item_id)
-        if not item or item.restaurant_id != request.user_id:
-            return jsonify({"error": "Item not found"}), 404
-        session.delete(item)
+    try:
+        with transaction() as session:
+            item = session.get(MenuItem, item_id)
+            if not item or item.restaurant_id != request.user_id:
+                return jsonify({"error": "Item not found"}), 404
+                
+            # Increment Menu Version (Observation 3)
+            from database.schemas import User
+            user = session.get(User, request.user_id)
+            if user:
+                user.menu_version = (user.menu_version or 1) + 1
+
+            session.delete(item)
+
+        # Cache Invalidation (Observation 1)
+        from flask import current_app
+        redis = getattr(current_app, "redis", None)
+        if redis:
+            try:
+                redis.cache.invalidate_prefix(f"menu:{request.user_id}:")
+            except Exception as e:
+                logger.warning(f"Failed to invalidate menu cache prefix: {e}")
+                
+    except Exception as e:
+        logger.error(f"delete_menu_item: {e}")
+        return jsonify({"error": "Failed to delete item"}), 500
+
     return jsonify({"message": "Item deleted"}), 200
 
 
 @restaurants_bp.route("/stats", methods=["GET"])
 @require_auth(["restaurant"])
 def restaurant_stats():
+    """
+    Restaurant stats page.
+    Previously: find_by_restaurant(limit=10_000) + Python loops.
+    Now: single SQL aggregation query — instant at any scale.
+    """
     with get_db_session() as session:
-        repo   = OrderRepository(session)
-        orders = repo.find_by_restaurant(request.user_id, limit=10_000)
-        delivered  = [o for o in orders if o.status == "delivered"]
-        gmv        = sum(o.total or 0 for o in delivered)
-        commission = sum(o.restaurant_commission or 0 for o in delivered)
+        repo  = OrderRepository(session)
+        stats = repo.get_restaurant_stats_summary(request.user_id)
         return jsonify({
-            "restaurant_id":    request.user_id,
-            "total_orders":     len(orders),
-            "delivered_orders": len(delivered),
-            "gmv":              round(gmv, 2),
-            "commission_paid":  round(commission, 2),
-            "net_revenue":      round(gmv - commission, 2),
+            "restaurant_id": request.user_id,
+            **stats,
         }), 200
+
 
 
 @restaurants_bp.route("/hours", methods=["GET"])
@@ -268,8 +391,26 @@ def save_delivery_zones():
 @restaurants_bp.route("/", methods=["GET"])
 def list_restaurants():
     """Public endpoint — no authentication required to browse restaurants."""
+    page     = int(request.args.get("page", 1))
+    per_page = min(int(request.args.get("per_page", 20)), 100)
+    offset   = (page - 1) * per_page
+
+    from flask import current_app
+    redis = getattr(current_app, "redis", None)
+    cache_key = f"restaurants:active:list:{page}:{per_page}"
+    if redis:
+        try:
+            cached = redis.cache.get(cache_key)
+            if cached is not None:
+                return jsonify(cached), 200
+        except Exception:
+            pass
+
     with get_db_session() as session:
-        users = session.query(UserRepository.model).filter_by(role="restaurant", is_active=True).all()
+        from sqlalchemy import func
+        query = session.query(UserRepository.model).filter_by(role="restaurant", is_active=True)
+        total = query.with_entities(func.count(UserRepository.model.id)).scalar()
+        users = query.limit(per_page).offset(offset).all()
         res = []
         for u in users:
             res.append({
@@ -291,20 +432,51 @@ def list_restaurants():
                 "delivery_time_min": u.delivery_time_min,
                 "delivery_fee": u.delivery_fee,
                 "busy_mode": u.busy_mode,
+                "menu_version": u.menu_version or 1,  # Version (Observation 3)
             })
-        return jsonify({"restaurants": res, "count": len(res)}), 200
+        
+        import math
+        response_data = {
+            "restaurants": res,
+            "count": len(res),
+            "pagination": {
+                "page": page,
+                "per_page": per_page,
+                "total": total,
+                "pages": math.ceil(total / per_page) if total else 0
+            }
+        }
+
+    if redis:
+        try:
+            redis.cache.set(cache_key, response_data, ttl=300)
+        except Exception:
+            pass
+
+    return jsonify(response_data), 200
 
 
 @restaurants_bp.route("/<restaurant_id>", methods=["GET"])
 def get_restaurant_detail(restaurant_id):
     """Public endpoint — returns restaurant profile and details."""
+    from flask import current_app
+    redis = getattr(current_app, "redis", None)
+    cache_key = f"restaurant:{restaurant_id}:detail"
+    if redis:
+        try:
+            cached = redis.cache.get(cache_key)
+            if cached is not None:
+                return jsonify(cached), 200
+        except Exception:
+            pass
+
     with get_db_session() as session:
         repo = UserRepository(session)
         u = repo.find_active(restaurant_id)
         if not u or u.role != "restaurant":
             return jsonify({"error": "Restaurant not found"}), 404
 
-        return jsonify({
+        response_data = {
             "id": u.id,
             "restaurant_name": u.restaurant_name,
             "is_open": u.is_open,
@@ -323,24 +495,78 @@ def get_restaurant_detail(restaurant_id):
             "delivery_time_min": u.delivery_time_min,
             "delivery_fee": u.delivery_fee,
             "busy_mode": u.busy_mode,
-        }), 200
+            "menu_version": u.menu_version or 1,  # Version (Observation 3)
+        }
+
+    if redis:
+        try:
+            redis.cache.set(cache_key, response_data, ttl=600)
+        except Exception:
+            pass
+
+    return jsonify(response_data), 200
 
 
 @restaurants_bp.route("/<restaurant_id>/menu", methods=["GET"])
 def get_restaurant_menu(restaurant_id):
     """Public endpoint — returns available menu items for a restaurant by ID."""
+    limit = request.args.get("limit")
+    offset = request.args.get("offset")
+    category = request.args.get("category")
+
+    # Redis Cache integration (Observation 1)
+    from flask import current_app
+    redis = getattr(current_app, "redis", None)
+    cache_key = f"menu:{restaurant_id}:public:{limit}:{offset}:{category}"
+    if redis:
+        try:
+            cached_data = redis.cache.get(cache_key)
+            if cached_data is not None:
+                return jsonify(cached_data), 200
+        except Exception as e:
+            logger.warning(f"Failed to fetch public menu from Redis: {e}")
+
     with get_db_session() as session:
-        items = (
+        query = (
             session.query(MenuItem)
             .filter_by(restaurant_id=restaurant_id, is_available=True)
-            .order_by(MenuItem.category)
-            .all()
         )
+        if category:
+            query = query.filter_by(category=category.strip())
+            
+        total_count = query.count()
+        
+        # Pagination (Observation 2)
+        if limit is not None:
+            try:
+                query = query.limit(int(limit))
+            except ValueError:
+                pass
+        if offset is not None:
+            try:
+                query = query.offset(int(offset))
+            except ValueError:
+                pass
+
+        items = query.order_by(MenuItem.category).all()
         menu = [
             {c.name: getattr(i, c.name) for c in i.__table__.columns}
             for i in items
         ]
-        return jsonify({"menu": menu, "count": len(menu)}), 200
+        
+        response_data = {
+            "menu": menu,
+            "count": len(menu),
+            "total_count": total_count
+        }
+        
+        if redis:
+            try:
+                redis.cache.set(cache_key, response_data, ttl=300)
+            except Exception as e:
+                logger.warning(f"Failed to set public menu in Redis: {e}")
+
+        return jsonify(response_data), 200
 
 
 @restaurants_bp.route("/profile", methods=["PATCH"])
@@ -360,6 +586,8 @@ def update_profile():
             val = data[f]
             if isinstance(val, str):
                 val = val.strip()
+            if f == "restaurant_name" and val and len(val) > 120:
+                return jsonify({"error": "Restaurant Name must be 120 characters or less"}), 400
             if f in ["latitude", "longitude"] and val is not None:
                 val = float(val)
             if f == "delivery_time_min" and val is not None:
@@ -392,6 +620,20 @@ def update_profile():
     except Exception as e:
         logger.error(f"update_profile: {e}")
         return jsonify({"error": "Failed to update profile"}), 500
+
+    from flask import current_app
+    redis = getattr(current_app, "redis", None)
+    if redis:
+        try:
+            if hasattr(redis.cache, 'delete'):
+                redis.cache.delete(f"restaurant:{request.user_id}:detail")
+            if hasattr(redis.cache, 'invalidate_prefix'):
+                redis.cache.invalidate_prefix("restaurants:active:list")
+            else:
+                if hasattr(redis.cache, 'delete'):
+                    redis.cache.delete("restaurants:active:list")
+        except Exception:
+            pass
 
     return jsonify({"message": "Profile updated successfully"}), 200
 

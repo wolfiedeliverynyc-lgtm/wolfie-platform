@@ -87,6 +87,8 @@ class User(Base):
     price_level        = Column(String(10))
     delivery_time_min  = Column(Integer)
     delivery_fee       = Column(Float)
+    menu_version       = Column(Integer, default=1, nullable=False)
+
 
 
     # ── Customer fields ──
@@ -198,8 +200,17 @@ class Order(Base):
     __table_args__ = (
         CheckConstraint("total >= 0",         name="ck_order_total_positive"),
         CheckConstraint("subtotal >= 0",      name="ck_order_subtotal_positive"),
+        CheckConstraint("delivery_fee >= 0",  name="ck_order_delivery_fee_positive"),
+        CheckConstraint("service_fee >= 0",   name="ck_order_service_fee_positive"),
+        CheckConstraint("tax >= 0",           name="ck_order_tax_positive"),
         CheckConstraint("driver_payout >= 0", name="ck_driver_payout_positive"),
+        CheckConstraint("restaurant_commission >= 0", name="ck_order_rest_comm_positive"),
+        CheckConstraint("picked_up_at IS NULL OR picked_up_at >= created_at", name="ck_order_picked_up_after_created"),
+        CheckConstraint("delivered_at IS NULL OR picked_up_at IS NULL OR delivered_at >= picked_up_at", name="ck_order_delivered_after_picked_up"),
+        CheckConstraint("status != 'delivered' OR delivered_at IS NOT NULL", name="ck_order_delivered_status_has_timestamp"),
         Index("ix_orders_status_created", "status", "created_at"),
+        Index("ix_orders_driver_status", "driver_id", "status"),
+        Index("ix_orders_restaurant_date", "restaurant_id", "created_at"),
     )
 
     def __repr__(self):
@@ -278,12 +289,15 @@ class MenuItem(Base):
     image_url     = Column(Text)
     is_available  = Column(Boolean, default=True, nullable=False)
     sizes         = Column(JSON, default=list)
+    created_source = Column(String(50), default="manual", nullable=False)
     created_at    = Column(DateTime(timezone=True), default=_now, nullable=False)
+
     updated_at    = Column(DateTime(timezone=True), default=_now, onupdate=_now, nullable=False)
 
     __table_args__ = (
         CheckConstraint("price > 0", name="ck_menu_price_positive"),
         Index("ix_menu_restaurant_category", "restaurant_id", "category"),
+        Index("ix_menu_restaurant_available", "restaurant_id", "is_available"),
     )
 
 
@@ -297,7 +311,7 @@ class Review(Base):
     id          = Column(String(36), primary_key=True, default=_uuid)
     order_id    = Column(String(36), ForeignKey("orders.id", ondelete="CASCADE"),
                          nullable=False, index=True)
-    reviewer_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    reviewer_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     reviewee_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     role        = Column(Enum("driver","restaurant", name="review_role"), nullable=False)
     rating      = Column(Integer, nullable=False)
@@ -359,10 +373,13 @@ class DriverDeclineLog(Base):
 class IdempotencyKey(Base):
     __tablename__ = "idempotency_keys"
 
-    key          = Column(String(255), primary_key=True)
+    key           = Column(String(255), primary_key=True)
+    customer_id   = Column(String(36), nullable=True, index=True)
+    route         = Column(String(255), nullable=True)
+    request_hash  = Column(String(64), nullable=True)
     response_body = Column(JSON, nullable=True)
-    status_code  = Column(Integer, nullable=True)
-    created_at   = Column(DateTime(timezone=True), default=_now, nullable=False)
+    status_code   = Column(Integer, nullable=True)
+    created_at    = Column(DateTime(timezone=True), default=_now, nullable=False)
 
 # ══════════════════════════════════════════════════════════════
 # RESTAURANT PAYOUTS
@@ -410,7 +427,7 @@ class WAPPrediction(Base):
 
     id = Column(String(36), primary_key=True, default=_uuid)
     order_id = Column(String(36), ForeignKey('orders.id'), nullable=False, unique=True)
-    restaurant_id = Column(String(36), ForeignKey('users.id'), nullable=False)
+    restaurant_id = Column(String(36), ForeignKey('users.id'), nullable=False, index=True)
 
     prep_time_min = Column(Float)
     drive_time_min = Column(Float)
@@ -609,7 +626,7 @@ class RefundRequest(Base):
 
     id                 = Column(String(36), primary_key=True, default=_uuid)
     order_id           = Column(String(36), ForeignKey("orders.id", ondelete="CASCADE"), nullable=False, index=True)
-    user_id            = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    user_id            = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     refund_type        = Column(String(50), nullable=False)
     amount_requested   = Column(Float, nullable=False)
     recommended_amount = Column(Float)
@@ -641,6 +658,11 @@ class FraudFlag(Base):
 
 
 class SupportLog(Base):
+    """
+    Append-only admin audit trail.
+    IMPORTANT: This table must never be updated or deleted from application code.
+    Treat every row as immutable once inserted.
+    """
     __tablename__ = "support_logs"
 
     id          = Column(String(36), primary_key=True, default=_uuid)
@@ -651,8 +673,13 @@ class SupportLog(Base):
     target_id   = Column(String(36), nullable=False)
     meta_data   = Column("metadata", JSON)
     ip_address  = Column(String(45))
+    user_agent  = Column(Text)                     # Device / browser info
+    request_id  = Column(String(64), index=True)   # Correlation ID — ties API ↔ Celery ↔ WS
     created_at  = Column(DateTime(timezone=True), default=_now, nullable=False)
 
+    __table_args__ = (
+        Index("ix_support_logs_actor_created", "actor_id", "created_at"),
+    )
 
 # ══════════════════════════════════════════════════════════════
 # AI SUPPORT & CONVERSATIONS
@@ -729,6 +756,10 @@ class Notification(Base):
     user = relationship("User", foreign_keys=[user_id])
     order = relationship("Order", foreign_keys=[order_id])
 
+    __table_args__ = (
+        Index("ix_notif_user_read_created", "user_id", "is_read", "created_at"),
+    )
+
 
 class Address(Base):
     __tablename__ = "addresses"
@@ -745,6 +776,10 @@ class Address(Base):
 
     user = relationship("User", foreign_keys=[user_id])
 
+    __table_args__ = (
+        Index("ix_addr_user_default_created", "user_id", "is_default", "created_at"),
+    )
+
 
 class ChatMessage(Base):
     __tablename__ = "chat_messages"
@@ -760,13 +795,17 @@ class ChatMessage(Base):
     order = relationship("Order")
     sender = relationship("User", foreign_keys=[sender_id])
 
+    __table_args__ = (
+        Index("ix_chat_order_created", "order_id", "created_at"),
+    )
+
 
 class Favorite(Base):
     __tablename__ = "favorites"
 
     id            = Column(String(36), primary_key=True, default=_uuid)
     user_id       = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    restaurant_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    restaurant_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     created_at    = Column(DateTime(timezone=True), default=_now, nullable=False)
 
     user = relationship("User", foreign_keys=[user_id])

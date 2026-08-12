@@ -45,6 +45,9 @@ class PayoutEngine:
                     order_id: str, gross_amount: float,
                     commission_rate: float = None) -> dict:
         """Credit restaurant after an order is delivered. Goes to pending first."""
+        if gross_amount <= 0:
+            raise ValueError("Gross amount must be greater than 0")
+            
         rate = commission_rate if commission_rate is not None else WOLFIE_COMMISSION_RATE
         commission = round(gross_amount * rate, 2)
         net = round(gross_amount - commission, 2)
@@ -145,7 +148,22 @@ class PayoutEngine:
             balance.pending_balance = round(balance.pending_balance - refund_amount, 2)
         else:
             # Deduct from both (negative balance possible on refunds)
-            balance.available_balance = round(balance.available_balance - refund_amount, 2)
+            # Deduct as much as possible from available_balance first, then from pending_balance
+            remaining = refund_amount
+            if balance.available_balance > 0:
+                deduct_from_available = min(balance.available_balance, remaining)
+                balance.available_balance = round(balance.available_balance - deduct_from_available, 2)
+                remaining -= deduct_from_available
+            
+            if remaining > 0:
+                if balance.pending_balance > 0:
+                    deduct_from_pending = min(balance.pending_balance, remaining)
+                    balance.pending_balance = round(balance.pending_balance - deduct_from_pending, 2)
+                    remaining -= deduct_from_pending
+            
+            # Any leftover deficit goes negative on available_balance
+            if remaining > 0:
+                balance.available_balance = round(balance.available_balance - remaining, 2)
         
         balance.updated_at = datetime.now(UTC)
         

@@ -16,6 +16,13 @@ from services.ai_support_tools import (
 )
 
 class AISupportService:
+    _session = None
+
+    @classmethod
+    def _get_session(cls):
+        if cls._session is None:
+            cls._session = requests.Session()
+        return cls._session
     
     @classmethod
     def get_api_key(cls) -> str:
@@ -28,7 +35,7 @@ class AISupportService:
 
     @classmethod
     def call_gemini_api(cls, model_name: str, system_instruction: str, prompt: str, schema: dict = None) -> dict:
-        """Call Gemini REST API with schema and key. Fallback-safe HTTP client."""
+        """Call Gemini REST API with schema and key. Fallback-safe HTTP client with session reuse and retry backoff."""
         api_key = cls.get_api_key()
         if not api_key or api_key == "your_gemini_api_key_here":
             return {"error": "Gemini API key is not configured. Please add it to your .env file."}
@@ -36,7 +43,6 @@ class AISupportService:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
         
         headers = {"Content-Type": "application/json"}
-        
         contents = [{"parts": [{"text": prompt}]}]
         
         payload = {
@@ -51,33 +57,54 @@ class AISupportService:
                 "responseSchema": schema
             }
             
-        try:
-            response = requests.post(url, headers=headers, json=payload, timeout=25)
-            if response.status_code != 200:
-                return {"error": f"API Error {response.status_code}: {response.text}"}
+        session = cls._get_session()
+        max_retries = 3
+        backoff = 1.0  # seconds
+        last_error = None
+        
+        for attempt in range(max_retries):
+            try:
+                response = session.post(url, headers=headers, json=payload, timeout=10)
                 
-            res_data = response.json()
-            
-            # Record tokens
-            usage = res_data.get("usageMetadata", {})
-            input_tokens = usage.get("promptTokenCount", 0)
-            output_tokens = usage.get("candidatesTokenCount", 0)
-            
-            AICostMonitor.record_transaction(model_name, input_tokens, output_tokens)
-            
-            # Extract output text
-            candidates = res_data.get("candidates", [])
-            if not candidates:
-                return {"error": "No generation candidates returned from API"}
+                if response.status_code == 200:
+                    res_data = response.json()
+                    
+                    # Record tokens
+                    usage = res_data.get("usageMetadata", {})
+                    input_tokens = usage.get("promptTokenCount", 0)
+                    output_tokens = usage.get("candidatesTokenCount", 0)
+                    
+                    AICostMonitor.record_transaction(model_name, input_tokens, output_tokens)
+                    
+                    # Extract output text
+                    candidates = res_data.get("candidates", [])
+                    if not candidates:
+                        return {"error": "No generation candidates returned from API"}
+                        
+                    part_text = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "")
+                    return {
+                        "text": part_text,
+                        "input_tokens": input_tokens,
+                        "output_tokens": output_tokens
+                    }
                 
-            part_text = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "")
-            return {
-                "text": part_text,
-                "input_tokens": input_tokens,
-                "output_tokens": output_tokens
-            }
-        except Exception as e:
-            return {"error": str(e)}
+                # Retry on temporary server errors (500, 503) or rate limits (429)
+                if response.status_code in (500, 503, 429):
+                    last_error = f"API Error {response.status_code}: {response.text}"
+                    time.sleep(backoff * (2 ** attempt))
+                    continue
+                else:
+                    # Non-retryable HTTP error
+                    return {"error": f"API Error {response.status_code}: {response.text}"}
+                    
+            except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+                last_error = f"Network Connection Error: {str(e)}"
+                time.sleep(backoff * (2 ** attempt))
+                continue
+            except Exception as e:
+                return {"error": f"Unexpected System Exception: {str(e)}"}
+                
+        return {"error": f"Failed after {max_retries} attempts. Last error: {last_error}"}
 
     @classmethod
     def detect_language(cls, text: str) -> str:
@@ -276,13 +303,36 @@ class AISupportService:
                 
                 if "error" in res:
                     error_msg = res.get("error", "UNKNOWN")
+                    from flask import current_app
+                    current_app.logger.error(f"AISupportService API Call failed: {error_msg}")
+                    
                     # If config-related or missing API key
                     if "key" in error_msg.lower() or "config" in error_msg.lower():
                         return {
                             "response": "Support service configuration issue (API key missing or invalid). Please contact the platform administrator.",
                             "escalate": True
                         }
-                    return {"response": f"I'm experiencing connectivity issues right now. (Detail: {error_msg}). Let me escalate you to an agent.", "escalate": True}
+                    
+                    # Escalate with credentials / order info / history
+                    latest_order_id = None
+                    try:
+                        orders_res = get_recent_user_orders(user_id, user_role, limit=1)
+                        orders_list = orders_res.get("orders", [])
+                        if orders_list:
+                            latest_order_id = orders_list[0]["order_id"]
+                    except Exception:
+                        pass
+                        
+                    escalate_support_ticket(
+                        user_id=user_id,
+                        order_id=latest_order_id,
+                        category="AI_Support_System_Error",
+                        summary=f"Gemini API Exception: {error_msg}. User ID: {user_id}. Role: {user_role}. Message: {user_message}"
+                    )
+                    return {
+                        "response": "I'm having trouble connecting to my support systems right now. I have escalated this conversation to our support team, and an agent will assist you shortly.",
+                        "escalate": True
+                    }
                     
                 # 10. Process response
                 try:
@@ -319,7 +369,12 @@ class AISupportService:
                     raw_text = AISafetyGuard.validate_response(res["text"])
                     return {"response": raw_text, "escalate": False}
         except Exception as e:
-            return {"response": f"System error occurred: {str(e)}", "escalate": True}
+            from flask import current_app
+            current_app.logger.exception(f"AISupportService unexpected error: {str(e)}")
+            return {
+                "response": "An unexpected error occurred in our support service. I have escalated this conversation to our support team to help you directly.",
+                "escalate": True
+            }
 
     @classmethod
     def persist_interaction(cls, db, user_id: str, user_role: str, session_id: str, user_msg: str, ai_msg: str, intent: str, model_name: str, tokens: int, latency_ms: int, confidence: float = 1.0, escalated: bool = False):

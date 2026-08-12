@@ -48,15 +48,29 @@ def get_recent_user_orders(user_id: str, role: str, limit: int = 3) -> dict:
             else:
                 return {"error": "Invalid user role"}
                 
-            orders = query.order_by(desc(Order.created_at)).limit(limit).all()
-            
+            from database.schemas import User as _User
+            rows = (
+                query
+                .with_entities(
+                    Order.id,
+                    Order.status,
+                    Order.total,
+                    Order.created_at,
+                    _User.restaurant_name,
+                )
+                .join(_User, _User.id == Order.restaurant_id, isouter=True)
+                .order_by(desc(Order.created_at))
+                .limit(limit)
+                .all()
+            )
+
             order_list = []
-            for o in orders:
+            for o in rows:
                 order_list.append({
                     "order_id": o.id,
                     "status": o.status,
                     "total": o.total,
-                    "restaurant_name": o.restaurant.restaurant_name if o.restaurant else "Unknown",
+                    "restaurant_name": o.restaurant_name or "Unknown",
                     "created_at": o.created_at.isoformat() if o.created_at else None
                 })
                 

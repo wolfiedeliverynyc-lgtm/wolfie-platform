@@ -1,286 +1,5 @@
 import { create } from 'zustand';
 
-// ─── Master Ingredients List ────────────────────────────
-export const MOCK_INGREDIENTS = [
-  { id: 'i1', name: 'Beef Patty', allergens: [], calories: 240, dietaryTags: ['halal'], inStock: true },
-  { id: 'i2', name: 'Brioche Bun', allergens: ['gluten', 'dairy'], calories: 150, dietaryTags: [], inStock: true },
-  { id: 'i3', name: 'Cheddar Cheese', allergens: ['dairy'], calories: 80, dietaryTags: [], inStock: true },
-  { id: 'i4', name: 'Applewood Bacon', allergens: [], calories: 95, dietaryTags: [], inStock: true },
-  { id: 'i5', name: 'Lettuce', allergens: [], calories: 5, dietaryTags: ['vegan', 'halal'], inStock: true },
-  { id: 'i6', name: 'Pickles', allergens: [], calories: 5, dietaryTags: ['vegan', 'halal'], inStock: true },
-  { id: 'i7', name: 'Onions', allergens: [], calories: 5, dietaryTags: ['vegan', 'halal'], inStock: true },
-  { id: 'i8', name: 'Roma Tomatoes', allergens: [], calories: 10, dietaryTags: ['vegan', 'halal'], inStock: true },
-  { id: 'i9', name: 'Spicy Mayo Sauce', allergens: ['egg'], calories: 80, dietaryTags: [], inStock: true },
-  { id: 'i10', name: 'Gluten-Free Bun', allergens: [], calories: 130, dietaryTags: ['gluten_free'], inStock: true },
-];
-
-// ─── Modifier Groups ────────────────────────────────────
-export const MOCK_MODIFIER_GROUPS = [
-  { 
-    id: 'g1', 
-    name: 'Choose Bread', 
-    minSelections: 1, 
-    maxSelections: 1, 
-    isRequired: true,
-    options: [
-      { id: 'o1_1', name: 'Brioche Bun', price: 0, calories: 150, available: true, isDefault: true },
-      { id: 'o1_2', name: 'Potato Bun', price: 0, calories: 140, available: true, isDefault: false },
-      { id: 'o1_3', name: 'Gluten-Free Bun', price: 2.0, calories: 130, available: true, isDefault: false }
-    ]
-  },
-  { 
-    id: 'g2', 
-    name: 'Choose Fries', 
-    minSelections: 1, 
-    maxSelections: 1, 
-    isRequired: true,
-    options: [
-      { id: 'o2_1', name: 'Regular Fries', price: 0, calories: 300, available: true, isDefault: true },
-      { id: 'o2_2', name: 'Curly Fries', price: 1.0, calories: 320, available: true, isDefault: false },
-      { id: 'o2_3', name: 'Sweet Potato Fries', price: 2.0, calories: 290, available: true, isDefault: false }
-    ]
-  },
-  { 
-    id: 'g3', 
-    name: 'Choose Sauce', 
-    minSelections: 1, 
-    maxSelections: 3, 
-    isRequired: false,
-    options: [
-      { id: 'o3_1', name: 'BBQ Sauce', price: 0, calories: 50, available: true, isDefault: false },
-      { id: 'o3_2', name: 'Spicy Mayo', price: 0, calories: 80, available: true, isDefault: false },
-      { id: 'o3_3', name: 'Truffle Aioli', price: 1.0, calories: 95, available: true, isDefault: false }
-    ]
-  },
-  { 
-    id: 'g4', 
-    name: 'Add Extras', 
-    minSelections: 0, 
-    maxSelections: 5, 
-    isRequired: false,
-    options: [
-      { id: 'o4_1', name: 'Applewood Bacon', price: 2.0, calories: 95, available: true, isDefault: false },
-      { id: 'o4_2', name: 'Cheddar Cheese', price: 1.0, calories: 80, available: true, isDefault: false },
-      { id: 'o4_3', name: 'Double Beef Patty', price: 4.0, calories: 240, available: true, isDefault: false }
-    ]
-  },
-  {
-    id: 'g5',
-    name: 'Choose Size',
-    minSelections: 1,
-    maxSelections: 1,
-    isRequired: true,
-    options: [
-      { id: 'o5_1', name: 'Regular Size', price: 0, calories: 0, available: true, isDefault: true },
-      { id: 'o5_2', name: 'Large Size', price: 1.5, calories: 150, available: true, isDefault: false }
-    ]
-  },
-  {
-    id: 'g_drinks',
-    name: 'Beverage Choice',
-    minSelections: 1,
-    maxSelections: 1,
-    isRequired: true,
-    options: [
-      { id: 'od_1', name: 'Coca Cola', price: 0, calories: 140, available: true, isDefault: true },
-      { id: 'od_2', name: 'Diet Coke', price: 0, calories: 0, available: true, isDefault: false },
-      { id: 'od_3', name: 'Craft Lemonade', price: 1.0, calories: 120, available: true, isDefault: false }
-    ]
-  }
-];
-
-// ─── Mock Menu Items (Normalized) ───────────────────────
-const INITIAL_MENU_ITEMS = [
-  { 
-    id: 'm1', 
-    name: 'Alpha Wolf Burger', 
-    category: 'Burgers', 
-    price: 14.99,
-    sizes: [],
-    calories: 850, 
-    prepMins: 12, 
-    available: true, 
-    allergens: ['gluten', 'dairy'], 
-    image: '🍔', 
-    description: 'Signature double smash beef burger with house melted cheese and special sauce.',
-    seoSlug: 'alpha-wolf-burger',
-    dietaryTags: ['halal'],
-    pairings: ['m8', 'm11'],
-    ingredients: [
-      { ingredientId: 'i1', removable: false, extraPrice: 4.0, defaultQuantity: 2 },
-      { ingredientId: 'i2', removable: true, extraPrice: 2.0, defaultQuantity: 1 },
-      { ingredientId: 'i3', removable: true, extraPrice: 1.0, defaultQuantity: 1 },
-      { ingredientId: 'i5', removable: true, extraPrice: 0, defaultQuantity: 1 },
-      { ingredientId: 'i6', removable: true, extraPrice: 0, defaultQuantity: 1 },
-      { ingredientId: 'i7', removable: true, extraPrice: 0, defaultQuantity: 1 },
-      { ingredientId: 'i9', removable: true, extraPrice: 0, defaultQuantity: 1 }
-    ],
-    modifierGroupIds: ['g1', 'g3', 'g4']
-  },
-  { 
-    id: 'm2', 
-    name: 'Spicy Ramen Bowl', 
-    category: 'Bowls', 
-    price: 16.50,
-    sizes: [],
-    calories: 720, 
-    prepMins: 15, 
-    available: true, 
-    allergens: ['gluten', 'soy'], 
-    image: '🍜', 
-    description: 'Rich tonkotsu broth, spicy garlic tare, handcut noodles, chashu pork, soft egg.',
-    seoSlug: 'spicy-ramen-bowl',
-    dietaryTags: ['spicy'],
-    pairings: ['m11'],
-    ingredients: [],
-    modifierGroupIds: ['g5']
-  },
-  { 
-    id: 'm3', 
-    name: 'Margherita Pizza', 
-    category: 'Pizza', 
-    price: 12.00,
-    sizes: [],
-    calories: 680, 
-    prepMins: 18, 
-    available: true, 
-    allergens: ['gluten', 'dairy'], 
-    image: '🍕', 
-    description: 'San Marzano tomatoes, fresh mozzarella balls, sweet basil leaves, drizzle of olive oil.',
-    seoSlug: 'margherita-pizza',
-    dietaryTags: ['vegetarian'],
-    pairings: ['m11'],
-    ingredients: [],
-    modifierGroupIds: []
-  },
-  { 
-    id: 'm8', 
-    name: 'Loaded Fries', 
-    category: 'Sides', 
-    price: 8.99,
-    sizes: [],
-    calories: 650, 
-    prepMins: 7, 
-    available: true, 
-    allergens: ['dairy'], 
-    image: '🍟', 
-    description: 'Crispy golden fries topped with cheese sauce, crispy bacon, sour cream, and fresh chives.',
-    seoSlug: 'loaded-fries',
-    dietaryTags: [],
-    pairings: ['m1'],
-    ingredients: [
-      { ingredientId: 'i3', removable: true, extraPrice: 1.0, defaultQuantity: 1 },
-      { ingredientId: 'i4', removable: true, extraPrice: 2.0, defaultQuantity: 1 }
-    ],
-    modifierGroupIds: []
-  },
-  { 
-    id: 'm10', 
-    name: 'Wolf Pack Combo Meal', 
-    category: 'Combos', 
-    price: 21.99,
-    sizes: [],
-    calories: 1200, 
-    prepMins: 14, 
-    available: true, 
-    allergens: ['gluten', 'dairy'], 
-    image: '🍱', 
-    description: 'Upgrade your hunger. Includes choice of any signature burger, side, and refreshing beverage.',
-    seoSlug: 'wolf-pack-combo',
-    dietaryTags: [],
-    pairings: [],
-    isCombo: true,
-    comboSlots: [
-      { id: 'slot1', name: 'Select Main Burger', allowedCategories: ['Burgers'], isRequired: true, upgradePrice: 0, defaultProductId: 'm1' },
-      { id: 'slot2', name: 'Select Side', allowedCategories: ['Sides'], isRequired: true, upgradePrice: 0, defaultProductId: 'm8' },
-      { id: 'slot3', name: 'Select Beverage', allowedCategories: ['Drinks'], isRequired: true, upgradePrice: 0, defaultProductId: 'm11' }
-    ],
-    ingredients: [],
-    modifierGroupIds: []
-  },
-  { 
-    id: 'm11', 
-    name: 'Coca Cola', 
-    category: 'Drinks', 
-    price: 2.50,
-    sizes: [],
-    calories: 140, 
-    prepMins: 2, 
-    available: true, 
-    allergens: [], 
-    image: '🥤', 
-    description: 'Ice cold refreshing classic Coca Cola canned soda.',
-    seoSlug: 'coca-cola',
-    dietaryTags: ['vegan', 'halal'],
-    pairings: ['m1'],
-    ingredients: [],
-    modifierGroupIds: ['g5']
-  }
-];
-
-const INITIAL_CATEGORIES = ['Burgers', 'Bowls', 'Pizza', 'Sides', 'Combos', 'Drinks'];
-
-// ─── Conditional Modifiers ──────────────────────────────
-export const MOCK_CONDITIONAL_MODIFIERS = [
-  {
-    id: 'c1',
-    parentOptionId: 'o1_3', // Gluten-Free Bun selected
-    childModifierGroupId: 'g3', // Show Sauce modifier group
-    priceModifier: 1.0 // Surcharges all sauce selections by $1.00
-  },
-  {
-    id: 'c2',
-    parentOptionId: 'o5_2', // Large size selected
-    childModifierGroupId: 'g_drinks', // Increases beverage modifiers
-    priceModifier: 1.50
-  }
-];
-
-// ─── Version History ────────────────────────────────────
-const INITIAL_VERSION_HISTORY = [
-  {
-    id: 'v1',
-    versionNumber: 1,
-    publishedAt: new Date(Date.now() - 86400000 * 2).toISOString(),
-    status: 'published',
-    categories: INITIAL_CATEGORIES,
-    menuItems: INITIAL_MENU_ITEMS,
-    modifierGroups: MOCK_MODIFIER_GROUPS,
-    conditionalModifiers: MOCK_CONDITIONAL_MODIFIERS
-  }
-];
-
-// ─── Mock Orders Data ───────────────────────────────────
-function createMockOrder(id, status, minutesAgo) {
-  const items = [
-    { menuItemId: 'm1', name: 'Alpha Wolf Burger', quantity: 1, price: 14.99, modifiers: [{ name: 'Brioche Bun', price: 0 }, { name: 'Cheddar Cheese', price: 1.0 }], allergens: ['gluten', 'dairy'] }
-  ];
-  const driverNames = ['Alex M.', 'Jordan K.', 'Taylor R.', 'Sam P.'];
-  const hasDriver = !['new_order', 'cancelled', 'completed'].includes(status);
-  const driver = hasDriver ? {
-    name: driverNames[Math.floor(Math.random() * driverNames.length)],
-    eta: Math.max(1, Math.floor(Math.random() * 8) + 2), // 2 to 9 mins
-    status: 'in_transit'
-  } : null;
-
-  return {
-    id,
-    orderNumber: '#' + (40000 + Math.floor(Math.random() * 10000)),
-    status,
-    items,
-    subtotal: 15.99,
-    customerName: 'Sam W.',
-    customerAddress: '234 Bedford Ave, Brooklyn',
-    customerPhone: '+1 (347) 555-1234',
-    placedAt: new Date(Date.now() - minutesAgo * 60000).toISOString(),
-    acceptedAt: new Date(Date.now() - (minutesAgo - 1) * 60000).toISOString(),
-    estimatedPrepMins: 12,
-    priority: 'normal',
-    slaDeadline: new Date(Date.now() + 20 * 60000).toISOString(),
-    driver
-  };
-}
-
 export function mapBackendOrderToClient(order) {
   if (!order) return null;
   const items = Array.isArray(order.items) ? order.items : [];
@@ -323,26 +42,18 @@ export const useRestaurantStore = create((set, get) => ({
 
   // Restaurant details
   restaurant: { 
-    name: 'Wolfie Burgers', 
-    zone: 'Williamsburg, Brooklyn', 
-    status: 'open', 
-    rating: 4.8, 
-    totalOrders: 2847,
-    logo: '/assets/restaurant_logo_wendys.png',
-    heroImage: '/assets/restaurant_cover_wendys.png',
-    description: 'Signature double smash beef burgers, loaded fries, and refreshing craft drinks.',
-    address: '234 Bedford Ave, Brooklyn, NY 11249',
-    latitude: 36.8990,
-    longitude: 8.4410,
-    operatingHours: {
-      mon: { open: '10:00', close: '23:00' },
-      tue: { open: '10:00', close: '23:00' },
-      wed: { open: '10:00', close: '23:00' },
-      thu: { open: '10:00', close: '23:00' },
-      fri: { open: '10:00', close: '23:00' },
-      sat: { open: '10:00', close: '23:00' },
-      sun: { open: '10:00', close: '23:00' }
-    }
+    name: '', 
+    zone: '', 
+    status: 'closed', 
+    rating: 0, 
+    totalOrders: 0,
+    logo: '',
+    heroImage: '',
+    description: '',
+    address: '',
+    latitude: 0,
+    longitude: 0,
+    operatingHours: {}
   },
 
   // Orders
@@ -364,16 +75,16 @@ export const useRestaurantStore = create((set, get) => ({
   },
 
   // ─── Menu Commerce Operations ─────────────────────────
-  menuCategories: INITIAL_CATEGORIES,
-  menuItems: INITIAL_MENU_ITEMS,
-  modifierGroups: MOCK_MODIFIER_GROUPS,
-  conditionalModifiers: MOCK_CONDITIONAL_MODIFIERS,
-  ingredients: MOCK_INGREDIENTS,
+  menuCategories: [],
+  menuItems: [],
+  modifierGroups: [],
+  conditionalModifiers: [],
+  ingredients: [],
 
   // Version Control systems
-  menuVersions: INITIAL_VERSION_HISTORY,
+  menuVersions: [],
   isDraftDirty: false,
-  publishedAt: new Date(Date.now() - 86400000 * 2).toISOString(),
+  publishedAt: new Date().toISOString(),
   activeVersion: 1,
 
   // Actions
@@ -630,9 +341,7 @@ export const useRestaurantStore = create((set, get) => ({
   }),
 
   // AI Alerts
-  aiAlerts: [
-    { id:'ai1', title:'Burger Station Overload', message:'Predicted in 12 minutes based on incoming order velocity.', severity:'warning', time: new Date().toISOString() }
-  ],
+  aiAlerts: [],
   dismissAiAlert: (id) => set(s => ({ aiAlerts: s.aiAlerts.filter(a => a.id !== id) })),
 
   // KDS Mode
@@ -640,76 +349,21 @@ export const useRestaurantStore = create((set, get) => ({
   toggleKds: () => set(s => ({ kdsMode: !s.kdsMode })),
 
   // Support Queue
-  supportTickets: [
-    { id:'t1', type:'driver_no_show', orderId:'o1', message:'Driver has not arrived after 15 minutes', status:'open', time: new Date(Date.now()-600000).toISOString() }
-  ],
+  supportTickets: [],
   addSupportTicket: (ticket) => set(s => ({ supportTickets: [ticket, ...s.supportTickets] })),
   isSupportModalOpen: false,
   setSupportModalOpen: (open) => set({ isSupportModalOpen: open }),
 
   // Metrics (Static summaries)
-  metrics: { ordersToday: 47, revenueToday: 1284.50, avgPrepTime: 11.3, slaPerfPercent: 94, cancellationRate: 2.1, activeDriversInbound: 3, currentQueueLength: 6, peakHour: '12:00–13:00', itemsSold: 82, avgOrderValue: 27.33 },
-  hourlyData: [{h:'8AM',orders:2,revenue:54},{h:'9AM',orders:5,revenue:137},{h:'10AM',orders:8,revenue:219},{h:'11AM',orders:12,revenue:328},{h:'12PM',orders:18,revenue:492},{h:'1PM',orders:15,revenue:410}],
-  topItems: [{ name:'Alpha Wolf Burger', sold:18, revenue:269.82 }],
+  metrics: { ordersToday: 0, revenueToday: 0.0, avgPrepTime: 0, slaPerfPercent: 100, cancellationRate: 0.0, activeDriversInbound: 0, currentQueueLength: 0, peakHour: 'N/A', itemsSold: 0, avgOrderValue: 0.0 },
+  hourlyData: [],
+  topItems: [],
 
-  activity: [
-    { id:'a1', type:'new_order', message:'New order #40123 received', time: new Date(Date.now()-60000).toISOString(), icon:'📥' }
-  ],
+  activity: [],
   addActivity: (act) => set(s => ({ activity: [act, ...s.activity].slice(0, 30) })),
   
   // ─── Reviews & Ratings ──────────────────────────────
-  reviews: [
-    {
-      id: 'r1',
-      customerName: 'Sarah K.',
-      rating: 5,
-      date: new Date(Date.now() - 4 * 3600000).toISOString(),
-      comment: 'The Alpha Wolf Burger was out of this world! Piping hot and extremely juicy. Best burger in Brooklyn!',
-      items: ['Alpha Wolf Burger', 'Loaded Fries'],
-      reply: null,
-      categoryRatings: { quality: 5, speed: 5, accuracy: 5 }
-    },
-    {
-      id: 'r2',
-      customerName: 'Marcus T.',
-      rating: 2,
-      date: new Date(Date.now() - 12 * 3600000).toISOString(),
-      comment: 'Food tasted great but it arrived almost 25 minutes late. The loaded fries were cold and soggy by then.',
-      items: ['Loaded Fries', 'Coca Cola'],
-      reply: null,
-      categoryRatings: { quality: 4, speed: 1, accuracy: 5 }
-    },
-    {
-      id: 'r3',
-      customerName: 'Amanda L.',
-      rating: 4,
-      date: new Date(Date.now() - 24 * 3600000).toISOString(),
-      comment: 'Ramen was delicious and packed perfectly. However, they forgot to put the extra Cheddar Cheese I ordered for my combo burger.',
-      items: ['Spicy Ramen Bowl', 'Alpha Wolf Burger'],
-      reply: 'Hi Amanda, so sorry about the missing cheese! We have credited your account with a $5 discount coupon. Hope to serve you again soon!',
-      categoryRatings: { quality: 5, speed: 4, accuracy: 3 }
-    },
-    {
-      id: 'r4',
-      customerName: 'Derrick M.',
-      rating: 1,
-      date: new Date(Date.now() - 36 * 3600000).toISOString(),
-      comment: 'Absolute disaster. Order was completely incorrect. I ordered a vegetarian Margherita Pizza but received a pork ramen bowl instead. I am vegetarian!',
-      items: ['Margherita Pizza'],
-      reply: null,
-      categoryRatings: { quality: 1, speed: 3, accuracy: 1 }
-    },
-    {
-      id: 'r5',
-      customerName: 'Elena P.',
-      rating: 5,
-      date: new Date(Date.now() - 48 * 3600000).toISOString(),
-      comment: 'Incredibly fast delivery and the packaging is so futuristic! Love the yellow branding. Pizza was still steaming hot!',
-      items: ['Margherita Pizza', 'Coca Cola'],
-      reply: 'Thank you Elena! We pride ourselves on fast dispatch. Enjoy!',
-      categoryRatings: { quality: 5, speed: 5, accuracy: 5 }
-    }
-  ],
+  reviews: [],
   replyToReview: (reviewId, replyText) => set(s => ({
     reviews: s.reviews.map(r => r.id === reviewId ? { ...r, reply: replyText } : r)
   })),

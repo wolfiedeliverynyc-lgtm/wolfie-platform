@@ -66,23 +66,26 @@ def list_transactions():
             q = q.filter_by(tx_type=tx_type)
         txs = q.order_by(RestaurantTransaction.created_at.desc()).limit(limit).offset(offset).all()
         
-        # Weekly earnings summary
+        from sqlalchemy import func
+        # Weekly earnings — scalar SQL aggregation (no Python-side loop)
         week_start = datetime.now(UTC) - timedelta(days=7)
-        weekly = session.query(RestaurantTransaction).filter(
+        weekly_earnings = round(session.query(
+            func.coalesce(func.sum(RestaurantTransaction.amount), 0)
+        ).filter(
             RestaurantTransaction.restaurant_id == request.user_id,
             RestaurantTransaction.tx_type == 'sale',
             RestaurantTransaction.created_at >= week_start
-        ).all()
-        weekly_earnings = round(sum(t.amount for t in weekly), 2)
-        
-        # Monthly earnings
+        ).scalar() or 0, 2)
+
+        # Monthly earnings — scalar SQL aggregation
         month_start = datetime.now(UTC) - timedelta(days=30)
-        monthly = session.query(RestaurantTransaction).filter(
+        monthly_earnings = round(session.query(
+            func.coalesce(func.sum(RestaurantTransaction.amount), 0)
+        ).filter(
             RestaurantTransaction.restaurant_id == request.user_id,
             RestaurantTransaction.tx_type == 'sale',
             RestaurantTransaction.created_at >= month_start
-        ).all()
-        monthly_earnings = round(sum(t.amount for t in monthly), 2)
+        ).scalar() or 0, 2)
         
         return jsonify({
             'transactions': [{

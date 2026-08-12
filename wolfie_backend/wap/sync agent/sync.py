@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 from functools import wraps
 import uuid
 
-from database import get_session
+from database import get_session, transaction
 from database.repositories import UserRepository, OrderRepository
 from database.schemas import SyncAgent, KitchenMetric, RestaurantScore
 from order_state_manager import OrderState
@@ -38,7 +38,7 @@ def agent_auth_required(f):
         if not api_key or not fingerprint:
             return jsonify({"error": "Missing credentials"}), 401
 
-        with get_session() as session:
+        with transaction() as session:
             agent = session.query(SyncAgent).filter_by(
                 device_fingerprint=fingerprint
             ).first()
@@ -48,7 +48,6 @@ def agent_auth_required(f):
 
             # Update heartbeat
             agent.last_heartbeat = datetime.now(timezone.utc)
-            session.commit()
 
             request.agent = agent
             return f(*args, **kwargs)
@@ -81,7 +80,7 @@ def register_agent():
     if missing:
         return jsonify({"error": f"Missing: {missing}"}), 400
 
-    with get_session() as session:
+    with transaction() as session:
         # Check restaurant exists and is approved
         restaurant = UserRepository(session).get(data["restaurant_id"])
         if not restaurant or restaurant.role != "restaurant":
@@ -109,7 +108,6 @@ def register_agent():
             ip_address=request.remote_addr
         )
         session.add(agent)
-        session.commit()
 
         # Generate API key (in production, use secure key generation)
         api_key = f"wlf_{uuid.uuid4().hex}"
@@ -210,7 +208,7 @@ def receive_order_event():
             celery.send_task("tasks.notify.notify_driver", args=[order_id])
 
     # Persist metric
-    with get_session() as session:
+    with transaction() as session:
         metric = session.query(KitchenMetric).filter_by(order_id=order_id).first()
 
         if not metric:
@@ -242,8 +240,6 @@ def receive_order_event():
             if metric.pos_received_at:
                 metric.total_kitchen_time = (timestamp - metric.pos_received_at).total_seconds() / 60
 
-        session.commit()
-
     return jsonify({"status": "received", "event": event_type})
 
 
@@ -270,7 +266,7 @@ def batch_metrics():
     agent = request.agent
 
     inserted = 0
-    with get_session() as session:
+    with transaction() as session:
         for m in metrics:
             metric = KitchenMetric(
                 agent_id=agent.id,
@@ -282,7 +278,6 @@ def batch_metrics():
             )
             session.add(metric)
             inserted += 1
-        session.commit()
 
     agent.last_sync_at = datetime.now(timezone.utc)
 

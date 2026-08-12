@@ -24,6 +24,7 @@ class LegalPolicyVersion(Base):
     published_at    = Column(DateTime(timezone=True), default=_now, nullable=False)
     active          = Column(Boolean, default=False, nullable=False)
     checksum_hash   = Column(String(64), nullable=False)
+    market          = Column(String(10), default="GLOBAL", nullable=False, index=True)
     policy_snapshot = Column(Text, nullable=False) # The actual content
     created_at      = Column(DateTime(timezone=True), default=_now, nullable=False)
 

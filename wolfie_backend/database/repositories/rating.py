@@ -36,6 +36,8 @@ class RatingRepository(BaseRepository[Review]):
             raise ValueError("Order already rated")
         if not driver_rating and not restaurant_rating:
             raise ValueError("At least one rating required")
+        if comment and len(comment) > 1000:
+            raise ValueError("Comment must be 1000 characters or less")
 
         created = []
         now     = datetime.now(UTC)
@@ -77,24 +79,53 @@ class RatingRepository(BaseRepository[Review]):
         return created
 
     def _recalculate(self, user_id: str, role: str) -> float:
-        reviews = self.list(filters={"reviewee_id": user_id, "role": role}, limit=10_000)
-        if not reviews:
-            return 5.0
-        avg  = round(sum(r.rating for r in reviews) / len(reviews), 2)
+        row = self.session.execute(
+            select(func.avg(Review.rating), func.count(Review.id))
+            .where(Review.reviewee_id == user_id, Review.role == role)
+        ).first()
+        
+        avg = 5.0
+        if row and row[1] > 0:
+            avg = round(float(row[0]), 2)
+            
         user = self.session.get(User, user_id)
         if user:
             user.rating     = avg
             user.updated_at = datetime.now(UTC)
             self.session.flush()
+
+        try:
+            from flask import current_app
+            cache = current_app.redis.cache
+            cache.set(f"user:{user_id}:rating_avg", avg, ttl=600)
+        except Exception:
+            pass
+
         return avg
 
     def summary(self, user_id: str, role: str) -> dict:
-        reviews = self.list(filters={"reviewee_id": user_id, "role": role}, limit=10_000)
-        scores  = [r.rating for r in reviews]
+        row = self.session.execute(
+            select(func.avg(Review.rating), func.count(Review.id))
+            .where(Review.reviewee_id == user_id, Review.role == role)
+        ).first()
+        
+        total_ratings = row[1] if row else 0
+        average = round(float(row[0]), 2) if row and row[1] > 0 else 0.0
+        
+        rows = self.session.execute(
+            select(Review.rating, func.count(Review.id))
+            .where(Review.reviewee_id == user_id, Review.role == role)
+            .group_by(Review.rating)
+        ).all()
+        
+        breakdown = {str(i): 0 for i in range(1, 6)}
+        for r, c in rows:
+            breakdown[str(int(r))] = c
+            
         return {
-            "total_ratings": len(scores),
-            "average":       round(sum(scores) / len(scores), 2) if scores else 0,
-            "breakdown":     {str(i): scores.count(i) for i in range(1, 6)},
+            "total_ratings": total_ratings,
+            "average":       average,
+            "breakdown":     breakdown,
         }
 
 
@@ -125,3 +156,10 @@ class DriverLocationRepository(BaseRepository[DriverLocation]):
 
     def get_for_driver(self, driver_id: str) -> DriverLocation | None:
         return self.session.get(DriverLocation, driver_id)
+
+    def get_for_drivers(self, driver_ids: list[str]) -> list[DriverLocation]:
+        if not driver_ids:
+            return []
+        stmt = select(DriverLocation).where(DriverLocation.driver_id.in_(driver_ids))
+        return list(self.session.scalars(stmt).all())
+

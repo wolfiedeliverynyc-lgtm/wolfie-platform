@@ -15,6 +15,7 @@ from services.pricing       import WolfiePricingEngine as PricingEngine
 from services.matching      import SmartMatchingEngine
 from services.push          import PushNotificationEngine
 from services.mapbox        import MapboxClient
+from services.weather       import WeatherService
 from services.error_handler import register_error_handlers
 from services.redis_service import WolfieRedis, RateLimiter, CacheService, rate_limit
 
@@ -25,6 +26,7 @@ __all__ = [
     "SmartMatchingEngine",
     "PushNotificationEngine",
     "MapboxClient",
+    "WeatherService",
     "register_error_handlers",
     "WolfieRedis",
     "RateLimiter",

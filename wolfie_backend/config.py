@@ -14,11 +14,16 @@ class BaseConfig:
     SECRET_KEY          = os.getenv("SECRET_KEY", "wolfie-change-in-prod")
     JWT_SECRET_KEY      = os.getenv("JWT_SECRET_KEY", "wolfie-jwt-change-in-prod")
 
+    # Production checks
     if os.getenv("FLASK_ENV") == "production":
         if SECRET_KEY == "wolfie-change-in-prod":
             raise ValueError("FATAL: SECRET_KEY must be changed in production")
         if JWT_SECRET_KEY == "wolfie-jwt-change-in-prod":
             raise ValueError("FATAL: JWT_SECRET_KEY must be changed in production")
+        # Ensure AI encryption key is changed in production config
+        _AI_KEY = os.getenv("AI_ENCRYPTION_KEY", "wolfie-default-encryption-key-32b!")
+        if _AI_KEY == "wolfie-default-encryption-key-32b!" or not _AI_KEY:
+            raise ValueError("FATAL: AI_ENCRYPTION_KEY must be configured and changed in production")
     JWT_ACCESS_TOKEN_EXPIRES  = timedelta(hours=24)
     JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=30)
 
@@ -44,6 +49,13 @@ class BaseConfig:
     # ── Redis ────────────────────────────────
     REDIS_URL           = os.getenv("REDIS_URL", "redis://localhost:6379")
 
+    # ── Database Pool Settings ────────────────
+    SQLALCHEMY_POOL_SIZE     = int(os.getenv("SQLALCHEMY_POOL_SIZE", "5"))
+    SQLALCHEMY_MAX_OVERFLOW  = int(os.getenv("SQLALCHEMY_MAX_OVERFLOW", "10"))
+    SQLALCHEMY_POOL_TIMEOUT  = int(os.getenv("SQLALCHEMY_POOL_TIMEOUT", "30"))
+    SQLALCHEMY_POOL_RECYCLE  = int(os.getenv("SQLALCHEMY_POOL_RECYCLE", "1800"))
+    SQLALCHEMY_SLOW_QUERY_THRESHOLD = float(os.getenv("SQLALCHEMY_SLOW_QUERY_THRESHOLD", "0.5"))
+
     # ── Wolfie Business Rules ────────────────
     BASE_DELIVERY_FEE       = float(os.getenv("BASE_DELIVERY_FEE",    "4.00"))
     DELIVERY_FEE_PER_KM     = float(os.getenv("DELIVERY_FEE_PER_KM",  "0.80"))
@@ -53,6 +65,8 @@ class BaseConfig:
     SERVICE_FEE_MAX         = float(os.getenv("SERVICE_FEE_MAX",       "7.49"))
     DRIVER_SUBSCRIPTION_FEE = float(os.getenv("DRIVER_SUBSCRIPTION_FEE", "30.00"))
     TRIAL_DAYS              = int(os.getenv("TRIAL_DAYS", "7"))
+    MATCHING_TOP_CANDIDATES = int(os.getenv("MATCHING_TOP_CANDIDATES", "15"))
+    MATCHING_FALLBACK_ON_ERROR = os.getenv("MATCHING_FALLBACK_ON_ERROR", "true").lower() in ("true", "1", "yes")
 
     # ── Commission tiers ─────────────────────
     # (monthly_orders_threshold, commission_rate)
@@ -68,14 +82,17 @@ class BaseConfig:
     WEATHER_RAIN_MULTIPLIER = float(os.getenv("WEATHER_RAIN_MULTIPLIER", "1.25"))
 
     # ── CORS ──────────────────────────────────
-    ALLOWED_ORIGINS = os.getenv(
-        "ALLOWED_ORIGINS",
-        "http://localhost:3000,http://localhost:5173,https://wolfiedelivery.com,https://wolfie-customer-wolfiedeliverynyc-8378s-projects.vercel.app,https://wolfie-restaurant-wolfiedeliverynyc-8378s-projects.vercel.app,https://wolfie-admin-wolfiedeliverynyc-8378s-projects.vercel.app,https://wolfie-driver-new-wolfiedeliverynyc-8378s-projects.vercel.app,https://wolfie-customer.vercel.app,https://wolfie-restaurant.vercel.app,https://wolfie-admin.vercel.app,https://wolfie-driver-new.vercel.app"
-    ).split(",")
+    ALLOWED_ORIGINS = [
+        o.strip() for o in os.getenv(
+            "ALLOWED_ORIGINS",
+            "http://localhost:3000,http://localhost:5173,https://wolfiedelivery.com,https://wolfie-customer-wolfiedeliverynyc-8378s-projects.vercel.app,https://wolfie-restaurant-wolfiedeliverynyc-8378s-projects.vercel.app,https://wolfie-admin-wolfiedeliverynyc-8378s-projects.vercel.app,https://wolfie-driver-new-wolfiedeliverynyc-8378s-projects.vercel.app,https://wolfie-customer.vercel.app,https://wolfie-restaurant.vercel.app,https://wolfie-admin.vercel.app,https://wolfie-driver-new.vercel.app"
+        ).split(",") if o.strip()
+    ]
 
     # ── Misc ──────────────────────────────────
     MAX_CONTENT_LENGTH   = 16 * 1024 * 1024   # 16 MB upload limit
     PROPAGATE_EXCEPTIONS = True
+    OPENWEATHER_API_KEY  = os.getenv("OPENWEATHER_API_KEY")
 
     # ── AI Support ────────────────────────────
     GEMINI_API_KEY          = os.getenv("GEMINI_API_KEY")
@@ -88,17 +105,20 @@ class BaseConfig:
 
 
 class DevelopmentConfig(BaseConfig):
+    ENV     = "development"
     DEBUG   = True
     TESTING = False
 
 
 class TestingConfig(BaseConfig):
+    ENV     = "testing"
     DEBUG   = False
     TESTING = True
     DATABASE_URL = "sqlite:///wolfie_test.db"
 
 
 class ProductionConfig(BaseConfig):
+    ENV     = "production"
     DEBUG   = False
     TESTING = False
 

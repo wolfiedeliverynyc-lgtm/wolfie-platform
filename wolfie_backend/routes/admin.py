@@ -17,22 +17,50 @@ logger   = logging.getLogger("wolfie")
 
 @admin_bp.route("/dashboard", methods=["GET"])
 def dashboard():
+    # Try Redis cache first (60s TTL)
+    from flask import current_app
+    import time
+    redis = getattr(current_app, "redis", None)
+    cache_key = "admin:dashboard:summary"
+    if redis:
+        cached = redis.cache.get(cache_key)
+        if cached:
+            return jsonify(cached), 200
+
+    from sqlalchemy import func, select
+    from database.schemas import User
     with get_db_session() as session:
         order_repo = OrderRepository(session)
-        user_repo  = UserRepository(session)
         summary    = order_repo.revenue_summary()
-        users      = user_repo.list(limit=10_000)
-        by_role    = {}
-        for u in users:
-            by_role[u.role] = by_role.get(u.role, 0) + 1
-        return jsonify({
+
+        # SQL COUNT aggregation — no Python-side iteration over full objects
+        role_counts = session.execute(
+            select(User.role, func.count(User.id).label("cnt"))
+            .group_by(User.role)
+        ).all()
+        total_count = session.execute(select(func.count(User.id))).scalar()
+        active_count = session.execute(
+            select(func.count(User.id)).where(User.is_active == True)
+        ).scalar()
+
+        by_role = {row.role: row.cnt for row in role_counts}
+
+        result = {
             "orders": summary,
-            "users":  {
-                "total":   len(users),
+            "users": {
+                "total":   total_count,
                 "by_role": by_role,
-                "active":  len([u for u in users if u.is_active]),
+                "active":  active_count,
             },
-        }), 200
+        }
+
+        if redis:
+            try:
+                redis.cache.set(cache_key, result, ttl=60)
+            except Exception:
+                pass
+
+        return jsonify(result), 200
 
 
 @admin_bp.route("/users", methods=["GET"])
@@ -213,16 +241,20 @@ def list_drivers():
 
 @admin_bp.route("/drivers/<driver_id>/declines", methods=["GET"])
 def list_driver_declines(driver_id):
+    limit  = int(request.args.get("limit", 50))
+    offset = int(request.args.get("offset", 0))
     from database.schemas import DriverDeclineLog
     with get_db_session() as session:
-        declines = session.query(DriverDeclineLog).filter_by(driver_id=driver_id).order_by(DriverDeclineLog.created_at.desc()).all()
+        declines = session.query(DriverDeclineLog).filter_by(driver_id=driver_id).order_by(DriverDeclineLog.created_at.desc()).limit(limit).offset(offset).all()
+        from sqlalchemy import func
+        count = session.query(func.count(DriverDeclineLog.id)).filter_by(driver_id=driver_id).scalar()
         return jsonify({
             "declines": [{
                 "id": d.id,
                 "order_id": d.order_id,
                 "created_at": d.created_at.isoformat()
             } for d in declines],
-            "count": len(declines),
+            "count": count,
         }), 200
 
 
@@ -254,7 +286,12 @@ def metrics_summary():
     from services.metrics import (
         system_cpu, system_ram, system_disk, system_open_fds, system_uptime,
         redis_mem, redis_clients, redis_ping_latency, redis_queue_size,
+        redis_hits, redis_misses,
         db_pool_size, db_pool_checked_out, db_pool_overflow,
+        wolfie_orders_total, wolfie_driver_acceptances_total, wolfie_payment_total,
+        wolfie_drivers_online, wolfie_orders_pending,
+        dep_latency, matching_duration, payment_duration, dispatch_duration,
+        ws_connections_active, ws_reconnections_total,
         update_system_metrics, update_redis_metrics
     )
     from flask import current_app
@@ -266,10 +303,38 @@ def metrics_summary():
         except Exception:
             return 0
 
+    def _val_lbl(counter, label):
+        try:
+            return counter.labels(label)._value.get()
+        except Exception:
+            return 0
+
+    def _hist_avg(metric, label):
+        try:
+            m = metric.labels(label)
+            s = m._sum.get()
+            c = m._count.get()
+            return s / c if c > 0 else 0
+        except Exception:
+            return 0
+
+    def _hist_avg_unlabeled(metric):
+        try:
+            s = metric._sum.get()
+            c = metric._count.get()
+            return s / c if c > 0 else 0
+        except Exception:
+            return 0
+
     # Update metrics
     update_system_metrics()
     redis_inst = getattr(current_app, "redis", None)
     update_redis_metrics(redis_inst)
+
+    hits = _val(redis_hits)
+    misses = _val(redis_misses)
+    total_cache_ops = hits + misses
+    hit_rate = (hits / total_cache_ops * 100) if total_cache_ops > 0 else 0.0
 
     return jsonify({
         "status": "success",
@@ -284,12 +349,48 @@ def metrics_summary():
             "used_memory_bytes": _val(redis_mem),
             "connected_clients": _val(redis_clients),
             "latency_seconds": _val(redis_ping_latency),
-            "queue_size": _val(redis_queue_size)
+            "queue_size": _val(redis_queue_size),
+            "cache_hits": hits,
+            "cache_misses": misses,
+            "cache_hit_rate_percent": hit_rate
         },
         "database": {
             "pool_size": _val(db_pool_size),
             "pool_checked_out": _val(db_pool_checked_out),
             "pool_overflow": _val(db_pool_overflow),
+            "latency_avg_seconds": _hist_avg(dep_latency, "db"),
             "health": health_check()
+        },
+        "business": {
+            "orders": {
+                "new": _val_lbl(wolfie_orders_total, "new"),
+                "accepted": _val_lbl(wolfie_orders_total, "accepted"),
+                "completed": _val_lbl(wolfie_orders_total, "completed"),
+                "cancelled": _val_lbl(wolfie_orders_total, "cancelled")
+            },
+            "driver_acceptances": {
+                "accepted": _val_lbl(wolfie_driver_acceptances_total, "accepted"),
+                "rejected": _val_lbl(wolfie_driver_acceptances_total, "rejected"),
+                "timeout": _val_lbl(wolfie_driver_acceptances_total, "timeout")
+            },
+            "payments": {
+                "success": _val_lbl(wolfie_payment_total, "success"),
+                "failed": _val_lbl(wolfie_payment_total, "failed"),
+                "refunded": _val_lbl(wolfie_payment_total, "refunded")
+            },
+            "drivers_online": _val(wolfie_drivers_online),
+            "orders_pending": _val(wolfie_orders_pending)
+        },
+        "latency": {
+            "mapbox_avg_seconds": _hist_avg(dep_latency, "mapbox"),
+            "stripe_avg_seconds": _hist_avg(dep_latency, "stripe"),
+            "gemini_avg_seconds": _hist_avg(dep_latency, "gemini"),
+            "matching_avg_seconds": _hist_avg_unlabeled(matching_duration),
+            "payment_avg_seconds": _hist_avg_unlabeled(payment_duration),
+            "dispatch_avg_seconds": _hist_avg_unlabeled(dispatch_duration)
+        },
+        "websocket": {
+            "active_connections": _val(ws_connections_active),
+            "reconnections_total": _val(ws_reconnections_total)
         }
     }), 200

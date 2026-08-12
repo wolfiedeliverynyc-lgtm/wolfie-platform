@@ -90,6 +90,7 @@ class RestaurantTransaction(Base):
     
     __table_args__ = (
         Index('ix_restaurant_tx_restaurant_created', 'restaurant_id', 'created_at'),
+        Index('ix_restaurant_tx_type_created', 'restaurant_id', 'tx_type', 'created_at'),
     )
     
     def __repr__(self):

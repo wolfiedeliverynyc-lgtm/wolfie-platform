@@ -52,8 +52,11 @@ class WolfiePricingEngine:
         self.service_max        = float(cfg.get("SERVICE_FEE_MAX",         7.49))
         self.surge_max          = float(cfg.get("SURGE_MULTIPLIER_MAX",    2.50))
         self.delivery_fee_min   = 4.49
-        self.delivery_fee_max   = 12.49
-        self.profit_floor       = 1.50   # min platform profit per order
+        self.delivery_fee_max   = 16.99   # Cap relaxed to accommodate long-distance delivery
+        self.profit_floor       = float(cfg.get("PROFIT_FLOOR", 3.50))   # min platform profit per order ($3.50 floor)
+        self.max_radius_km      = float(cfg.get("MAX_DELIVERY_RADIUS_KM", 14.5)) # 9.0 miles
+        self.long_dist_threshold = float(cfg.get("LONG_DIST_THRESHOLD_KM", 7.2)) # 4.5 miles
+        self.long_dist_fee       = float(cfg.get("LONG_DISTANCE_FEE", 3.50))
         logger.info("WolfiePricingEngine v5.7 initialized")
 
     def calculate(self,
@@ -62,17 +65,27 @@ class WolfiePricingEngine:
                   duration_min:  float  = 15.0,
                   restaurant_id: str    = None,
                   customer_id:   str    = None,
-                  is_surge:      bool   = False,
+                  is_surge:      bool   = None,
                   weather_code:  str    = None,
                   promo_code:    str    = None) -> dict:
         """
-        Full v5.7 pricing calculation.
+        Full v5.7 pricing calculation with 3-Tier Distance Model & $3.50 Profit Floor.
         Returns all fee components + breakdown.
         """
+
+        # ── 0. Max delivery radius check (Max 9 miles / 14.5 km) ──
+        if distance_km > self.max_radius_km:
+            raise ValueError(f"Out of delivery range (Max {round(self.max_radius_km / 1.609, 1)} miles / {self.max_radius_km} km)")
 
         # ── 1. Delivery fee ───────────────────
         delivery_fee = self.base_delivery + (self.fee_per_km * distance_km) + (self.fee_per_min * duration_min)
         delivery_fee = round(delivery_fee, 2)
+
+        # Long distance surcharge (+3.50) for orders beyond 4.5 miles (7.2 km)
+        is_long_distance = distance_km > self.long_dist_threshold
+        long_distance_surcharge = self.long_dist_fee if is_long_distance else 0.0
+        if is_long_distance:
+            delivery_fee = round(delivery_fee + long_distance_surcharge, 2)
 
         # ── 2. Weather multiplier ─────────────
         weather_mult = 1.0
@@ -82,8 +95,14 @@ class WolfiePricingEngine:
 
         # ── 3. Surge pricing ──────────────────
         surge_mult = 1.0
+        # If is_surge is not specified (standard order path), determine server-side
+        if is_surge is None:
+            surge_mult = min(self._get_surge_multiplier(), self.surge_max)
+            is_surge = surge_mult > 1.0
+        elif is_surge:
+            surge_mult = min(self._get_surge_multiplier(), self.surge_max)
+
         if is_surge:
-            surge_mult   = min(self._get_surge_multiplier(), self.surge_max)
             delivery_fee = round(delivery_fee * surge_mult, 2)
 
         # ── 4. Cap delivery fee ───────────────
@@ -150,6 +169,8 @@ class WolfiePricingEngine:
             "surge_applied":          is_surge,
             "surge_multiplier":       surge_mult,
             "weather_multiplier":     weather_mult,
+            "long_distance_applied":  is_long_distance,
+            "long_distance_fee":      long_distance_surcharge,
             "promo_applied":          promo_applied,
             "distance_km":            round(distance_km, 2),
             "duration_min":           round(duration_min, 1),
@@ -187,13 +208,13 @@ class WolfiePricingEngine:
     def _get_surge_multiplier(self) -> float:
         """
         Real surge: count active orders in last 30 min.
-        Simple linear ramp: 10 orders → 1.2x, 30 orders → 1.8x, 50+ → 2.5x
+        Simple linear ramp: 5 orders → 1.2x, 10 orders → 1.4x, 30 orders → 1.8x, 50+ → 2.5x
         """
         try:
             from flask import current_app
             db = getattr(current_app, "db", None)
             if not db:
-                return 1.3
+                return 1.0
             from datetime import timedelta
             since = (datetime.now(UTC) - timedelta(minutes=30)).isoformat()
             res   = (
@@ -209,7 +230,9 @@ class WolfiePricingEngine:
                 return 1.8
             elif active >= 10:
                 return 1.4
-            else:
+            elif active >= 5:
                 return 1.2
+            else:
+                return 1.0
         except Exception:
-            return 1.3
+            return 1.0

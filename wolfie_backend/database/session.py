@@ -24,7 +24,14 @@ _SessionLocal  = None
 # ENGINE INIT
 # ══════════════════════════════════════════════════════════════
 
-def init_engine(database_url: str, testing: bool = False):
+def init_engine(
+    database_url: str,
+    testing: bool = False,
+    pool_size: int = 5,
+    max_overflow: int = 10,
+    pool_timeout: int = 30,
+    pool_recycle: int = 1800
+):
     """
     Call once at startup from app.py.
 
@@ -50,10 +57,10 @@ def init_engine(database_url: str, testing: bool = False):
     else:
         # PostgreSQL / Supabase — connection pool
         engine_kwargs["poolclass"]       = QueuePool
-        engine_kwargs["pool_size"]       = 5
-        engine_kwargs["max_overflow"]    = 10
-        engine_kwargs["pool_timeout"]    = 30
-        engine_kwargs["pool_recycle"]    = 1800    # recycle every 30 min
+        engine_kwargs["pool_size"]       = pool_size
+        engine_kwargs["max_overflow"]    = max_overflow
+        engine_kwargs["pool_timeout"]    = pool_timeout
+        engine_kwargs["pool_recycle"]    = pool_recycle
 
     _engine = create_engine(database_url, **engine_kwargs)
 
@@ -180,7 +187,14 @@ def init_db(app):
         or "sqlite:///wolfie_dev.db"
     )
 
-    if db_url.startswith("sqlite"):
+    is_sqlite = db_url.startswith("sqlite")
+    is_prod = os.getenv("FLASK_ENV") == "production" or app.config.get("ENV") == "production"
+
+    # Enforce PostgreSQL in production
+    if is_prod and is_sqlite:
+        raise RuntimeError("FATAL: SQLite is not allowed in production. Please configure DATABASE_URL to a valid PostgreSQL instance.")
+
+    if is_sqlite:
         # On Render or Production, redirect SQLite database to writable /tmp folder
         if os.getenv("RENDER") == "true" or os.getenv("FLASK_ENV") == "production":
             src_db = db_url.replace("sqlite:///", "")
@@ -200,13 +214,25 @@ def init_db(app):
             db_url = f"sqlite:///{dest_db}"
 
     testing = app.config.get("TESTING", False)
-    engine  = init_engine(db_url, testing=testing)
+    pool_size = app.config.get("SQLALCHEMY_POOL_SIZE", 5)
+    max_overflow = app.config.get("SQLALCHEMY_MAX_OVERFLOW", 10)
+    pool_timeout = app.config.get("SQLALCHEMY_POOL_TIMEOUT", 30)
+    pool_recycle = app.config.get("SQLALCHEMY_POOL_RECYCLE", 1800)
+    engine  = init_engine(
+        db_url,
+        testing=testing,
+        pool_size=pool_size,
+        max_overflow=max_overflow,
+        pool_timeout=pool_timeout,
+        pool_recycle=pool_recycle
+    )
 
-    # Always run create_tables to ensure new schemas (like ai_conversations) are automatically created
-    try:
-        create_tables()
-    except Exception as e:
-        logger.error(f"⚠️ Failed to auto-create tables: {e}")
+    # Only run create_tables in development or testing (Alembic handles production)
+    if not is_prod:
+        try:
+            create_tables()
+        except Exception as e:
+            logger.error(f"⚠️ Failed to auto-create tables: {e}")
 
     # Attach session factory to app
     app.db_session = _SessionLocal
@@ -225,11 +251,11 @@ def init_db(app):
 def _build_supabase_url(app) -> str | None:
     """Build PostgreSQL URL from Supabase config if DATABASE_URL not set."""
     url  = app.config.get("SUPABASE_URL")
-    key  = app.config.get("SUPABASE_SERVICE_KEY") or app.config.get("SUPABASE_KEY")
-    if url and key:
-        # Supabase PostgreSQL direct connection
+    db_pass = os.getenv("SUPABASE_DB_PASSWORD") or os.getenv("DB_PASSWORD")
+    if url and db_pass:
+        # Supabase PostgreSQL direct connection using correct database password
         project = url.replace("https://", "").replace(".supabase.co", "")
-        return f"postgresql://postgres:{key}@db.{project}.supabase.co:5432/postgres"
+        return f"postgresql://postgres:{db_pass}@db.{project}.supabase.co:5432/postgres"
     return None
 
 
@@ -256,4 +282,10 @@ def health_check() -> dict:
             session.execute(text("SELECT 1"))
         return {"status": "ok", "database": "connected"}
     except Exception as e:
-        return {"status": "error", "database": str(e)}
+        logger.exception("Database health check failed")
+        try:
+            import sentry_sdk
+            sentry_sdk.capture_exception(e)
+        except ImportError:
+            pass
+        return {"status": "error", "database": "unreachable"}

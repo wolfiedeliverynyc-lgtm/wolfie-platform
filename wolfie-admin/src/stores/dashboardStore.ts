@@ -49,6 +49,8 @@ interface DashboardState {
   fetchFlags: () => Promise<void>;
   fetchAiMetrics: () => Promise<void>;
   fetchSystemStatus: () => Promise<void>;
+  metricsSummary: any | null;
+  fetchMetricsSummary: () => Promise<void>;
 
   // Mutative Actions (API Calls + Local Store Updates)
   addOrder: (order: Order) => void;
@@ -123,6 +125,7 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
   activityFeed: MOCK_ACTIVITY,
   systemStatus: [],
   merchants: MOCK_MERCHANTS,
+  metricsSummary: null,
   isLoading: false,
   error: null,
 
@@ -138,7 +141,8 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
         get().fetchFlags(),
         get().fetchAiMetrics(),
         get().fetchMerchants(),
-        get().fetchSystemStatus()
+        get().fetchSystemStatus(),
+        get().fetchMetricsSummary()
       ]);
       set({ isLoading: false });
     } catch (err: unknown) {
@@ -326,6 +330,15 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
           { label: "Redis Cache Service", value: "Offline", up: false },
         ]
       });
+    }
+  },
+
+  fetchMetricsSummary: async () => {
+    try {
+      const res = await api.get('/admin/metrics-summary');
+      set({ metricsSummary: res.data });
+    } catch (err) {
+      console.error("Failed to fetch metrics summary:", err);
     }
   },
 

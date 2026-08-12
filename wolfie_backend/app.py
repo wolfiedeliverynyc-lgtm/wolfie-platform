@@ -27,6 +27,7 @@ load_dotenv()
 # Sentry SDK Initialization
 _SENTRY_DSN = os.getenv("SENTRY_DSN")
 if _SENTRY_DSN:
+    _sample_rate = 0.1 if os.getenv("FLASK_ENV") == "production" else 1.0
     sentry_sdk.init(
         dsn=_SENTRY_DSN,
         integrations=[
@@ -34,8 +35,8 @@ if _SENTRY_DSN:
             SqlalchemyIntegration(),
         ],
         default_integrations=False,
-        traces_sample_rate=1.0,
-        profiles_sample_rate=1.0,
+        traces_sample_rate=_sample_rate,
+        profiles_sample_rate=_sample_rate,
     )
 
 # ──────────────────────────────────────────────
@@ -51,8 +52,9 @@ try:
     _r = redis.Redis.from_url(_MQ_URL, socket_timeout=1)
     _r.ping()
     _message_queue = _MQ_URL
-except Exception:
-    pass
+except Exception as e:
+    import sys
+    sys.stderr.write(f"⚠️ Redis connection for SocketIO MQ failed, running SocketIO standalone: {e}\n")
 
 try:
     import gevent
@@ -60,8 +62,15 @@ try:
 except ImportError:
     _async_mode = "threading"
 
+_ALLOWED_ORIGINS = [
+    o.strip() for o in os.getenv(
+        "ALLOWED_ORIGINS",
+        "http://localhost:3000,http://localhost:5173,https://wolfiedelivery.com,https://wolfie-customer-wolfiedeliverynyc-8378s-projects.vercel.app,https://wolfie-restaurant-wolfiedeliverynyc-8378s-projects.vercel.app,https://wolfie-admin-wolfiedeliverynyc-8378s-projects.vercel.app,https://wolfie-driver-new-wolfiedeliverynyc-8378s-projects.vercel.app,https://wolfie-customer.vercel.app,https://wolfie-restaurant.vercel.app,https://wolfie-admin.vercel.app,https://wolfie-driver-new.vercel.app"
+    ).split(",") if o.strip()
+]
+
 socketio = SocketIO(
-    cors_allowed_origins  = "*",
+    cors_allowed_origins  = _ALLOWED_ORIGINS,
     async_mode            = _async_mode,
     message_queue         = _message_queue,   # ← Redis pub/sub if running, else standalone
     channel               = "wolfie",
@@ -77,7 +86,12 @@ def create_app(config_name: str = None) -> Flask:
 
     app = Flask(__name__)
 
+    # ── Correlation ID Middleware ─────────────
+    from services.audit_logger import register_correlation_id_middleware
+    register_correlation_id_middleware(app)
+
     # ── Config ────────────────────────────────
+
     from config import config_map
     env = config_name or os.getenv("FLASK_ENV", "development")
     app.config.from_object(config_map[env])
@@ -107,8 +121,8 @@ def create_app(config_name: str = None) -> Flask:
                     sentry_sdk.set_tag("user_role", role)
                     if role == "admin" and admin_type:
                         sentry_sdk.set_tag("admin_type", admin_type)
-            except Exception:
-                pass
+            except Exception as e:
+                app.logger.debug(f"Failed to parse sentry context token: {e}")
         
         # Tags for business flows
         try:
@@ -122,8 +136,8 @@ def create_app(config_name: str = None) -> Flask:
                 for key in ["order_id", "restaurant_id", "driver_id", "customer_id"]:
                     if key in data:
                         sentry_sdk.set_tag(key, data[key])
-        except Exception:
-            pass
+        except Exception as e:
+            app.logger.debug(f"Failed to extract sentry flow tags: {e}")
 
         # Environment & Version tags
         sentry_sdk.set_tag("environment", app.config.get("ENV", "development"))
@@ -135,6 +149,24 @@ def create_app(config_name: str = None) -> Flask:
         "supports_credentials": True
     }})
     socketio.init_app(app)
+
+    # ── Security Headers ──────────────────────
+    @app.after_request
+    def add_security_headers(response):
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self'; "
+            "style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data: blob:; "
+            "connect-src 'self' wss: https:;"
+        )
+        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=()"
+        if app.config.get("ENV") == "production" or os.getenv("FLASK_ENV") == "production" or os.getenv("RENDER") == "true":
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
+        return response
 
     # ── Prometheus Exporter ───────────────────
     from prometheus_flask_exporter import PrometheusMetrics
@@ -153,7 +185,7 @@ def create_app(config_name: str = None) -> Flask:
     engine = init_db(app)
 
     from services.metrics import setup_db_metrics
-    setup_db_metrics(engine)
+    setup_db_metrics(engine, slow_query_threshold=app.config.get("SQLALCHEMY_SLOW_QUERY_THRESHOLD", 0.5))
 
     # ── Redis ─────────────────────────────────
     try:
@@ -307,6 +339,16 @@ def _init_services(app: Flask):
     except Exception as e:
         app.logger.error(f"❌ PushNotificationEngine failed: {e}")
 
+    # Weather Service
+    try:
+        from services import WeatherService
+        app.weather_service = WeatherService(
+            api_key=app.config.get("OPENWEATHER_API_KEY")
+        )
+        app.logger.info("✅ WeatherService ready")
+    except Exception as e:
+        app.logger.error(f"❌ WeatherService failed: {e}")
+
 
 # ──────────────────────────────────────────────────────────────
 # BLUEPRINTS
@@ -380,18 +422,88 @@ def _register_socket_events():
 
     @socketio.on("connect")
     def on_connect():
-        logging.getLogger("wolfie").info(f"WS connected: {request.sid}")
+        token = request.args.get("token") or request.headers.get("Authorization", "").replace("Bearer ", "")
+        if not token:
+            logging.getLogger("wolfie").warning(f"WS connection rejected: No token found. (sid: {request.sid})")
+            return False  # Reject connection
+        try:
+            import jwt
+            from flask import current_app
+            secret = current_app.config.get("JWT_SECRET_KEY")
+            payload = jwt.decode(token, secret, algorithms=["HS256"])
+            request.ws_user_id = payload.get("sub")
+            request.ws_user_role = payload.get("role")
+            logging.getLogger("wolfie").info(f"WS connected and authenticated: {request.ws_user_id} ({request.ws_user_role})")
+            
+            # Increment WebSocket connection metric
+            try:
+                from services.metrics import ws_connections_active
+                ws_connections_active.inc()
+            except Exception:
+                pass
+        except Exception as e:
+            logging.getLogger("wolfie").warning(f"WS connection rejected: Invalid token. {e} (sid: {request.sid})")
+            return False  # Reject connection
 
     @socketio.on("disconnect")
     def on_disconnect():
         logging.getLogger("wolfie").info(f"WS disconnected: {request.sid}")
+        # Decrement WebSocket connection metric
+        try:
+            from services.metrics import ws_connections_active
+            ws_connections_active.dec()
+        except Exception:
+            pass
+
+        # Handle driver disconnection
+        role = getattr(request, "ws_user_role", None)
+        user_id = getattr(request, "ws_user_id", None)
+        if role == "driver" and user_id:
+            try:
+                from flask import current_app
+                from database import get_db_session
+                from database.repositories import UserRepository
+                with get_db_session() as session:
+                    repo = UserRepository(session)
+                    user = repo.get(user_id)
+                    if user:
+                        user.is_available = False
+                        session.commit()
+                current_app.realtime.broadcast_driver_offline(user_id)
+            except Exception as e:
+                logging.getLogger("wolfie").error(f"Error updating driver offline status: {e}")
 
     @socketio.on("join_order")
     def on_join_order(data):
         order_id = data.get("order_id")
-        if order_id:
-            join_room(f"order_{order_id}")
-            emit("joined", {"room": f"order_{order_id}"})
+        user_id = getattr(request, "ws_user_id", None)
+        role = getattr(request, "ws_user_role", None)
+        if not order_id or not user_id:
+            return
+
+        try:
+            from database import get_db_session
+            from database.schemas import Order
+            with get_db_session() as session:
+                order = session.query(Order).filter(Order.id == order_id).first()
+                if not order:
+                    return
+                
+                allowed = (
+                    role == "admin" or
+                    order.customer_id == user_id or
+                    order.driver_id == user_id or
+                    order.restaurant_id == user_id
+                )
+                if not allowed:
+                    logging.getLogger("wolfie").warning(f"User {user_id} unauthorized to join order_{order_id}")
+                    return
+        except Exception as e:
+            logging.getLogger("wolfie").error(f"Error checking order join permission: {e}")
+            return
+
+        join_room(f"order_{order_id}")
+        emit("joined", {"room": f"order_{order_id}"})
 
     @socketio.on("leave_order")
     def on_leave_order(data):
@@ -407,15 +519,30 @@ def _register_socket_events():
         lat       = data.get("lat")
         lng       = data.get("lng")
         driver_id = data.get("driver_id")
+        
+        user_id = getattr(request, "ws_user_id", None)
+        role = getattr(request, "ws_user_role", None)
 
         if not all([order_id, lat, lng, driver_id]):
             return
 
+        # Validate that the sender is indeed a driver and is updating their own location
+        if role != "driver" or user_id != driver_id:
+            logging.getLogger("wolfie").warning(f"Unauthorized driver location update: user_id={user_id}, driver_id={driver_id}, role={role}")
+            return
+
+        # Rate limiting: limit driver GPS updates to 60 per minute per session (sid)
+        redis_inst = getattr(current_app, "redis", None)
+        if redis_inst and hasattr(redis_inst, "limiter"):
+            allowed, _ = redis_inst.limiter.check(f"ws:gps:{request.sid}", limit=60, window=60)
+            if not allowed:
+                return  # Drop update silently to prevent log spamming
+
         # Persist location
         try:
             current_app.realtime.update_driver_location(driver_id, lat, lng, order_id)
-        except Exception:
-            pass
+        except Exception as e:
+            current_app.logger.warning(f"Failed to persist driver location: {e}")
 
         # Broadcast to customer
         socketio.emit(
@@ -430,41 +557,60 @@ def _register_socket_events():
         message  = data.get("message")
         sender   = data.get("sender_type") or data.get("sender") or "customer"  # customer | driver | restaurant
         sender_id = data.get("sender_id")
+        
+        user_id = getattr(request, "ws_user_id", None)
+        role = getattr(request, "ws_user_role", None)
 
-        if order_id and message:
-            # Broadcast to room immediately for low-latency feedback
-            socketio.emit(
-                "chat_message",
-                {"message": message, "sender": sender, "sender_id": sender_id},
-                room=f"order_{order_id}"
-            )
+        if not order_id or not message or not user_id:
+            return
 
-            # Persist to database
-            try:
-                from database import transaction
-                from database.schemas import ChatMessage, Order
-                with transaction() as session:
-                    order = session.query(Order).filter(Order.id == order_id).first()
-                    resolved_sender_id = sender_id
-                    if order and not resolved_sender_id:
-                        if sender == "customer":
-                            resolved_sender_id = order.customer_id
-                        elif sender == "driver":
-                            resolved_sender_id = order.driver_id
-                        elif sender == "restaurant":
-                            resolved_sender_id = order.restaurant_id
-                    
-                    if resolved_sender_id:
-                        new_msg = ChatMessage(
-                            order_id=order_id,
-                            sender_id=resolved_sender_id,
-                            sender_type=sender,
-                            message=message,
-                            is_read=False
-                        )
-                        session.add(new_msg)
-            except Exception as e:
-                logging.getLogger("wolfie").error(f"Failed to persist Socket.IO message: {e}")
+        # Rate limiting: limit chat messages to 10 per 10 seconds per session
+        redis_inst = getattr(current_app, "redis", None)
+        if redis_inst and hasattr(redis_inst, "limiter"):
+            allowed, _ = redis_inst.limiter.check(f"ws:chat:{request.sid}", limit=10, window=10)
+            if not allowed:
+                logging.getLogger("wolfie").warning(f"WS chat rate limit hit for session {request.sid}")
+                return
+
+        # Validate sender_id and role
+        if sender_id and sender_id != user_id:
+            logging.getLogger("wolfie").warning(f"Unauthorized sender ID in chat: user_id={user_id}, sender_id={sender_id}")
+            return
+
+        # Verify role matches sender
+        if role != sender:
+            if role != "admin" and sender not in ["customer", "driver", "restaurant"]:
+                return
+
+        # Broadcast to room immediately for low-latency feedback
+        socketio.emit(
+            "chat_message",
+            {"message": message, "sender": sender, "sender_id": user_id},
+            room=f"order_{order_id}"
+        )
+
+        # Persist to database
+        try:
+            from database import transaction
+            from database.schemas import ChatMessage, Order
+            with transaction() as session:
+                order = session.query(Order).filter(Order.id == order_id).first()
+                if order and user_id not in [order.customer_id, order.driver_id, order.restaurant_id] and role != "admin":
+                    logging.getLogger("wolfie").warning(f"User {user_id} unauthorized to chat in order_{order_id}")
+                    return
+
+                resolved_sender_id = user_id
+                if resolved_sender_id:
+                    new_msg = ChatMessage(
+                        order_id=order_id,
+                        sender_id=resolved_sender_id,
+                        sender_type=sender,
+                        message=message,
+                        is_read=False
+                    )
+                    session.add(new_msg)
+        except Exception as e:
+            logging.getLogger("wolfie").error(f"Failed to persist Socket.IO message: {e}")
 
 
 

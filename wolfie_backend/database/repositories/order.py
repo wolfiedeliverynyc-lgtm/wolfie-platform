@@ -6,9 +6,9 @@
 
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import select, func
+from sqlalchemy import select, func, exists, case, literal_column
 from database.repositories.base import BaseRepository
-from database.schemas import Order
+from database.schemas import Order, User
 from order_state_manager import (
     order_state_manager, OrderState, ActorRole,
     OrderStateError, InvalidTransitionError,
@@ -28,16 +28,17 @@ class OrderRepository(BaseRepository[Order]):
         return self.list(filters={"customer_id": customer_id},
                          order_by="created_at", limit=limit, offset=offset)
 
-    def find_by_restaurant(self, restaurant_id: str, limit: int = 50) -> list[Order]:
-        return self.list(filters={"restaurant_id": restaurant_id},
-                         order_by="created_at", limit=limit)
-
-    def find_by_driver(self, driver_id: str, status: str = None) -> list[Order]:
-        stmt = select(Order).where(Order.driver_id == driver_id)
+    def find_by_restaurant(self, restaurant_id: str, limit: int = 50, offset: int = 0, status: str = None) -> list[Order]:
+        filters = {"restaurant_id": restaurant_id}
         if status:
-            stmt = stmt.where(Order.status == status)
-        stmt = stmt.order_by(Order.created_at.desc())
-        return list(self.session.scalars(stmt).all())
+            filters["status"] = status
+        return self.list(filters=filters, order_by="created_at", limit=limit, offset=offset)
+
+    def find_by_driver(self, driver_id: str, status: str = None, limit: int = 50, offset: int = 0) -> list[Order]:
+        filters = {"driver_id": driver_id}
+        if status:
+            filters["status"] = status
+        return self.list(filters=filters, order_by="created_at", limit=limit, offset=offset)
 
     def find_active_for_driver(self, driver_id: str) -> Order | None:
         active = ["assigned","accepted","preparing","picked_up","on_the_way"]
@@ -172,13 +173,13 @@ class OrderRepository(BaseRepository[Order]):
         # 3. Check for double booking (any other order with active delivery status)
         active_statuses = ["assigned", "accepted", "preparing", "ready", "picked_up", "on_the_way"]
         active_order_exists = self.session.scalar(
-            select(func.count(Order.id)).where(
+            select(exists().where(
                 Order.driver_id == driver_id,
                 Order.id != order.id,
                 Order.status.in_(active_statuses)
-            )
+            ))
         )
-        if active_order_exists > 0:
+        if active_order_exists:
             raise ValueError(f"Driver {driver_id} is already assigned to another active order")
 
         updated_order, _ = self.transition(order, "assigned", driver_id=driver_id)
@@ -200,23 +201,52 @@ class OrderRepository(BaseRepository[Order]):
 
     # ── Analytics ────────────────────────────
 
-    def revenue_summary(self) -> dict:
-        all_orders  = self.list(limit=10_000)
-        delivered   = [o for o in all_orders if o.status == "delivered"]
-        gmv         = sum(o.total or 0 for o in delivered)
-        platform_rev= sum(o.service_fee or 0 for o in delivered)
-        avg         = gmv / len(delivered) if delivered else 0
+    def get_driver_earnings_summary(self, driver_id: str) -> tuple[int, float]:
+        """
+        Returns (total_deliveries, total_earnings) using SQL aggregation.
+        """
+        stmt = select(
+            func.count(Order.id),
+            func.sum(Order.driver_payout)
+        ).where(
+            Order.driver_id == driver_id,
+            Order.status == "delivered"
+        )
+        res = self.session.execute(stmt).first()
+        count = res[0] or 0
+        total = float(res[1] or 0.0)
+        return count, total
 
+    def revenue_summary(self) -> dict:
+        stmt = select(
+            Order.status,
+            func.count(Order.id).label("count"),
+            func.sum(Order.total).label("total_sum"),
+            func.sum(Order.service_fee).label("service_fee_sum")
+        ).group_by(Order.status)
+        
+        results = self.session.execute(stmt).all()
+        
+        stats = {row[0]: {"count": row[1], "total": row[2] or 0, "service_fee": row[3] or 0} for row in results}
+        
+        total_orders = sum(item["count"] for item in stats.values())
+        delivered = stats.get("delivered", {}).get("count", 0)
+        cancelled = stats.get("cancelled", {}).get("count", 0)
+        pending = stats.get("pending", {}).get("count", 0)
+        
+        gmv = stats.get("delivered", {}).get("total", 0.0)
+        platform_rev = stats.get("delivered", {}).get("service_fee", 0.0)
+        avg = gmv / delivered if delivered > 0 else 0.0
+        
         return {
-            "total_orders":     len(all_orders),
-            "delivered":        len(delivered),
-            "cancelled":        len([o for o in all_orders if o.status == "cancelled"]),
-            "pending":          len([o for o in all_orders if o.status == "pending"]),
-            "gmv":              round(gmv, 2),
-            "platform_revenue": round(platform_rev, 2),
-            "avg_order_value":  round(avg, 2),
-            "conversion_rate":  round(len(delivered) / len(all_orders) * 100, 1)
-                                if all_orders else 0,
+            "total_orders":     total_orders,
+            "delivered":        delivered,
+            "cancelled":        cancelled,
+            "pending":          pending,
+            "gmv":              round(float(gmv), 2),
+            "platform_revenue": round(float(platform_rev), 2),
+            "avg_order_value":  round(float(avg), 2),
+            "conversion_rate":  round((delivered / total_orders * 100), 1) if total_orders > 0 else 0.0,
         }
 
     def to_dict(self, obj: Order, exclude: set = None) -> dict:
@@ -233,3 +263,133 @@ class OrderRepository(BaseRepository[Order]):
         else:
             d["driver"] = None
         return d
+
+    # ── Bulk Analytics (SQL aggregation — zero Python-side loops) ─────────────
+
+    def get_restaurant_stats_summary(self, restaurant_id: str) -> dict:
+        """
+        Returns order stats for one restaurant using SQL aggregation.
+        Replaces: orders = find_by_restaurant(limit=10_000) + Python loops.
+        """
+        row = self.session.execute(
+            select(
+                func.count(Order.id).label("total_orders"),
+                func.sum(case((Order.status == "delivered", 1), else_=0)).label("delivered"),
+                func.sum(case((Order.status == "delivered", Order.total), else_=0)).label("gmv"),
+                func.sum(case((Order.status == "delivered", Order.restaurant_commission), else_=0)).label("commission"),
+            ).where(Order.restaurant_id == restaurant_id)
+        ).first()
+
+        total      = row.total_orders or 0
+        delivered  = row.delivered    or 0
+        gmv        = float(row.gmv or 0)
+        commission = float(row.commission or 0)
+        return {
+            "total_orders":     total,
+            "delivered_orders": delivered,
+            "gmv":              round(gmv, 2),
+            "commission_paid":  round(commission, 2),
+            "net_revenue":      round(gmv - commission, 2),
+        }
+
+    def get_all_restaurants_performance(self) -> list[dict]:
+        """
+        Returns per-restaurant stats in ONE SQL query (no N+1).
+        Replaces: for r in restaurants: find_by_restaurant(r.id, limit=10_000).
+        """
+        rows = self.session.execute(
+            select(
+                Order.restaurant_id,
+                func.count(Order.id).label("total_orders"),
+                func.sum(case((Order.status == "delivered", 1), else_=0)).label("delivered"),
+                func.sum(case((Order.status == "delivered", Order.total), else_=0)).label("gmv"),
+                func.sum(case((Order.status == "delivered", Order.restaurant_commission), else_=0)).label("commission"),
+            ).group_by(Order.restaurant_id)
+        ).all()
+
+        return [
+            {
+                "restaurant_id": r.restaurant_id,
+                "total_orders":  r.total_orders  or 0,
+                "delivered":     r.delivered     or 0,
+                "gmv":           round(float(r.gmv        or 0), 2),
+                "commission":    round(float(r.commission or 0), 2),
+            }
+            for r in rows
+        ]
+
+    def get_all_drivers_performance(self) -> list[dict]:
+        """
+        Returns per-driver delivery count + earnings in ONE SQL query (no N+1).
+        Replaces: for d in drivers: find_by_driver(d.id, status='delivered') loop.
+        """
+        rows = self.session.execute(
+            select(
+                Order.driver_id,
+                func.count(Order.id).label("total_deliveries"),
+                func.sum(Order.driver_payout).label("total_earnings"),
+            ).where(
+                Order.driver_id.isnot(None),
+                Order.status == "delivered",
+            ).group_by(Order.driver_id)
+        ).all()
+
+        return {
+            r.driver_id: {
+                "total_deliveries": r.total_deliveries or 0,
+                "total_earnings":   round(float(r.total_earnings or 0), 2),
+            }
+            for r in rows
+        }
+
+    def get_orders_summary_since(self, since: datetime) -> dict:
+        """
+        Returns order stats for the period since a given datetime using SQL.
+        Replaces: repo.list(limit=100_000) + Python filter loops.
+        """
+        row = self.session.execute(
+            select(
+                func.count(Order.id).label("total"),
+                func.sum(case((Order.status == "delivered", 1), else_=0)).label("delivered"),
+                func.sum(case((Order.status == "cancelled", 1), else_=0)).label("cancelled"),
+                func.sum(case((Order.status == "delivered", Order.total), else_=0)).label("gmv"),
+                func.sum(case((Order.status == "delivered", Order.service_fee), else_=0)).label("platform_rev"),
+            ).where(Order.created_at >= since)
+        ).first()
+
+        total      = row.total       or 0
+        delivered  = row.delivered   or 0
+        cancelled  = row.cancelled   or 0
+        gmv        = float(row.gmv          or 0)
+        platform_r = float(row.platform_rev or 0)
+        return {
+            "total_orders": total,
+            "delivered":    delivered,
+            "cancelled":    cancelled,
+            "gmv":          round(gmv, 2),
+            "platform_rev": round(platform_r, 2),
+            "conversion":   round(delivered / total * 100, 1) if total > 0 else 0.0,
+        }
+
+    def get_daily_breakdown_since(self, since: datetime) -> dict:
+        """
+        Returns per-day order count + revenue since a given datetime using SQL GROUP BY.
+        Replaces: Python loop grouping orders by strftime.
+        """
+        rows = self.session.execute(
+            select(
+                func.date(Order.created_at).label("day"),
+                func.count(Order.id).label("orders"),
+                func.sum(case((Order.status == "delivered", Order.service_fee), else_=0)).label("revenue"),
+            ).where(Order.created_at >= since
+            ).group_by(func.date(Order.created_at)
+            ).order_by(func.date(Order.created_at))
+        ).all()
+
+        return {
+            str(r.day): {
+                "orders":  r.orders  or 0,
+                "revenue": round(float(r.revenue or 0), 2),
+            }
+            for r in rows
+        }

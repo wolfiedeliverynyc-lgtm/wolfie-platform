@@ -32,6 +32,8 @@ def create_address():
     label = data.get("label", "Home").strip()
     apt = data.get("apt", "").strip()
     notes = data.get("notes", "").strip()
+    if len(notes) > 500:
+        return jsonify({"error": "Notes must be 500 characters or less"}), 400
     is_default = bool(data.get("is_default", False))
 
     with transaction() as session:
@@ -78,7 +80,11 @@ def update_address(address_id):
         if "street" in data: addr.street = data["street"].strip()
         if "city" in data: addr.city = data["city"].strip()
         if "apt" in data: addr.apt = data["apt"].strip()
-        if "notes" in data: addr.notes = data["notes"].strip()
+        if "notes" in data:
+            notes = data["notes"].strip()
+            if len(notes) > 500:
+                return jsonify({"error": "Notes must be 500 characters or less"}), 400
+            addr.notes = notes
         if "label" in data: addr.label = data["label"].strip()
         
         is_default = data.get("is_default")

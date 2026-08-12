@@ -5,10 +5,13 @@
 """
 
 import logging
+import hashlib
+import json
 from flask import Blueprint, request, jsonify, current_app, Response
 from functools import wraps
 from sqlalchemy.orm.exc import NoResultFound
 from routes.auth import require_auth
+from services.error_handler import make_error_response
 from database import transaction, get_db_session
 from database.repositories import OrderRepository, UserRepository
 from database.schemas import IdempotencyKey, User, MenuItem
@@ -17,6 +20,20 @@ from validation import validate_request, OrderCreateSchema
 orders_bp = Blueprint("orders", __name__)
 logger    = logging.getLogger("wolfie")
 
+def _calc_request_hash(req) -> str:
+    hasher = hashlib.sha256()
+    hasher.update(req.method.encode("utf-8"))
+    hasher.update(req.path.encode("utf-8"))
+    body = req.get_json(silent=True)
+    if body:
+        serialized = json.dumps(body, sort_keys=True)
+        hasher.update(serialized.encode("utf-8"))
+    else:
+        raw_data = req.get_data()
+        if raw_data:
+            hasher.update(raw_data)
+    return hasher.hexdigest()
+
 def idempotent(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -24,9 +41,21 @@ def idempotent(f):
         if not idempotency_key:
             return f(*args, **kwargs)
         
+        user_id = getattr(request, "user_id", None)
+        route_path = request.path
+        req_hash = _calc_request_hash(request)
+        
         with transaction() as session:
             existing = session.query(IdempotencyKey).filter_by(key=idempotency_key).first()
             if existing:
+                # 1. BOLA Check: Only the user who initiated the key can reuse it
+                if existing.customer_id and existing.customer_id != user_id:
+                    return make_error_response("Unauthorized use of idempotency key", "AUTH_002", 403)
+                
+                # 2. Collision Check: Same key, different route or payload
+                if existing.route != route_path or existing.request_hash != req_hash:
+                    return make_error_response("Idempotency key collision: key already used for a different request payload or route", "VALIDATION_001", 400)
+                
                 return jsonify(existing.response_body), existing.status_code
                 
         # Execute the actual function
@@ -41,7 +70,14 @@ def idempotent(f):
                 json_data = body
             
             with transaction() as session:
-                new_key = IdempotencyKey(key=idempotency_key, response_body=json_data, status_code=status_code)
+                new_key = IdempotencyKey(
+                    key=idempotency_key,
+                    customer_id=user_id,
+                    route=route_path,
+                    request_hash=req_hash,
+                    response_body=json_data,
+                    status_code=status_code
+                )
                 session.add(new_key)
                 
         return response
@@ -50,7 +86,7 @@ def idempotent(f):
 
 def _svc():
     return {k: getattr(current_app, k, None)
-            for k in ("pricing", "mapbox", "matching", "push")}
+            for k in ("pricing", "mapbox", "matching", "push", "weather_service")}
 
 
 def _emit(order_id, event, data):
@@ -67,16 +103,31 @@ def _emit(order_id, event, data):
 def _calc_pricing(svc, subtotal, route_info, data) -> dict:
     if svc["pricing"]:
         try:
+            # Resolve weather code server-side using weather_service based on delivery location
+            weather_code = None
+            weather_svc = svc.get("weather_service")
+            if weather_svc:
+                d_lat = route_info.get("delivery_coords", {}).get("lat") or data.get("delivery_lat")
+                d_lng = route_info.get("delivery_coords", {}).get("lng") or data.get("delivery_lng")
+                if d_lat is not None and d_lng is not None:
+                    try:
+                        weather_code = weather_svc.get_weather_code(float(d_lat), float(d_lng))
+                    except Exception as we:
+                        logger.warning(f"Failed to fetch weather in _calc_pricing: {we}")
+
             return svc["pricing"].calculate(
                 subtotal      = subtotal,
                 distance_km   = route_info.get("distance_km", 2.0),
                 duration_min  = route_info.get("duration_min", 15),
                 restaurant_id = data.get("restaurant_id"),
                 customer_id   = data.get("customer_id"),
-                is_surge      = data.get("is_surge", False),
-                weather_code  = data.get("weather_code"),
+                is_surge      = None,  # Calculated server-side in pricing engine
+                weather_code  = weather_code,  # Resolved server-side
                 promo_code    = data.get("promo_code"),
             )
+        except ValueError as ve:
+            # Re-raise ValueError so endpoint can return explicit HTTP 400 error
+            raise ve
         except Exception as e:
             logger.error(f"Pricing engine error: {e}")
 
@@ -104,7 +155,7 @@ def _calc_pricing(svc, subtotal, route_info, data) -> dict:
 def get_price_quote():
     data = request.get_json(silent=True) or {}
     if not data.get("pickup_address") or not data.get("delivery_address"):
-        return jsonify({"error": "pickup_address and delivery_address required"}), 400
+        return make_error_response("pickup_address and delivery_address required", "VALIDATION_001", 400)
 
     svc        = _svc()
     route_info = {"distance_km": 2.0, "duration_min": 15}
@@ -116,30 +167,35 @@ def get_price_quote():
             logger.warning(f"Mapbox fallback: {e}")
 
     subtotal = sum(i.get("price", 0) * i.get("quantity", 1) for i in data.get("items", []))
+    try:
+        quote_res = _calc_pricing(svc, subtotal, route_info, data)
+    except ValueError as ve:
+        return make_error_response(str(ve), "VALIDATION_001", 400)
+
     return jsonify({
-        "quote":      _calc_pricing(svc, subtotal, route_info, data),
+        "quote":      quote_res,
         "route":      route_info,
         "expires_in": 300,
     }), 200
 
 
 @orders_bp.route("/", methods=["POST"])
+@require_auth(["customer", "admin"])
 @idempotent
 @validate_request(OrderCreateSchema)
 def create_order():
     data    = request.validated_data.model_dump(by_alias=True)
     
-    # 1. Resolve customer_id from token if not in body
+    # 1. Resolve customer_id from authenticated session
     customer_id = data.get("customer_id")
-    if not customer_id:
-        raw = request.headers.get("Authorization", "")
-        if raw.startswith("Bearer "):
-            from routes.auth import _decode_token
-            payload = _decode_token(raw[7:], current_app.config["JWT_SECRET_KEY"])
-            if payload:
-                customer_id = payload.get("sub")
-    if not customer_id:
-        customer_id = "test-cust-0000-0000-000000000002"
+    if getattr(request, "user_role", None) == "customer":
+        if customer_id and customer_id != request.user_id:
+            return make_error_response("Unauthorized: Cannot create order for another customer", "AUTH_002", 403)
+        customer_id = request.user_id
+    else:
+        # Admin is placing the order
+        if not customer_id:
+            return make_error_response("customer_id is required for admin-placed orders", "VALIDATION_001", 400)
         
     # 2. Get restaurant ID and resolve pickup_address
     restaurant_id = data.get("restaurant_id")
@@ -166,35 +222,21 @@ def create_order():
                             "pickup_address","delivery_address","payment_method"]
                if not data.get(f)]
     if missing:
-        return jsonify({"error": f"Missing fields: {missing}"}), 400
+        return make_error_response(f"Missing fields: {missing}", "VALIDATION_001", 400)
 
-    # 1. Validate restaurant and menu items
+    # 1. Validate restaurant, ensure customer exists, and validate menu items
     with get_db_session() as session:
-        # Ensure customer exists for guest checkouts
         customer = session.query(User).filter(User.id == data["customer_id"]).first()
         if not customer:
-            # fallback to a default guest user
-            customer = session.query(User).filter(User.email == "guest@wolfie.com").first()
-            if not customer:
-                customer = User(
-                    id="guest_id",
-                    email="guest@wolfie.com",
-                    full_name="Guest User",
-                    phone="0000000000",
-                    role="customer",
-                    password_hash="none"
-                )
-                session.add(customer)
-                session.flush()
-            data["customer_id"] = customer.id
+            return make_error_response("Customer not found", "ORDER_013", 404)
 
         restaurant = session.query(User).filter(User.id == data["restaurant_id"], User.role == "restaurant").first()
         if not restaurant:
-            return jsonify({"error": "Restaurant not found"}), 404
+            return make_error_response("Restaurant not found", "ORDER_013", 404)
         if not restaurant.is_active:
-            return jsonify({"error": "Restaurant is inactive"}), 400
+            return make_error_response("Restaurant is inactive", "ORDER_004", 400)
         if not restaurant.is_open:
-            return jsonify({"error": "Restaurant is closed"}), 400
+            return make_error_response("Restaurant is closed", "ORDER_004", 400)
 
         validated_items = []
         for item in data["items"]:
@@ -208,9 +250,9 @@ def create_order():
                     db_item = session.query(MenuItem).filter(MenuItem.name == item_name, MenuItem.restaurant_id == restaurant.id).first()
 
             if not db_item:
-                return jsonify({"error": f"Menu item '{item.get('name') or item_id}' not found at this restaurant"}), 400
+                return make_error_response(f"Menu item '{item.get('name') or item_id}' not found at this restaurant", "ORDER_013", 400)
             if not db_item.is_available:
-                return jsonify({"error": f"Menu item '{db_item.name}' is currently unavailable"}), 400
+                return make_error_response(f"Menu item '{db_item.name}' is currently unavailable", "ORDER_004", 400)
 
             validated_items.append({
                 "id": db_item.id,
@@ -299,10 +341,10 @@ def create_order():
             order_data   = repo.to_dict(order)
 
     except ValueError as e:
-        return jsonify({"error": str(e)}), 400
+        return make_error_response(str(e), "ORDER_004", 400)
     except Exception as e:
         logger.error(f"create_order: {e}")
-        return jsonify({"error": "Order creation failed"}), 500
+        return make_error_response("Order creation failed", "SYSTEM_001", 500)
 
     _emit(order_id, "order_created", {
         "order_id": order_id, "status": order_status,
@@ -345,19 +387,43 @@ def create_order():
 @orders_bp.route("/<order_id>", methods=["GET"])
 @require_auth(["customer", "driver", "restaurant", "admin"])
 def get_order(order_id: str):
+    from flask import current_app
+    redis = getattr(current_app, "redis", None)
+    cache_key = f"order:{order_id}:detail"
+    
+    is_admin = getattr(request, "user_role", None) == "admin"
+    
+    if redis:
+        try:
+            cached = redis.cache.get(cache_key)
+            if cached is not None:
+                if not is_admin:
+                    if request.user_id not in [cached.get("customer_id"), cached.get("driver_id"), cached.get("restaurant_id")]:
+                        return make_error_response("Unauthorized to view this order", "AUTH_002", 403)
+                return jsonify(cached), 200
+        except Exception:
+            pass
+
     with get_db_session() as session:
         repo  = OrderRepository(session)
         order = repo.get(order_id)
         if not order:
-            return jsonify({"error": "Order not found"}), 404
+            return make_error_response("Order not found", "ORDER_013", 404)
 
         # BOLA/IDOR Ownership Check
-        is_admin = getattr(request, "user_role", None) == "admin"
         if not is_admin:
             if request.user_id not in [order.customer_id, order.driver_id, order.restaurant_id]:
-                return jsonify({"error": "Unauthorized to view this order"}), 403
+                return make_error_response("Unauthorized to view this order", "AUTH_002", 403)
 
-        return jsonify(repo.to_dict(order)), 200
+        order_dict = repo.to_dict(order)
+
+    if redis:
+        try:
+            redis.cache.set(cache_key, order_dict, ttl=15)
+        except Exception:
+            pass
+
+    return jsonify(order_dict), 200
 
 
 import math
@@ -398,7 +464,7 @@ def update_order_status(order_id: str):
             # Restaurant Ownership check
             if getattr(request, "user_role", None) == "restaurant" and not is_admin:
                 if order.restaurant_id != request.user_id:
-                    return jsonify({"error": "Unauthorized: You do not own this order."}), 403
+                    return make_error_response("Unauthorized: You do not own this order.", "AUTH_002", 403)
 
             # Geofence & Ownership Validation for Drivers
             if getattr(request, "user_role", None) == "driver" and not is_admin:
@@ -492,19 +558,26 @@ def update_order_status(order_id: str):
                     "driver_accepted": bool(updated_order.driver_accepted_at)
                 })
     except ValueError as e:
-        return jsonify({"error": str(e)}), 400
+        return make_error_response(str(e), "ORDER_004", 400)
     except LookupError as e:
-        return jsonify({"error": str(e)}), 404
+        return make_error_response(str(e), "ORDER_013", 404)
     except PermissionError as e:
-        return jsonify({"error": str(e)}), 400
+        return make_error_response(str(e), "ORDER_004", 400)
     except Exception as e:
         logger.error(f"update_order_status: {e}")
-        return jsonify({"error": "Status update failed"}), 500
+        return make_error_response("Status update failed", "SYSTEM_001", 500)
 
     _emit(order_id, "order_status_update", {"order_id": order_id, "status": result_status})
     
+    from flask import current_app
+    redis = getattr(current_app, "redis", None)
+    if redis:
+        try:
+            redis.cache.delete(f"order:{order_id}:detail")
+        except Exception:
+            pass
+
     try:
-        from flask import current_app
         socketio = current_app.extensions.get("socketio")
         if not socketio:
             from app import socketio
@@ -521,7 +594,7 @@ def update_order_status(order_id: str):
 def get_customer_orders(customer_id: str):
     if getattr(request, "user_role", None) == "customer":
         if request.user_id != customer_id:
-            return jsonify({"error": "Unauthorized: Cannot view another customer's orders"}), 403
+            return make_error_response("Unauthorized: Cannot view another customer's orders", "AUTH_002", 403)
 
     limit  = int(request.args.get("limit",  20))
     offset = int(request.args.get("offset",  0))

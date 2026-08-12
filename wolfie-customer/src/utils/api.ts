@@ -32,8 +32,9 @@ export const getAuthToken = (): string | null => {
 
 export const setAuthToken = (token: string | null) => {
   if (typeof window !== 'undefined') {
+    const isSecure = window.location.protocol === 'https:';
     if (token) {
-      document.cookie = `wolfie_auth_token=${token}; path=/; max-age=604800; SameSite=Lax; Secure`;
+      document.cookie = `wolfie_auth_token=${token}; path=/; max-age=604800; SameSite=Lax${isSecure ? '; Secure' : ''}`;
     } else {
       document.cookie = 'wolfie_auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
     }

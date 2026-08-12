@@ -15,6 +15,7 @@ import jwt
 from flask import Blueprint, request, jsonify, current_app
 from database import transaction, get_db_session
 from services.redis_service import rate_limit
+from services.error_handler import UnauthorizedError, ForbiddenError
 from database.repositories import UserRepository
 
 auth_bp = Blueprint("auth", __name__)
@@ -25,18 +26,32 @@ UTC     = timezone.utc
 # ── Token helpers ─────────────────────────────────────────────
 
 def _generate_tokens(user_id: str, role: str, secret: str, admin_type: str = None) -> dict:
+    import uuid
+    access_jti = str(uuid.uuid4())
+    refresh_jti = str(uuid.uuid4())
     now = datetime.now(UTC)
     access_payload = {
         "sub": user_id, "role": role, "iat": now,
         "exp": now + timedelta(hours=24), "type": "access",
+        "jti": access_jti
     }
     refresh_payload = {
         "sub": user_id, "role": role, "iat": now,
         "exp": now + timedelta(days=30), "type": "refresh",
+        "jti": refresh_jti
     }
     if admin_type:
         access_payload["admin_type"] = admin_type
         refresh_payload["admin_type"] = admin_type
+
+    # Register in SessionStore if redis is active
+    try:
+        redis_inst = getattr(current_app, "redis", None)
+        if redis_inst:
+            redis_inst.sessions.store(access_jti, user_id, role, ttl=86400)
+            redis_inst.sessions.store(refresh_jti, user_id, role, ttl=30 * 86400)
+    except Exception:
+        pass
 
     return {
         "access_token": jwt.encode(access_payload, secret, algorithm="HS256"),
@@ -60,21 +75,35 @@ def require_auth(roles: list[str] | None = None, admin_types: list[str] | None =
         def wrapped(*args, **kwargs):
             raw = request.headers.get("Authorization", "")
             if not raw.startswith("Bearer "):
-                return jsonify({"error": "Missing or invalid Authorization header"}), 401
+                raise UnauthorizedError("Missing or invalid Authorization header")
             payload = _decode_token(raw[7:], current_app.config["JWT_SECRET_KEY"])
             if not payload:
-                return jsonify({"error": "Token expired or invalid"}), 401
+                raise UnauthorizedError("Token expired or invalid")
             if payload.get("type") != "access":
-                return jsonify({"error": "Refresh token cannot be used here"}), 401
+                raise UnauthorizedError("Refresh token cannot be used here")
+                
+            # Session revocation check (fail-open if Redis is down)
+            jti = payload.get("jti")
+            if jti:
+                redis_inst = getattr(current_app, "redis", None)
+                if redis_inst:
+                    try:
+                        if not redis_inst.sessions.is_valid(jti):
+                            raise UnauthorizedError("Token has been revoked")
+                    except (UnauthorizedError, ForbiddenError):
+                        raise
+                    except Exception:
+                        pass
+
             if roles and payload.get("role") not in roles:
-                return jsonify({"error": "Insufficient permissions"}), 403
+                raise ForbiddenError("Insufficient permissions")
             
             # Check admin_type if requested
             if admin_types and payload.get("role") == "admin":
                 if payload.get("admin_type") not in admin_types:
                     # Allow super_admin to access everything
                     if payload.get("admin_type") != "super_admin":
-                        return jsonify({"error": "Insufficient admin permissions"}), 403
+                        raise ForbiddenError("Insufficient admin permissions")
 
             request.user_id   = payload["sub"]
             request.user_role = payload["role"]
@@ -97,6 +126,8 @@ def register():
     
     # Set default role to 'customer' if not provided
     role = (data.get("role") or "customer").strip()
+    if role not in {"customer", "driver", "restaurant"}:
+        return jsonify({"error": "Registration is not allowed for this role."}), 400
     
     # Validate required fields
     missing = [f for f in ["email","password","phone"] if not data.get(f)]
@@ -147,10 +178,12 @@ def login():
             if not user or not repo.verify_password(password, user.password_hash):
                 return jsonify({"error": "Invalid email or password"}), 401
             if not user.is_active:
+                if user.role in {"restaurant", "driver"} and getattr(user, 'kyc_status', 'pending') == "pending":
+                    return jsonify({"error": "Account pending approval. Please wait for activation.", "status": "pending"}), 403
                 return jsonify({"error": "Account deactivated. Contact support."}), 403
             repo.record_login(user)
             tokens    = _generate_tokens(user.id, user.role, current_app.config["JWT_SECRET_KEY"], getattr(user, 'admin_type', None))
-            user_data = {"user_id": user.id, "role": user.role, "full_name": user.full_name}
+            user_data = {"user_id": user.id, "role": user.role, "full_name": user.full_name, "kyc_status": getattr(user, 'kyc_status', 'approved')}
             if getattr(user, 'admin_type', None):
                 user_data["admin_type"] = user.admin_type
     except Exception as e:
@@ -173,12 +206,47 @@ def refresh_token():
         return jsonify({"error": "Invalid or expired refresh token"}), 401
     if payload.get("type") != "refresh":
         return jsonify({"error": "Not a refresh token"}), 401
+
+    # Revoke old refresh token (rotation) if session store is active
+    jti = payload.get("jti")
+    redis_inst = getattr(current_app, "redis", None)
+    if jti and redis_inst:
+        try:
+            if not redis_inst.sessions.is_valid(jti):
+                return jsonify({"error": "Refresh token has been revoked"}), 401
+            redis_inst.sessions.revoke(jti)
+        except Exception:
+            pass
+
     return jsonify(_generate_tokens(payload["sub"], payload["role"], secret, payload.get("admin_type"))), 200
 
 
 @auth_bp.route("/logout", methods=["POST"])
 @require_auth()
 def logout():
+    raw = request.headers.get("Authorization", "")
+    token = raw[7:]
+    secret = current_app.config["JWT_SECRET_KEY"]
+    payload = _decode_token(token, secret)
+    redis_inst = getattr(current_app, "redis", None)
+
+    if payload and "jti" in payload and redis_inst:
+        try:
+            redis_inst.sessions.revoke(payload["jti"])
+        except Exception:
+            pass
+
+    # Revoke refresh token if supplied in body
+    data = request.get_json(silent=True) or {}
+    refresh_token = data.get("refresh_token")
+    if refresh_token and redis_inst:
+        r_payload = _decode_token(refresh_token, secret)
+        if r_payload and "jti" in r_payload:
+            try:
+                redis_inst.sessions.revoke(r_payload["jti"])
+            except Exception:
+                pass
+
     logger.info(f"Logout: {request.user_id}")
     return jsonify({"message": "Logged out successfully"}), 200
 
@@ -288,20 +356,122 @@ def verify_otp():
             val = redis_inst.get(f"otp:{phone}")
             if val:
                 stored_code = val.decode() if isinstance(val, bytes) else val
+            redis_inst.delete(f"otp:{phone}")
         except Exception:
             pass
-
-    if stored_code is None:
+    else:
         otp_store = getattr(current_app, '_otp_store', {})
         entry = otp_store.get(phone)
-        if entry and entry['expires'] > datetime.now(UTC):
-            stored_code = entry['code']
+        if entry:
+            if entry['expires'] > datetime.now(UTC):
+                stored_code = entry['code']
+            del otp_store[phone]
 
-    # Mock fallback — always accept "123456" in dev
-    if code == "123456" and os.getenv("MOCK_SMS", "true").lower() == "true":
+    # Mock fallback — only accept "123456" in non-production environments
+    is_prod = current_app.config.get("ENV") == "production" or os.getenv("FLASK_ENV") == "production"
+    if code == "123456" and os.getenv("MOCK_SMS", "true").lower() == "true" and not is_prod:
         return jsonify({"verified": True, "message": "OTP verified"}), 200
 
     if stored_code and stored_code == code:
         return jsonify({"verified": True, "message": "OTP verified"}), 200
 
     return jsonify({"verified": False, "error": "Invalid or expired OTP"}), 400
+
+
+# ── Password Recovery (Forgot/Reset Password) ───────────────
+
+@auth_bp.route("/<user_type>/forgot-password", methods=["POST"])
+@rate_limit(limit=3, window=600)  # Max 3 forgot-password requests per 10 minutes per IP
+def forgot_password(user_type):
+    if user_type not in {"customer", "driver", "restaurant"}:
+        return jsonify({"error": "Invalid user type"}), 400
+
+    data = request.get_json(silent=True) or {}
+    email = (data.get("email") or "").lower().strip()
+    if not email:
+        return jsonify({"error": "email required"}), 400
+
+    from services.email_otp_service import EmailOTPService
+    from database.schemas import User
+
+    with transaction() as session:
+        user = session.query(User).filter(User.email == email, User.role == user_type).first()
+        # Return 200 to prevent user enumeration
+        if not user:
+            return jsonify({"message": "If this email is registered, a verification code has been sent."}), 200
+
+        # Create and send OTP code
+        EmailOTPService.create_reset_otp(session, email, user.id, user_type)
+
+    return jsonify({"message": "If this email is registered, a verification code has been sent."}), 200
+
+
+@auth_bp.route("/<user_type>/verify-reset-otp", methods=["POST"])
+@rate_limit(limit=10, window=300)  # Max 10 verification attempts per 5 minutes per IP
+def verify_reset_otp(user_type):
+    if user_type not in {"customer", "driver", "restaurant"}:
+        return jsonify({"error": "Invalid user type"}), 400
+
+    data = request.get_json(silent=True) or {}
+    email = (data.get("email") or "").lower().strip()
+    otp   = (data.get("otp") or "").strip()
+    if not email or not otp:
+        return jsonify({"error": "email and otp required"}), 400
+
+    from services.email_otp_service import EmailOTPService
+
+    with get_db_session() as session:
+        success, error_msg = EmailOTPService.verify_otp_code(session, email, otp)
+        if not success:
+            return jsonify({"error": error_msg or "Invalid verification code"}), 400
+
+    return jsonify({"verified": True, "message": "OTP verified"}), 200
+
+
+@auth_bp.route("/<user_type>/reset-password", methods=["POST"])
+@rate_limit(limit=5, window=300)  # Max 5 password resets per 5 minutes per IP
+def reset_password(user_type):
+    if user_type not in {"customer", "driver", "restaurant"}:
+        return jsonify({"error": "Invalid user type"}), 400
+
+    data = request.get_json(silent=True) or {}
+    email = (data.get("email") or "").lower().strip()
+    otp   = (data.get("otp") or "").strip()
+    new_password = data.get("new_password") or ""
+    if not email or not otp or not new_password:
+        return jsonify({"error": "email, otp, and new_password required"}), 400
+
+    if len(new_password) < 8:
+        return jsonify({"error": "Password must be at least 8 characters"}), 400
+
+    from services.email_otp_service import EmailOTPService
+    from database.schemas import User, SupportLog
+
+    with transaction() as session:
+        success, error_msg = EmailOTPService.verify_otp_code(session, email, otp, mark_used=True)
+        if not success:
+            return jsonify({"error": error_msg or "Invalid verification code"}), 400
+
+        user = session.query(User).filter(User.email == email, User.role == user_type).first()
+        if not user:
+            return jsonify({"error": "User not found"}), 404
+
+        # Update user password
+        repo = UserRepository(session)
+        repo.update_password(user, new_password)
+
+        # Invalidate OTP code
+        EmailOTPService.invalidate_otp(session, email)
+
+        # Log password reset success
+        log = SupportLog(
+            actor_id=user.id,
+            actor_role=user_type,
+            action="password_reset_success",
+            target_type="user",
+            target_id=user.id,
+            metadata={"email": email}
+        )
+        session.add(log)
+
+    return jsonify({"success": True, "message": "Password reset successfully"}), 200

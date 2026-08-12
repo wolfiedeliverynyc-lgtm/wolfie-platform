@@ -5,26 +5,54 @@ from database.schemas import Favorite, User
 
 favorites_bp = Blueprint("favorites", __name__)
 
+import math
+
 @favorites_bp.route("", methods=["GET"])
 @require_auth()
 def list_favorites():
-    session = get_db_session()
-    favorites = session.query(Favorite).filter(Favorite.user_id == request.user_id).all()
-    
-    # Resolve restaurant details
-    result = []
-    for f in favorites:
-        rest = session.query(User).filter(User.id == f.restaurant_id).first()
-        if rest:
-            result.append({
-                "id": f.id,
-                "restaurant_id": f.restaurant_id,
-                "restaurant_name": rest.restaurant_name or rest.full_name,
-                "email": rest.email,
-                "rating": rest.rating,
-                "created_at": f.created_at.isoformat()
-            })
-    return jsonify(result), 200
+    page     = int(request.args.get("page", 1))
+    per_page = min(int(request.args.get("per_page", 20)), 100)
+    offset   = (page - 1) * per_page
+
+    with get_db_session() as session:
+        from sqlalchemy import func
+        # Single JOIN — no N+1
+        rows = (
+            session.query(
+                Favorite.id,
+                Favorite.restaurant_id,
+                Favorite.created_at,
+                User.restaurant_name,
+                User.email,
+                User.rating,
+                User.logo_image,
+            )
+            .join(User, User.id == Favorite.restaurant_id)
+            .filter(Favorite.user_id == request.user_id)
+            .order_by(Favorite.created_at.desc())
+            .limit(per_page)
+            .offset(offset)
+            .all()
+        )
+        total = session.query(func.count(Favorite.id)).filter(Favorite.user_id == request.user_id).scalar()
+
+    result = [{
+        "id":              r.id,
+        "restaurant_id":  r.restaurant_id,
+        "restaurant_name": r.restaurant_name,
+        "email":          r.email,
+        "rating":         r.rating,
+        "logo_image":     r.logo_image,
+        "created_at":     r.created_at.isoformat(),
+    } for r in rows]
+
+    return jsonify({
+        "favorites": result,
+        "pagination": {
+            "page": page, "per_page": per_page,
+            "total": total, "pages": math.ceil(total / per_page) if total else 0,
+        }
+    }), 200
 
 @favorites_bp.route("", methods=["POST"])
 @require_auth()
