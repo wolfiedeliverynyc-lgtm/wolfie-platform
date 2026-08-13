@@ -7,6 +7,8 @@ import { Restaurant, FoodItem } from '@/services/restaurantService';
 import { mockRestaurants, mockFoodItems } from '@/lib/mockData';
 import { handleImageError } from '@/utils/image';
 import RestaurantCard from '@/components/restaurant/RestaurantCard';
+import FlowingMenu from '@/app/FlowingMenu';
+
 
 interface HomeViewProps {
   onSelectRestaurant: (restaurant: Restaurant) => void;
@@ -256,6 +258,55 @@ export default function HomeView({
                 ))}
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Gourmet Categories (FlowingMenu) */}
+        <div className="mb-10 animate-fadeIn">
+          <h3 className="font-poppins font-bold text-[22px] text-[#3C2F2F] mb-5">Browse Cuisines</h3>
+          <div style={{ height: '350px', position: 'relative', borderRadius: '24px', overflow: 'hidden' }} className="shadow-lg border border-gray-100">
+            <FlowingMenu 
+              items={[
+                { 
+                  link: '#', 
+                  text: selectedCuisines.includes('Burgers') ? '✓ Burgers' : 'Burgers', 
+                  image: '/assets/hamburger_1.png',
+                  onClick: () => {
+                    setSelectedCuisines(prev => prev.includes('Burgers') ? prev.filter(c => c !== 'Burgers') : [...prev, 'Burgers']);
+                  }
+                },
+                { 
+                  link: '#', 
+                  text: selectedCuisines.includes('Fast Food') ? '✓ Fast Food' : 'Fast Food', 
+                  image: '/assets/hamburger_details.png',
+                  onClick: () => {
+                    setSelectedCuisines(prev => prev.includes('Fast Food') ? prev.filter(c => c !== 'Fast Food') : [...prev, 'Fast Food']);
+                  }
+                },
+                { 
+                  link: '#', 
+                  text: selectedCuisines.includes('Fries') ? '✓ Fries' : 'Fries', 
+                  image: '/assets/hamburger_3.png',
+                  onClick: () => {
+                    setSelectedCuisines(prev => prev.includes('Fries') ? prev.filter(c => c !== 'Fries') : [...prev, 'Fries']);
+                  }
+                },
+                { 
+                  link: '#', 
+                  text: selectedCuisines.includes('Shakes') ? '✓ Shakes' : 'Shakes', 
+                  image: '/assets/hamburger_4.png',
+                  onClick: () => {
+                    setSelectedCuisines(prev => prev.includes('Shakes') ? prev.filter(c => c !== 'Shakes') : [...prev, 'Shakes']);
+                  }
+                }
+              ]}
+              speed={4}
+              textColor="#ffffff"
+              bgColor="#3C2F2F"
+              marqueeBgColor="#EF2A39"
+              marqueeTextColor="#ffffff"
+              borderColor="rgba(255, 255, 255, 0.15)"
+            />
           </div>
         </div>
 
