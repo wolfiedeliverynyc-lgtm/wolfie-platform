@@ -404,12 +404,26 @@ export default function HomePage() {
     time: string;
     read: boolean;
   }
-  
-  const [notifications, setNotifications] = useState<WolfieNotification[]>([
-    { id: 'notif_1', title: 'Welcome to Wolfie! 🎉', message: 'Enjoy free delivery on your first order. Order from Manhattan\'s top-rated kitchens now!', time: '10m ago', read: false },
-    { id: 'notif_2', title: 'New Store Added! 🍕', message: 'Joe\'s Pizza is now live on Wolfie. Try the legendary classic NYC slices today!', time: '1h ago', read: false },
-    { id: 'notif_3', title: 'Radar Tracking Active 🚴', message: 'Your driver is tracked via Mapbox real-time telemetry on every gourmet order.', time: '1d ago', read: true }
-  ]);
+
+  const [notifications, setNotifications] = useState<WolfieNotification[]>([]);
+
+  // Fetch real notifications from backend
+  const fetchNotifications = async () => {
+    if (!getAuthToken()) return;
+    const res = await apiRequest('/notifications/');
+    if (res.success && res.data && Array.isArray(res.data.notifications)) {
+      const mapped: WolfieNotification[] = res.data.notifications.map((n: any) => ({
+        id: n.id,
+        title: n.title,
+        message: n.body,
+        time: n.created_at
+          ? new Date(n.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+          : '',
+        read: n.read ?? false,
+      }));
+      setNotifications(mapped);
+    }
+  };
   
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
   const [profileMessage, setProfileMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -734,6 +748,9 @@ export default function HomePage() {
       }
       
       connectSocket();
+      // Fetch real notifications after login
+      fetchNotifications();
+
 
       setWelcomeAnimation('back');
       setTimeout(() => {
@@ -1854,10 +1871,13 @@ export default function HomePage() {
           setProfilePicture(profileRes.data.profile_picture || '/assets/avatar.png');
         }
         connectSocket();
+        // Fetch real notifications from backend
+        await fetchNotifications();
       }
     };
     restoreSession();
   }, []);
+
 
   // Dynamic backend sync for user data
   useEffect(() => {
@@ -4143,10 +4163,14 @@ export default function HomePage() {
             {/* Backdrop */}
             <div 
               className="fixed inset-0 bg-black/60 backdrop-blur-xs animate-fadeInSimple"
-              onClick={() => {
+              onClick={async () => {
                 setShowNotificationsModal(false);
-                // Mark all as read when closing
-                setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+                // Mark all as read via API
+                const unreadIds = notifications.filter(n => !n.read).map(n => n.id);
+                if (unreadIds.length > 0) {
+                  await apiRequest('/notifications/read', { method: 'POST', body: {} });
+                  setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+                }
               }}
             />
             {/* Slide up content */}
@@ -4159,7 +4183,10 @@ export default function HomePage() {
                 </h3>
                 {notifications.length > 0 && (
                   <button 
-                    onClick={() => setNotifications([])}
+                    onClick={async () => {
+                      await apiRequest('/notifications/clear', { method: 'DELETE' });
+                      setNotifications([]);
+                    }}
                     className="text-[12px] font-roboto font-bold text-[#EF2A39] hover:underline focus:outline-none cursor-pointer"
                   >
                     Clear All
@@ -4193,9 +4220,13 @@ export default function HomePage() {
               </div>
 
               <button 
-                onClick={() => {
+                onClick={async () => {
                   setShowNotificationsModal(false);
-                  setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+                  const unreadIds = notifications.filter(n => !n.read).map(n => n.id);
+                  if (unreadIds.length > 0) {
+                    await apiRequest('/notifications/read', { method: 'POST', body: {} });
+                    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+                  }
                 }}
                 className="w-full h-[50px] bg-[#FFE100] hover:brightness-95 active:scale-98 transition-all rounded-[16px] font-roboto font-bold text-[15px] text-[#3C2F2F] shadow-[0_4px_12px_rgba(255,225,0,0.2)] focus:outline-none cursor-pointer shrink-0 text-center"
               >

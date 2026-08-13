@@ -271,8 +271,11 @@ def update_profile():
             repo = UserRepository(session)
             user = repo.get_or_404(request.user_id)
             updates = {}
-            if data.get("full_name"): updates["full_name"] = data["full_name"].strip()
-            if data.get("phone"):     updates["phone"]     = data["phone"].strip()
+            if data.get("full_name"):        updates["full_name"]           = data["full_name"].strip()
+            if data.get("phone"):            updates["phone"]               = data["phone"].strip()
+            if "profile_picture" in data:    updates["profile_picture"]     = data["profile_picture"]
+            if "dietary_preferences" in data: updates["dietary_preferences"] = data["dietary_preferences"]
+            if "allergy_preferences" in data: updates["allergy_preferences"] = data["allergy_preferences"]
             if data.get("password"):
                 if len(data["password"]) < 8:
                     return jsonify({"error": "Password must be at least 8 characters"}), 400
@@ -283,6 +286,7 @@ def update_profile():
     except LookupError as e:
         return jsonify({"error": str(e)}), 404
     return jsonify({"message": "Profile updated"}), 200
+
 
 
 @auth_bp.route("/change-password", methods=["POST"])

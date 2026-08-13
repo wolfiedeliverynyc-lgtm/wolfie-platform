@@ -47,6 +47,7 @@ export function useAuth() {
           phone: profile.phone,
           dietary_preferences: profile.dietary_preferences,
           allergy_preferences: profile.allergy_preferences,
+          profile_picture: profile.profile_picture,
         }, data.access_token);
       } catch (err) {
         logger.error('Failed to fetch full user profile. Continuing with basic auth data.', err);
@@ -54,6 +55,7 @@ export function useAuth() {
       
       queryClient.invalidateQueries({ queryKey: ['currentUser'] });
     },
+
   });
 
   const sendOtpMutation = useMutation({
