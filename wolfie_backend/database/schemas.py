@@ -95,7 +95,7 @@ class User(Base):
     total_orders        = Column(Integer, default=0)
     dietary_preferences = Column(JSON, default=list)
     allergy_preferences = Column(JSON, default=list)
-    profile_picture     = Column(String(512), nullable=True)
+    profile_picture     = Column(Text, nullable=True)
 
     # ── Admin fields ──
     admin_type         = Column(String(50))

@@ -10,7 +10,8 @@ const formatApiUrl = (url: string | undefined, defaultUrl: string): string => {
 };
 
 // Dynamically read the base API url, default to localhost Flask port
-const API_BASE_URL = formatApiUrl(process.env.NEXT_PUBLIC_API_URL, 'http://localhost:5000/api/v1');
+export const API_BASE_URL = formatApiUrl(process.env.NEXT_PUBLIC_API_URL, 'http://localhost:5000/api/v1');
+
 
 const getTokenFromCookie = () => {
   if (typeof document === 'undefined') return null;

@@ -2,7 +2,8 @@
 // Force Vercel rebuild to apply new ignore rules.
 
 import { useState, useEffect, useRef } from 'react';
-import { apiRequest, setAuthToken, getAuthToken, setAuthUserId, getAuthUserId } from '@/utils/api';
+import { apiRequest, setAuthToken, getAuthToken, setAuthUserId, getAuthUserId, API_BASE_URL } from '@/utils/api';
+
 import { connectSocket, disconnectSocket, getSocket } from '@/utils/socket';
 import dynamic from 'next/dynamic';
 import HomeView from '@/components/home/HomeView';
@@ -1071,8 +1072,8 @@ export default function HomePage() {
     reader.onloadend = async () => {
       const base64data = reader.result as string;
       try {
-        const activeToken = token || localStorage.getItem('access_token');
-        const res = await fetch('https://wolfie-backend-pt9u.onrender.com/api/v1/uploads', {
+        const activeToken = getAuthToken() || token || localStorage.getItem('access_token');
+        const res = await fetch(`${API_BASE_URL}/uploads`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${activeToken}`,
