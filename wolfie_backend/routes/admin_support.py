@@ -6,6 +6,7 @@ import logging
 import json
 from flask import Blueprint, request, jsonify, current_app
 from routes.auth import require_auth
+from services.redis_service import rate_limit
 from database import transaction, get_db_session
 from database.repositories import SupportTicketRepository
 from services.audit_logger import log_admin_action
@@ -75,6 +76,7 @@ def escalate_ticket(ticket_id):
 
 @admin_support_bp.route("/support/ai", methods=["POST"])
 @require_auth()
+@rate_limit(limit=10, window=60, key_func=lambda: f"ai_support:{getattr(request, 'user_id', request.remote_addr)}")
 def ai_support_chat():
     """
     AI Support Agent endpoint using Google Gemini API
@@ -127,9 +129,22 @@ User message: {user_message}
 
 Respond in the same language as the user message."""
         
-        # Call Gemini
+        # Call Gemini with a 15-second timeout to avoid hanging workers
         logger.info(f"🤖 Calling Gemini AI for support — user: {request.user_id}")
-        response = model.generate_content(context_prompt)
+        try:
+            response = model.generate_content(
+                context_prompt,
+                request_options={"timeout": 15},
+            )
+        except Exception as timeout_err:
+            err_str = str(timeout_err).lower()
+            if any(k in err_str for k in ("timeout", "deadline", "timed out", "time out")):
+                logger.warning(f"⚠️  Gemini timed out after 15s — user: {request.user_id}")
+                return jsonify({
+                    "error": "AI support timed out, please try again",
+                    "escalate": True
+                }), 503
+            raise  # re-raise non-timeout exceptions to the outer except block
         
         if not response.text:
             logger.warning("⚠️  Gemini returned empty response")

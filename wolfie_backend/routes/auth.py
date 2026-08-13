@@ -81,23 +81,23 @@ def require_auth(roles: list[str] | None = None, admin_types: list[str] | None =
                 raise UnauthorizedError("Token expired or invalid")
             if payload.get("type") != "access":
                 raise UnauthorizedError("Refresh token cannot be used here")
-                
-            # Session revocation check (fail-open if Redis is down)
+
+            # Revocation check — only for tokens that carry a jti (backward compatible)
             jti = payload.get("jti")
             if jti:
-                redis_inst = getattr(current_app, "redis", None)
-                if redis_inst:
+                redis = getattr(current_app, "redis", None)
+                if redis:
                     try:
-                        if not redis_inst.sessions.is_valid(jti):
+                        if not redis.sessions.is_valid(jti):
                             raise UnauthorizedError("Token has been revoked")
                     except (UnauthorizedError, ForbiddenError):
                         raise
                     except Exception:
-                        pass
+                        pass  # fail-open: Redis down → continue
 
             if roles and payload.get("role") not in roles:
                 raise ForbiddenError("Insufficient permissions")
-            
+
             # Check admin_type if requested
             if admin_types and payload.get("role") == "admin":
                 if payload.get("admin_type") not in admin_types:
@@ -105,12 +105,14 @@ def require_auth(roles: list[str] | None = None, admin_types: list[str] | None =
                     if payload.get("admin_type") != "super_admin":
                         raise ForbiddenError("Insufficient admin permissions")
 
-            request.user_id   = payload["sub"]
-            request.user_role = payload["role"]
+            request.user_id    = payload["sub"]
+            request.user_role  = payload["role"]
             request.admin_type = payload.get("admin_type")
+            request.jti        = jti  # expose for logout handler (Fix 1)
             return f(*args, **kwargs)
         return wrapped
     return decorator
+
 
 
 # ══════════════════════════════════════════════════════════════
@@ -224,26 +226,22 @@ def refresh_token():
 @auth_bp.route("/logout", methods=["POST"])
 @require_auth()
 def logout():
-    raw = request.headers.get("Authorization", "")
-    token = raw[7:]
-    secret = current_app.config["JWT_SECRET_KEY"]
-    payload = _decode_token(token, secret)
-    redis_inst = getattr(current_app, "redis", None)
-
-    if payload and "jti" in payload and redis_inst:
+    jti = getattr(request, "jti", None)
+    redis = getattr(current_app, "redis", None)
+    if jti and redis:
         try:
-            redis_inst.sessions.revoke(payload["jti"])
+            redis.sessions.revoke(jti)
         except Exception:
-            pass
+            logger.warning("SessionStore.revoke failed on logout")
 
-    # Revoke refresh token if supplied in body
+    # Also revoke refresh token if supplied in body
     data = request.get_json(silent=True) or {}
     refresh_token = data.get("refresh_token")
-    if refresh_token and redis_inst:
-        r_payload = _decode_token(refresh_token, secret)
+    if refresh_token and redis:
+        r_payload = _decode_token(refresh_token, current_app.config["JWT_SECRET_KEY"])
         if r_payload and "jti" in r_payload:
             try:
-                redis_inst.sessions.revoke(r_payload["jti"])
+                redis.sessions.revoke(r_payload["jti"])
             except Exception:
                 pass
 
