@@ -2,6 +2,8 @@
 
 import React from 'react';
 import { Restaurant } from '@/services/restaurantService';
+import FlowingMenu from '@/app/FlowingMenu';
+
 
 interface FilterModalProps {
   isOpen: boolean;
@@ -218,24 +220,42 @@ export default function FilterModal({
 
           {/* Cuisines */}
           <div className="space-y-3">
-            <span className="font-poppins font-bold text-[14.5px] text-[#3C2F2F] block">Cuisines</span>
-            <div className="flex flex-wrap gap-2.5">
-              {['Burgers', 'American', 'Fries', 'Fast Food', 'Shakes', 'Premium'].map(cuisine => {
-                const isSelected = selectedCuisines.includes(cuisine);
-                return (
-                  <button
-                    key={cuisine}
-                    onClick={() => handleToggleCuisine(cuisine)}
-                    className={`px-4.5 py-2.5 rounded-full text-[13px] font-roboto font-bold border transition-all cursor-pointer focus:outline-none ${
-                      isSelected
-                        ? 'bg-[#EF2A39]/10 border-[#EF2A39] text-[#EF2A39] shadow-sm'
-                        : 'bg-[#F9FAFB] border-gray-100 text-[#6A6A6A] hover:bg-gray-100'
-                    }`}
-                  >
-                    {cuisine}
-                  </button>
-                );
-              })}
+            <span className="font-poppins font-bold text-[14.5px] text-[#3C2F2F] block">Cuisines (Hover & Click)</span>
+            <div style={{ height: '280px', position: 'relative', borderRadius: '20px', overflow: 'hidden' }} className="border border-gray-100">
+              <FlowingMenu 
+                items={[
+                  { 
+                    link: '#', 
+                    text: selectedCuisines.includes('Burgers') ? '✓ Burgers' : 'Burgers', 
+                    image: '/assets/hamburger_1.png',
+                    onClick: () => handleToggleCuisine('Burgers')
+                  },
+                  { 
+                    link: '#', 
+                    text: selectedCuisines.includes('Fast Food') ? '✓ Fast Food' : 'Fast Food', 
+                    image: '/assets/hamburger_details.png',
+                    onClick: () => handleToggleCuisine('Fast Food')
+                  },
+                  { 
+                    link: '#', 
+                    text: selectedCuisines.includes('Fries') ? '✓ Fries' : 'Fries', 
+                    image: '/assets/hamburger_3.png',
+                    onClick: () => handleToggleCuisine('Fries')
+                  },
+                  { 
+                    link: '#', 
+                    text: selectedCuisines.includes('Shakes') ? '✓ Shakes' : 'Shakes', 
+                    image: '/assets/hamburger_4.png',
+                    onClick: () => handleToggleCuisine('Shakes')
+                  }
+                ]}
+                speed={4}
+                textColor="#3C2F2F"
+                bgColor="#F9FAFB"
+                marqueeBgColor="#EF2A39"
+                marqueeTextColor="#ffffff"
+                borderColor="#E5E7EB"
+              />
             </div>
           </div>
 
