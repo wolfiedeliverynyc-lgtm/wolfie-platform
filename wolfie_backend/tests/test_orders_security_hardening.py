@@ -30,8 +30,7 @@ def _token(user_id: str, role: str) -> str:
 
 @pytest.fixture
 def client():
-    with patch("services.payment.PaymentService"),   \
-         patch("services.mapbox.MapboxClient"),       \
+    with patch("services.mapbox.MapboxClient"),       \
          patch("services.realtime.RealTimeService"),  \
          patch("services.matching.SmartMatchingEngine"), \
          patch("services.push.PushNotificationEngine"):

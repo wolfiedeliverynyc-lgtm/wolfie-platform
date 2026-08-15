@@ -65,6 +65,7 @@ class BaseConfig:
     TRIAL_DAYS              = int(os.getenv("TRIAL_DAYS", "7"))
     MATCHING_TOP_CANDIDATES = int(os.getenv("MATCHING_TOP_CANDIDATES", "15"))
     MATCHING_FALLBACK_ON_ERROR = os.getenv("MATCHING_FALLBACK_ON_ERROR", "true").lower() in ("true", "1", "yes")
+    GEOFENCE_RADIUS_METERS  = float(os.getenv("GEOFENCE_RADIUS_METERS", "70.0"))
 
     # ── Commission tiers ─────────────────────
     # (monthly_orders_threshold, commission_rate)

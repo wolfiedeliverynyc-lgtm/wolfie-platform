@@ -70,6 +70,23 @@ class BaseRepository(Generic[T]):
         return obj
 
     @with_telemetry
+    def get_for_update(self, record_id: str) -> T | None:
+        """Pessimistic row locking for concurrency protection."""
+        try:
+            stmt = select(self.model).where(self.model.id == record_id).with_for_update()
+            return self.session.scalar(stmt)
+        except Exception:
+            # Fallback for backends that don't support with_for_update
+            return self.session.get(self.model, record_id)
+
+    @with_telemetry
+    def get_or_404_for_update(self, record_id: str) -> T:
+        obj = self.get_for_update(record_id)
+        if not obj:
+            raise LookupError(f"{self.model.__name__} {record_id} not found")
+        return obj
+
+    @with_telemetry
     def find_by(self, **kwargs) -> T | None:
         stmt = select(self.model).filter_by(**kwargs)
         return self.session.scalar(stmt)

@@ -18,10 +18,15 @@ payments_bp = Blueprint("payments", __name__)
 logger      = logging.getLogger("wolfie")
 
 
-def _stripe():
-    import stripe
-    stripe.api_key = current_app.config.get("STRIPE_SECRET_KEY")
-    return stripe
+def _payment_svc():
+    svc = getattr(current_app, "payment_service", None)
+    if not svc:
+        from services.payment import PaymentService
+        svc = PaymentService(
+            stripe_key=current_app.config.get("STRIPE_SECRET_KEY"),
+            webhook_secret=current_app.config.get("STRIPE_WEBHOOK_SECRET")
+        )
+    return svc
 
 
 # ══════════════════════════════════════════════════════════════
@@ -29,18 +34,22 @@ def _stripe():
 # ══════════════════════════════════════════════════════════════
 
 @payments_bp.route("/create-intent", methods=["POST"])
-@require_auth(["customer"])
+@require_auth(["customer", "admin"])
 @validate_request(CreateIntentSchema)
 def create_payment_intent():
     payload_data = request.validated_data
     order_id = payload_data.order_id
     amount   = payload_data.amount
-    currency = payload_data.currency or "usd"
+    currency = (payload_data.currency or "usd").lower()
     
     if not order_id and not amount:
         return jsonify({"error": "order_id or amount required"}), 400
 
     try:
+        customer_id = getattr(request, "user_id", None)
+        restaurant_id = None
+        amount_dollars = 0.0
+
         if order_id:
             with get_db_session() as session:
                 order_repo = OrderRepository(session)
@@ -48,38 +57,36 @@ def create_payment_intent():
                 if not order:
                     return jsonify({"error": "Order not found"}), 404
 
+                # BOLA check: customer can only pay for their own order
+                if getattr(request, "user_role", None) == "customer" and order.customer_id != customer_id:
+                    return jsonify({"error": "Unauthorized: Cannot pay for another customer's order"}), 403
+
                 pay_repo = PaymentRepository(session)
                 existing = pay_repo.find_by_order(order_id)
                 if existing and existing.status == "completed":
                     return jsonify({"error": "Order already paid"}), 400
 
-                total_cents = int(round(order.total * 100))
-                metadata = {
-                    "order_id":      order_id,
-                    "customer_id":   order.customer_id,
-                    "restaurant_id": order.restaurant_id,
-                }
-                description = f"Wolfie Delivery #{order_id[:8]}"
+                amount_dollars = float(order.total)
+                customer_id    = order.customer_id
+                restaurant_id  = order.restaurant_id
         else:
-            total_cents = int(amount)
-            metadata = {
-                "customer_id":   request.user_id,
-            }
-            description = "Wolfie Custom Payment"
+            amount_dollars = float(amount) / 100.0 if amount > 100 else float(amount)
 
-        s      = _stripe()
-        intent = s.PaymentIntent.create(
-            amount               = total_cents,
-            currency             = currency,
-            payment_method_types = ["card"],
-            metadata             = metadata,
-            description          = description,
+        pay_svc = _payment_svc()
+        intent_res = pay_svc.create_intent(
+            amount_dollars = amount_dollars,
+            order_id       = order_id or "custom",
+            customer_id    = customer_id,
+            restaurant_id  = restaurant_id,
+            currency       = currency
         )
 
         return jsonify({
-            "client_secret": intent.client_secret,
-            "payment_intent_id": intent.id,
-            "amount": total_cents,
+            "client_secret":     intent_res["client_secret"],
+            "payment_intent_id": intent_res["id"],
+            "amount":            intent_res["amount"],
+            "currency":          currency,
+            "mock":              intent_res.get("mock", False)
         }), 200
 
     except Exception as e:
@@ -92,18 +99,28 @@ def create_payment_intent():
 # ══════════════════════════════════════════════════════════════
 
 @payments_bp.route("/confirm-cash", methods=["POST"])
-@require_auth(["driver"])
+@require_auth(["driver", "restaurant", "admin"])
 @validate_request(RefundPaymentSchema)
 def confirm_cash_payment():
     order_id = request.validated_data.order_id
+    user_id = getattr(request, "user_id", None)
+    user_role = getattr(request, "user_role", None)
 
     try:
+        order_dict = None
         with transaction() as session:
             order_repo = OrderRepository(session)
             order      = order_repo.get_or_404(order_id)
 
             if order.payment_method != "cash":
                 return jsonify({"error": "Not a cash order"}), 400
+
+            # BOLA Checks:
+            if user_role == "driver" and order.driver_id and order.driver_id != user_id:
+                return jsonify({"error": "Unauthorized: You are not assigned to deliver this order"}), 403
+
+            if user_role == "restaurant" and order.restaurant_id != user_id:
+                return jsonify({"error": "Unauthorized: You are not the restaurant for this order"}), 403
 
             pay_repo = PaymentRepository(session)
             existing = pay_repo.find_by_order(order_id)
@@ -119,23 +136,59 @@ def confirm_cash_payment():
                 )
                 pay_repo.mark_completed(payment)
 
-            # Create payouts
+            # Create driver payout if not already created
             driver_repo = DriverPayoutRepository(session)
-            driver_repo.create(
-                driver_id  = order.driver_id,
-                order_id   = order_id,
-                amount     = order.driver_payout,
-            )
+            existing_dp = driver_repo.find_by_order(order_id)
+            if not existing_dp and order.driver_id and order.driver_payout:
+                driver_repo.create(
+                    driver_id  = order.driver_id,
+                    order_id   = order_id,
+                    amount     = order.driver_payout,
+                )
 
+            # Create restaurant payout if not already created
             rest_repo = RestaurantPayoutRepository(session)
-            rest_repo.create(
-                restaurant_id = order.restaurant_id,
-                order_id      = order_id,
-                net_amount    = order.subtotal - order.restaurant_commission,
-                commission    = order.restaurant_commission,
-            )
+            existing_rp = rest_repo.find_by_order(order_id)
+            if not existing_rp and order.restaurant_id and order.subtotal:
+                rest_repo.create(
+                    restaurant_id = order.restaurant_id,
+                    order_id      = order_id,
+                    net_amount    = max(0.0, order.subtotal - (order.restaurant_commission or 0.0)),
+                    commission    = order.restaurant_commission or 0.0,
+                )
 
-        return jsonify({"message": "Cash payment confirmed", "order_id": order_id}), 200
+            order_dict = order_repo.to_dict(order)
+
+        # Notify customer, driver, and restaurant via WebSocket
+        try:
+            socketio = current_app.extensions.get("socketio")
+            if not socketio:
+                from app import socketio
+            socketio.emit("payment_confirmed", {
+                "order_id": order_id,
+                "payment_method": "cash",
+                "status": "completed",
+                "amount": order_dict.get("total") if order_dict else 0.0,
+            }, room=f"order_{order_id}", namespace="/")
+        except Exception as ws_err:
+            logger.warning(f"Cash payment WS emit failed: {ws_err}")
+
+        # Invalidate Redis order cache
+        redis = getattr(current_app, "redis", None)
+        if redis:
+            try:
+                redis.cache.delete(f"order:{order_id}:detail")
+            except Exception:
+                pass
+
+        return jsonify({
+            "message": "Cash payment confirmed successfully",
+            "order_id": order_id,
+            "status": "completed",
+            "payment_method": "cash",
+            "driver_payout": order_dict.get("driver_payout") if order_dict else 0.0,
+            "restaurant_payout": round(order_dict.get("subtotal", 0) - order_dict.get("restaurant_commission", 0), 2) if order_dict else 0.0
+        }), 200
 
     except LookupError as e:
         return jsonify({"error": str(e)}), 404
@@ -155,8 +208,8 @@ def stripe_webhook():
     secret     = current_app.config.get("STRIPE_WEBHOOK_SECRET")
 
     try:
-        s     = _stripe()
-        event = s.Webhook.construct_event(payload, sig_header, secret)
+        pay_svc = _payment_svc()
+        event = pay_svc.verify_webhook(payload, sig_header)
     except Exception as e:
         logger.error(f"Webhook signature failed: {e}")
         return jsonify({"error": str(e)}), 400
@@ -292,14 +345,14 @@ def refund_payment():
                 return jsonify({"error": "Can only refund completed payments"}), 400
 
             refund_id = None
-            if payment.stripe_charge_id:
-                s      = _stripe()
-                refund = s.Refund.create(charge=payment.stripe_charge_id)
-                refund_id = refund.id
+            if payment.stripe_charge_id or payment.stripe_payment_intent_id:
+                pay_svc = _payment_svc()
+                refund_res = pay_svc.refund(payment.stripe_charge_id or payment.stripe_payment_intent_id)
+                refund_id = refund_res.get("id")
 
             pay_repo.mark_refunded(payment, refund_id=refund_id)
 
-        return jsonify({"message": "Refund processed", "order_id": order_id}), 200
+        return jsonify({"message": "Refund processed", "order_id": order_id, "refund_id": refund_id}), 200
 
     except Exception as e:
         logger.error(f"refund: {e}")

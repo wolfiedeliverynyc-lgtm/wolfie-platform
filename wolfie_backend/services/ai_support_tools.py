@@ -71,12 +71,70 @@ def get_recent_user_orders(user_id: str, role: str, limit: int = 3) -> dict:
                     "status": o.status,
                     "total": o.total,
                     "restaurant_name": o.restaurant_name or "Unknown",
+                    "tracking_url": f"/tracking/{o.id}",
                     "created_at": o.created_at.isoformat() if o.created_at else None
                 })
                 
             return {"orders": order_list}
     except Exception as e:
         return {"error": str(e)}
+
+
+def get_active_tracking_info(user_id: str, role: str) -> dict:
+    """
+    Fetch live tracking information for the user's active delivery order.
+    Returns current stage, restaurant, driver, ETA, and clickable tracking URL.
+    """
+    try:
+        with get_session() as db:
+            active_statuses = ["pending", "assigned", "accepted", "preparing", "ready", "picked_up", "on_the_way"]
+            query = db.query(Order)
+            if role == "customer":
+                query = query.filter(Order.customer_id == user_id)
+            elif role == "driver":
+                query = query.filter(Order.driver_id == user_id)
+            elif role == "restaurant":
+                query = query.filter(Order.restaurant_id == user_id)
+            else:
+                return {"error": "Invalid user role"}
+
+            # 1. Look for currently active in-flight order
+            order = query.filter(Order.status.in_(active_statuses)).order_by(desc(Order.created_at)).first()
+            is_active = True
+            
+            # 2. If no active order, check the most recent order
+            if not order:
+                order = query.order_by(desc(Order.created_at)).first()
+                is_active = False
+
+            if not order:
+                return {
+                    "has_order": False,
+                    "message": "No recent orders found on your account."
+                }
+
+            driver_name = order.driver.full_name if order.driver else "Looking for a nearby driver"
+            restaurant_name = order.restaurant.restaurant_name if order.restaurant else "Partner Restaurant"
+            items_summary = ", ".join([f"{item.get('quantity', 1)}x {item.get('name', 'Item')}" for item in (order.items or [])])
+
+            return {
+                "has_order": True,
+                "order_id": order.id,
+                "status": order.status,
+                "is_active": is_active,
+                "restaurant_name": restaurant_name,
+                "driver_name": driver_name,
+                "eta_minutes": order.eta_minutes or 20,
+                "pickup_address": order.pickup_address,
+                "delivery_address": order.delivery_address,
+                "total": float(order.total or 0.0),
+                "items_summary": items_summary,
+                "tracking_url": f"/tracking/{order.id}",
+                "created_at": order.created_at.isoformat() if order.created_at else None,
+                "delivered_at": order.delivered_at.isoformat() if order.delivered_at else None,
+            }
+    except Exception as e:
+        return {"has_order": False, "error": str(e)}
 
 def get_driver_stats(driver_id: str) -> dict:
     """Fetch profile, earnings, and ratings for a driver."""

@@ -274,6 +274,11 @@ def update_profile():
             if "profile_picture" in data:    updates["profile_picture"]     = data["profile_picture"]
             if "dietary_preferences" in data: updates["dietary_preferences"] = data["dietary_preferences"]
             if "allergy_preferences" in data: updates["allergy_preferences"] = data["allergy_preferences"]
+            if data.get("vehicle_type"):
+                vt = data["vehicle_type"].strip().lower()
+                if vt not in {"walker", "bike", "scooter", "car"}:
+                    return jsonify({"error": "Invalid vehicle type"}), 400
+                updates["vehicle_type"] = vt
             if data.get("password"):
                 if len(data["password"]) < 8:
                     return jsonify({"error": "Password must be at least 8 characters"}), 400

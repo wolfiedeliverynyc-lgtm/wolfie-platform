@@ -23,6 +23,7 @@ from tasks.matching  import assign_driver, reassign_driver
 from tasks.payouts   import create_order_payouts, process_pending_payouts, stripe_payout
 from tasks.analytics import snapshot_metrics, track_event, track
 from tasks.wap       import nightly_retrain, calculate_restaurant_scores
+from tasks.webhooks  import dispatch_webhook_task
 
 __all__ = [
     # Notifications
@@ -37,4 +38,6 @@ __all__ = [
     "snapshot_metrics", "track_event", "track",
     # WAP
     "nightly_retrain", "calculate_restaurant_scores",
+    # Webhooks
+    "dispatch_webhook_task",
 ]

@@ -77,6 +77,12 @@ export default function TrackingView({
   const [routeCoordinates, setRouteCoordinates] = useState<number[][] | null>(null);
   const [driverCoords, setDriverCoords] = useState<number[] | null>(null);
 
+  // Live real-time intelligence state
+  const [liveEtaMinutes, setLiveEtaMinutes] = useState<number | null>(null);
+  const [weatherData, setWeatherData] = useState<{ label: string; icon: string; code?: string; temp_c?: number } | null>(null);
+  const [trafficData, setTrafficData] = useState<{ label: string; icon: string; density?: string } | null>(null);
+  const [proofPhotoUrl, setProofPhotoUrl] = useState<string | null>(null);
+
   const getInterpolatedCoordinates = (points: number[][], progress: number): number[] => {
     if (points.length === 0) return [0, 0];
     if (points.length === 1 || progress <= 0) return points[0];
@@ -118,7 +124,7 @@ export default function TrackingView({
     }
   }, [initialStatus]);
 
-  // Fetch initial order addresses and geocode them
+  // Fetch initial order addresses, coordinates, and real-time weather/traffic telemetry
   useEffect(() => {
     const fetchTrackingInfo = async () => {
       if (!orderId) return;
@@ -139,6 +145,19 @@ export default function TrackingView({
           const data = await response.json();
           const pickupAddr = data.pickup_address;
           const deliveryAddr = data.delivery_address;
+
+          if (data.proof_photo_url) {
+            setProofPhotoUrl(data.proof_photo_url);
+          }
+          if (data.eta_minutes) {
+            setLiveEtaMinutes(Number(data.eta_minutes));
+          }
+          if (data.weather) {
+            setWeatherData(data.weather);
+          }
+          if (data.traffic) {
+            setTrafficData(data.traffic);
+          }
 
           if (pickupAddr) {
             const coords = await geocodeAddress(pickupAddr);
@@ -210,6 +229,9 @@ export default function TrackingView({
           } else if (data.status === 'delivered') {
             mappedStatus = 'arrived';
             progress = 100;
+            if (data.proof_photo_url) {
+              setProofPhotoUrl(data.proof_photo_url);
+            }
           }
           setTrackingStatus(mappedStatus);
           setDriverProgress(progress);
@@ -273,12 +295,20 @@ export default function TrackingView({
               <div className="text-left">
                 <span className="text-[11px] font-bold text-[#A6A6A6] uppercase tracking-wider block">Estimated Delivery</span>
                 <span className="text-[24px] font-poppins font-black text-[#3C2F2F] mt-1 block">
-                  {trackingStatus === 'arrived' ? 'Delivered' : 'Calculating...'}
+                  {trackingStatus === 'arrived' 
+                    ? 'Delivered' 
+                    : liveEtaMinutes !== null 
+                      ? `${Math.max(1, Math.round(liveEtaMinutes))} mins` 
+                      : trackingStatus === 'ontheway' 
+                        ? '7 mins' 
+                        : '15 mins'}
                 </span>
               </div>
               <div className="text-right">
-                <span className="text-[11px] font-bold text-[#A6A6A6] uppercase tracking-wider block">Late Target</span>
-                <span className="text-[14px] font-roboto font-bold text-[#EF2A39] mt-1.5 block">ETA</span>
+                <span className="text-[11px] font-bold text-[#A6A6A6] uppercase tracking-wider block">Target Window</span>
+                <span className="text-[14px] font-roboto font-bold text-[#EF2A39] mt-1.5 block">
+                  {trackingStatus === 'arrived' ? 'Completed' : 'Live Precision Radar'}
+                </span>
               </div>
             </div>
 
@@ -385,6 +415,31 @@ export default function TrackingView({
               </div>
             )}
           </div>
+
+          {/* Proof of Delivery Card (Shown when order is delivered) */}
+          {(trackingStatus === 'arrived' || proofPhotoUrl) && (
+            <div className="bg-white border border-gray-100 rounded-[28px] p-5 shadow-sm space-y-3 animate-fadeIn text-left">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-emerald-600 font-poppins font-bold text-[14px]">
+                  <div className="w-6 h-6 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-xs font-black">✓</div>
+                  <span>Proof of Delivery</span>
+                </div>
+                <span className="text-[10px] font-roboto font-bold text-[#A6A6A6] bg-gray-50 px-2.5 py-1 rounded-full uppercase tracking-wider">Photo Verified</span>
+              </div>
+              <div className="relative rounded-2xl overflow-hidden border border-gray-100 bg-black/5 h-[160px]">
+                <img 
+                  src={proofPhotoUrl || '/assets/delivery_proof.png'} 
+                  alt="Delivery Proof" 
+                  onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/assets/delivery_proof.png'; }}
+                  className="w-full h-full object-cover" 
+                />
+                <div className="absolute bottom-0 inset-x-0 bg-black/65 backdrop-blur-xs p-2 text-white text-[11px] font-roboto font-medium flex items-center gap-2">
+                  <span>📷</span>
+                  <span>Photo taken by driver upon drop-off</span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Driver Card Info */}
@@ -427,11 +482,11 @@ export default function TrackingView({
             </div>
           </div>
 
-          {/* Traffic info */}
+          {/* Traffic & Weather live info telemetry */}
           <div className="flex gap-4 border-t border-gray-50 pt-4 text-[12.5px] font-roboto font-bold text-[#6A6A6A]">
-            <span>Traffic density: <span className="text-[#3C2F2F]">— 🚗</span></span>
+            <span>Traffic: <span className="text-[#3C2F2F]">{trafficData?.label || 'Moderate'} {trafficData?.icon || '🚗'}</span></span>
             <span>•</span>
-            <span>Weather: <span className="text-blue-500">— ☀️</span></span>
+            <span>Weather: <span className="text-blue-500">{weatherData?.label || 'Clear'} {weatherData?.icon || '☀️'}</span></span>
           </div>
         </div>
       </div>

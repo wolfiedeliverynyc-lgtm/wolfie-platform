@@ -30,8 +30,7 @@ def _token(user_id: str, role: str) -> str:
 
 @pytest.fixture
 def client():
-    with patch("services.payment.PaymentService"),   \
-         patch("services.mapbox.MapboxClient"),       \
+    with patch("services.mapbox.MapboxClient"),       \
          patch("services.realtime.RealTimeService"),  \
          patch("services.matching.SmartMatchingEngine"), \
          patch("services.push.PushNotificationEngine"):
@@ -142,6 +141,7 @@ class TestSecurityBolas:
 
             with patch("routes.orders.OrderRepository") as mock_repo:
                 mock_repo.return_value.get_or_404.return_value = order
+                mock_repo.return_value.get_or_404_for_update.return_value = order
 
                 # 1. Restaurant owner can update
                 # (Mock transition execution to avoid actual state-machine validation here)

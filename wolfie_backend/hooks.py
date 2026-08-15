@@ -238,7 +238,13 @@ def register_hooks():
 
                 # Financial: create payout records
                 from tasks.payouts import create_order_payouts
-                create_order_payouts(order_id)
+                try:
+                    create_order_payouts.delay(order_id)
+                except Exception:
+                    try:
+                        create_order_payouts.apply(args=[order_id])
+                    except Exception as pe:
+                        logger.error(f"Failed to create payouts for order {order_id}: {pe}")
 
                 # Analytics
                 from tasks.analytics import track

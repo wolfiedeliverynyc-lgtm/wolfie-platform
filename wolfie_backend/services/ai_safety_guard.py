@@ -1,16 +1,38 @@
 import re
 
 class AISafetyGuard:
-    # Patterns for prompt injection detection
+    # Patterns for prompt injection & jailbreak detection (Multi-lingual & Structured Delimiters)
     INJECTION_PATTERNS = [
-        r"(?i)\bignore\s+(?:all\s+)?previous\s+instructions\b",
+        # English instructions override
+        r"(?i)\bignore\s+(?:all\s+)?(?:previous|prior|system)\s+instructions\b",
+        r"(?i)\bdisregard\s+(?:all\s+)?(?:previous|prior|system)\s+instructions\b",
         r"(?i)\bsystem\s+prompt\b",
         r"(?i)\breveal\s+(?:your\s+)?instructions\b",
-        r"(?i)\bignore\s+safety\b",
-        r"(?i)\byou\s+are\s+now\s+a\s+developer\b",
-        r"(?i)\bignore\s+rules\b",
+        r"(?i)\bshow\s+(?:me\s+)?(?:your\s+)?system\s+(?:prompt|instruction)\b",
+        r"(?i)\bignore\s+(?:safety|rules|guidelines)\b",
+        r"(?i)\byou\s+are\s+now\s+(?:a\s+)?(?:developer|unrestricted|jailbroken|dan)\b",
+        r"(?i)\bact\s+as\s+(?:an?\s+)?(?:unfiltered|unrestricted|dan|developer)\b",
         r"(?i)\bsecret\s+key\b",
-        r"(?i)\bapi\s+key\b"
+        r"(?i)\bapi\s+key\b",
+        r"(?i)\bjwt_secret\b",
+        r"(?i)\badmin\s+password\b",
+        r"(?i)\bdrop\s+table\b",
+        r"(?i)\bselect\s+\*\s+from\s+users\b",
+        # Structured delimiter and roleplay tags injection
+        r"(?i)---+\s*(?:end|start|begin)\s+(?:of\s+)?system\s+instruction\s*---+",
+        r"(?i)<\s*/?\s*(?:system|system_instruction|user_query|context)\s*>",
+        r"(?i)\[\s*system\s*\]",
+        r"(?i)<<\s*SYS\s*>>",
+        r"(?i)<\|im_start\|>",
+        # Arabic injection & jailbreak patterns
+        r"تجاهل\s+(?:جميع\s+)?التعليمات\s+السابقة",
+        r"تجاهل\s+(?:القواعد|شروط\s+الأمان)",
+        r"تجاوز\s+(?:القواعد|التعليمات|الأمان)",
+        r"اكشف\s+(?:لي\s+)?(?:البرومبت|التعليمات|الأوامر)",
+        r"أظهر\s+(?:لي\s+)?البرومبت\s+الرئيسي",
+        r"أنت\s+الآن\s+(?:مطور|غير\s+مقيد|ذكاء\s+حر)",
+        r"مفتاح\s+(?:السر|الـ\s*API|api\s*key)",
+        r"كلمة\s+مرور\s+الأدمن",
     ]
     
     # Patterns for scrubbing sensitive data

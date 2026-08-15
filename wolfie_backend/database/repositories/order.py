@@ -129,6 +129,15 @@ class OrderRepository(BaseRepository[Order]):
                     raise ValueError("Cannot start preparing: Customer payment is not yet completed.")
         # ──────────────────────────────────
 
+        # ── Driver Concurrency & Double-Claim Guard ──
+        if actor_role == "driver" and not force:
+            if new_status in ("assigned", "accepted"):
+                if order.driver_id and order.driver_id != actor_id:
+                    raise ValueError("Order has already been claimed by another driver.")
+            elif new_status in ("picked_up", "on_the_way", "delivered"):
+                if order.driver_id and order.driver_id != actor_id:
+                    raise ValueError("Unauthorized: You are not the assigned driver for this order.")
+
         if force:
             side_effects = []
         else:

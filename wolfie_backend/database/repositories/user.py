@@ -146,6 +146,7 @@ class UserRepository(BaseRepository[User]):
             user.total_deliveries    = 0
             user.is_active           = False
             user.kyc_status          = "pending"
+            user.vehicle_type        = extra.get("vehicle_type", "scooter")
 
         elif role == "restaurant":
             if not extra.get("restaurant_name"):

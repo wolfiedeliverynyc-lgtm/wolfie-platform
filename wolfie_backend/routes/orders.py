@@ -452,7 +452,7 @@ def update_order_status(order_id: str):
     try:
         with transaction() as session:
             repo  = OrderRepository(session)
-            order = repo.get_or_404(order_id)
+            order = repo.get_or_404_for_update(order_id)
             
             # Event Sequence Idempotency Guard
             if event_timestamp and order.updated_at:
@@ -471,6 +471,8 @@ def update_order_status(order_id: str):
                 if order.driver_id and order.driver_id != request.user_id:
                     raise ValueError("Unauthorized: You are not assigned to this order.")
                     
+                geofence_limit = float(current_app.config.get("GEOFENCE_RADIUS_METERS", 70.0))
+                
                 if status == "picked_up":
                     if lat is None or lng is None:
                         raise ValueError("Location (lat, lng) is required to pick up the order.")
@@ -478,11 +480,11 @@ def update_order_status(order_id: str):
                     p_lng = order.pickup_lng
                     if p_lat is not None and p_lng is not None:
                         dist = haversine_distance(float(lat), float(lng), float(p_lat), float(p_lng))
-                        if dist > 50000:  # Increased tolerance for local testing
+                        if dist > geofence_limit:
                             if current_app.config.get("DEBUG") or current_app.config.get("TESTING"):
                                 logger.warning(f"Geofence bypass: Driver is too far ({int(dist)}m) from restaurant, but allowing in development/testing mode.")
                             else:
-                                raise ValueError(f"You are too far ({int(dist)}m) from the restaurant. You must be within 50m to pick up.")
+                                raise ValueError(f"You are too far ({int(dist)}m) from the restaurant. You must be within {int(geofence_limit)}m to pick up.")
                 
                 elif status == "delivered":
                     if not data.get("proof_photo_url"):
@@ -504,11 +506,11 @@ def update_order_status(order_id: str):
                     
                     if d_lat is not None and d_lng is not None:
                         dist = haversine_distance(float(lat), float(lng), float(d_lat), float(d_lng))
-                        if dist > 50000:  # Increased tolerance for local testing
+                        if dist > geofence_limit:
                             if current_app.config.get("DEBUG") or current_app.config.get("TESTING"):
                                 logger.warning(f"Geofence bypass: Driver is too far ({int(dist)}m) from customer, but allowing in development/testing mode.")
                             else:
-                                raise ValueError(f"You are too far ({int(dist)}m) from the customer. You must be within 50m to deliver.")
+                                raise ValueError(f"You are too far ({int(dist)}m) from the customer. You must be within {int(geofence_limit)}m to deliver.")
             
             try:
                 updated_order, side_effects = repo.transition(
@@ -567,7 +569,13 @@ def update_order_status(order_id: str):
         logger.error(f"update_order_status: {e}")
         return make_error_response("Status update failed", "SYSTEM_001", 500)
 
-    _emit(order_id, "order_status_update", {"order_id": order_id, "status": result_status})
+    raw_proof = getattr(updated_order, "proof_photo_url", getattr(updated_order, "delivery_proof_photo_url", None))
+    proof_url = raw_proof if isinstance(raw_proof, str) else None
+    _emit(order_id, "order_status_update", {
+        "order_id": order_id, 
+        "status": result_status,
+        "proof_photo_url": proof_url
+    })
     
     from flask import current_app
     redis = getattr(current_app, "redis", None)
@@ -582,11 +590,19 @@ def update_order_status(order_id: str):
         if not socketio:
             from app import socketio
         restaurant_id = updated_order.restaurant_id
-        socketio.emit("order_status_update", {"id": order_id, "status": result_status}, room=f"restaurant_{restaurant_id}", namespace="/")
+        socketio.emit("order_status_update", {
+            "id": order_id, 
+            "status": result_status,
+            "proof_photo_url": proof_url
+        }, room=f"restaurant_{restaurant_id}", namespace="/")
     except Exception as e:
         logger.warning(f"Restaurant WS emit failed: {e}")
 
-    return jsonify({"order_id": order_id, "status": result_status}), 200
+    return jsonify({
+        "order_id": order_id, 
+        "status": result_status,
+        "proof_photo_url": proof_url
+    }), 200
 
 
 @orders_bp.route("/customer/<customer_id>", methods=["GET"])

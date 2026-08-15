@@ -54,25 +54,29 @@ def create_order_payouts(self, order_id: str):
             # Driver payout
             if order.driver_id and order.driver_payout:
                 driver_repo = DriverPayoutRepository(session)
-                driver_repo.create(
-                    driver_id  = order.driver_id,
-                    order_id   = order_id,
-                    amount     = order.driver_payout,
-                    week_start = week_start,
-                )
+                existing_dp = driver_repo.find_by_order(order_id)
+                if not existing_dp:
+                    driver_repo.create(
+                        driver_id  = order.driver_id,
+                        order_id   = order_id,
+                        amount     = order.driver_payout,
+                        week_start = week_start,
+                    )
 
             # Restaurant payout
             if order.restaurant_id and order.subtotal:
                 net_amount  = order.subtotal - (order.restaurant_commission or 0)
                 rest_repo   = RestaurantPayoutRepository(session)
-                rest_repo.create(
-                    restaurant_id = order.restaurant_id,
-                    order_id      = order_id,
-                    net_amount    = max(net_amount, 0),
-                    commission    = order.restaurant_commission or 0,
-                )
+                existing_rp = rest_repo.find_by_order(order_id)
+                if not existing_rp:
+                    rest_repo.create(
+                        restaurant_id = order.restaurant_id,
+                        order_id      = order_id,
+                        net_amount    = max(net_amount, 0),
+                        commission    = order.restaurant_commission or 0,
+                    )
 
-        logger.info(f"Payouts created for order {order_id} ✅")
+        logger.info(f"Payouts verified/created for order {order_id} ✅")
         return {"status": "created", "order_id": order_id}
 
     except Exception as e:

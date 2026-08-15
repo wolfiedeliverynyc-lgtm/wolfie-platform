@@ -186,23 +186,27 @@ class WolfiePricingEngine:
         return 0.18
 
     def _get_restaurant_monthly_orders(self, restaurant_id: str) -> int:
-        """Try to get real count from DB, fallback to 0."""
+        """Get count of delivered orders for this restaurant in the last 30 days from DB."""
         if not restaurant_id:
             return 0
         try:
-            from flask import current_app
-            db = getattr(current_app, "db", None)
-            if not db:
-                return 0
-            res = (
-                db.table("orders")
-                .select("id", count="exact")
-                .eq("restaurant_id", restaurant_id)
-                .eq("status", "delivered")
-                .execute()
-            )
-            return res.count or 0
-        except Exception:
+            from database.session import get_session
+            from database.schemas import Order
+            from sqlalchemy import select, func
+            from datetime import timedelta
+
+            since = datetime.now(UTC) - timedelta(days=30)
+            with get_session() as session:
+                count = session.scalar(
+                    select(func.count(Order.id)).where(
+                        Order.restaurant_id == restaurant_id,
+                        Order.status == "delivered",
+                        Order.created_at >= since,
+                    )
+                )
+                return int(count or 0)
+        except Exception as e:
+            logger.warning(f"Error fetching restaurant monthly orders for {restaurant_id}: {e}")
             return 0
 
     def _get_surge_multiplier(self) -> float:
@@ -211,19 +215,19 @@ class WolfiePricingEngine:
         Simple linear ramp: 5 orders → 1.2x, 10 orders → 1.4x, 30 orders → 1.8x, 50+ → 2.5x
         """
         try:
-            from flask import current_app
-            db = getattr(current_app, "db", None)
-            if not db:
-                return 1.0
+            from database.session import get_session
+            from database.schemas import Order
+            from sqlalchemy import select, func
             from datetime import timedelta
-            since = (datetime.now(UTC) - timedelta(minutes=30)).isoformat()
-            res   = (
-                db.table("orders")
-                .select("id", count="exact")
-                .gte("created_at", since)
-                .execute()
-            )
-            active = res.count or 0
+
+            since = datetime.now(UTC) - timedelta(minutes=30)
+            with get_session() as session:
+                active = session.scalar(
+                    select(func.count(Order.id)).where(
+                        Order.created_at >= since
+                    )
+                ) or 0
+
             if active >= 50:
                 return self.surge_max
             elif active >= 30:
@@ -234,5 +238,6 @@ class WolfiePricingEngine:
                 return 1.2
             else:
                 return 1.0
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Error calculating surge multiplier: {e}")
             return 1.0

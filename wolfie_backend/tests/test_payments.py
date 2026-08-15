@@ -35,8 +35,7 @@ AUTH_CUSTOMER = {"Authorization": f"Bearer {_token('cst_001', 'customer')}"}
 
 @pytest.fixture
 def client():
-    with patch("services.payment.PaymentService"),   \
-         patch("services.mapbox.MapboxClient"),       \
+    with patch("services.mapbox.MapboxClient"),       \
          patch("services.realtime.RealTimeService"),  \
          patch("services.matching.SmartMatchingEngine"), \
          patch("services.push.PushNotificationEngine"):
@@ -97,10 +96,17 @@ class TestCashPayment:
 
             with patch("routes.payments.OrderRepository") as mock_order_repo, \
                  patch("routes.payments.PaymentRepository", return_value=pay_repo), \
-                 patch("routes.payments.DriverPayoutRepository"), \
-                 patch("routes.payments.RestaurantPayoutRepository"):
+                 patch("routes.payments.DriverPayoutRepository") as mock_driver_repo, \
+                 patch("routes.payments.RestaurantPayoutRepository") as mock_rest_repo:
+
+                mock_driver_repo.return_value.find_by_order.return_value = None
+                mock_rest_repo.return_value.find_by_order.return_value = None
 
                 mock_order_repo.return_value.get_or_404.return_value = order
+                mock_order_repo.return_value.to_dict.return_value = {
+                    "id": order_id, "total": 24.99, "driver_payout": 6.50,
+                    "subtotal": 20.0, "restaurant_commission": 3.0
+                }
                 res = client.post("/api/v1/payments/confirm-cash",
                                   json={"order_id": order_id},
                                   headers=AUTH_DRIVER)
@@ -158,19 +164,7 @@ class TestStripeIntent:
 
 class TestStripeWebhook:
 
-    @patch("stripe.Webhook.construct_event")
-    def test_webhook_payment_intent_succeeded(self, mock_construct, client):
-        mock_construct.return_value = {
-            "type": "payment_intent.succeeded",
-            "data": {
-                "object": {
-                    "id": "pi_123",
-                    "latest_charge": "ch_123",
-                    "metadata": {"order_id": "ord_1"}
-                }
-            }
-        }
-
+    def test_webhook_payment_intent_succeeded(self, client):
         order = MagicMock()
         order.id = "ord_1"
         order.customer_id = "cst_001"
@@ -179,7 +173,22 @@ class TestStripeWebhook:
         order.route_info = {"pickup_coords": {"lat": 40.0, "lng": -74.0}}
         order.driver_id = None
 
-        with patch("routes.payments.transaction") as mock_tx:
+        with patch("routes.payments.transaction") as mock_tx, \
+             patch("routes.payments._payment_svc") as mock_svc_getter:
+
+            mock_svc = MagicMock()
+            mock_svc.verify_webhook.return_value = {
+                "type": "payment_intent.succeeded",
+                "data": {
+                    "object": {
+                        "id": "pi_123",
+                        "latest_charge": "ch_123",
+                        "metadata": {"order_id": "ord_1"}
+                    }
+                }
+            }
+            mock_svc_getter.return_value = mock_svc
+
             session = MagicMock()
             mock_tx.return_value.__enter__ = lambda s: session
             mock_tx.return_value.__exit__  = MagicMock(return_value=False)
@@ -334,3 +343,105 @@ class TestPayoutAmounts:
         commission = subtotal * 0.18   # max commission
         net        = subtotal - commission
         assert net > 0, "Restaurant net should always be positive"
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# 6 — DYNAMIC PAYMENT SERVICE & CASH INTEGRATION TESTS
+# ══════════════════════════════════════════════════════════════════════════════
+
+class TestDynamicPaymentService:
+
+    def test_payment_service_mock_mode_when_no_key(self):
+        from services.payment import PaymentService
+        svc = PaymentService(stripe_key=None, webhook_secret=None)
+        assert svc.is_mock is True
+        
+        intent = svc.create_intent(amount_dollars=25.0, order_id="ord_test_mock")
+        assert intent["mock"] is True
+        assert "mock_secret_" in intent["client_secret"]
+        assert intent["amount"] == 2500
+
+    def test_payment_service_mock_refund(self):
+        from services.payment import PaymentService
+        svc = PaymentService(stripe_key="mock", webhook_secret=None)
+        res = svc.refund(payment_intent_id="pi_mock_123", amount_dollars=15.0)
+        assert res["mock"] is True
+        assert res["status"] == "succeeded"
+        assert res["amount"] == 15.0
+
+    def test_payment_service_real_mode_detection(self):
+        from services.payment import PaymentService
+        with patch("stripe.api_key"):
+            svc = PaymentService(stripe_key="sk_test_51MockRealStripeKey123456789")
+            assert svc.is_mock is False
+
+    def test_confirm_cash_full_integration(self, client):
+        order_id = str(uuid.uuid4())
+        order = _mock_order(order_id, method="cash", status="delivered")
+
+        with patch("routes.payments.get_db_session") as mock_session, \
+             patch("routes.payments.transaction")    as mock_tx:
+
+            session = MagicMock()
+            mock_session.return_value.__enter__ = lambda s: session
+            mock_session.return_value.__exit__  = MagicMock(return_value=False)
+            mock_tx.return_value.__enter__      = lambda s: session
+            mock_tx.return_value.__exit__       = MagicMock(return_value=False)
+
+            from database.repositories.payment import PaymentRepository, DriverPayoutRepository, RestaurantPayoutRepository
+            pay_repo = MagicMock(spec=PaymentRepository)
+            pay_repo.find_by_order.return_value = None
+
+            driver_repo = MagicMock(spec=DriverPayoutRepository)
+            driver_repo.find_by_order.return_value = None
+
+            rest_repo = MagicMock(spec=RestaurantPayoutRepository)
+            rest_repo.find_by_order.return_value = None
+
+            with patch("routes.payments.OrderRepository") as mock_order_repo, \
+                 patch("routes.payments.PaymentRepository", return_value=pay_repo), \
+                 patch("routes.payments.DriverPayoutRepository", return_value=driver_repo), \
+                 patch("routes.payments.RestaurantPayoutRepository", return_value=rest_repo), \
+                 patch("app.socketio.emit") as mock_ws_emit:
+
+                mock_order_repo.return_value.get_or_404.return_value = order
+                mock_order_repo.return_value.to_dict.return_value = {
+                    "id": order_id, "total": 24.99, "driver_payout": 6.50,
+                    "subtotal": 20.0, "restaurant_commission": 3.0
+                }
+
+                res = client.post("/api/v1/payments/confirm-cash",
+                                  json={"order_id": order_id},
+                                  headers=AUTH_DRIVER)
+
+                assert res.status_code == 200
+                data = res.get_json()
+                assert data["status"] == "completed"
+                assert data["payment_method"] == "cash"
+                assert data["driver_payout"] == 6.50
+                assert data["restaurant_payout"] == 17.0
+
+                pay_repo.create.assert_called_once()
+                pay_repo.mark_completed.assert_called_once()
+                driver_repo.create.assert_called_once()
+                rest_repo.create.assert_called_once()
+                mock_ws_emit.assert_called_once()
+
+    def test_confirm_cash_unauthorized_driver_blocked(self, client):
+        order_id = str(uuid.uuid4())
+        order = _mock_order(order_id, method="cash", status="delivered")
+        order.driver_id = "drv_different_999"
+
+        with patch("routes.payments.transaction") as mock_tx:
+            session = MagicMock()
+            mock_tx.return_value.__enter__ = lambda s: session
+            mock_tx.return_value.__exit__  = MagicMock(return_value=False)
+
+            with patch("routes.payments.OrderRepository") as mock_order_repo:
+                mock_order_repo.return_value.get_or_404.return_value = order
+                res = client.post("/api/v1/payments/confirm-cash",
+                                  json={"order_id": order_id},
+                                  headers=AUTH_DRIVER)
+
+                assert res.status_code == 403
+                assert "Unauthorized" in res.get_json().get("error", "")

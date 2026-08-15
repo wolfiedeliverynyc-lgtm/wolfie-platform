@@ -183,3 +183,131 @@ class TestTotal:
         assert result["service_fee"] >= 3.49       # platform always earns
         assert result["delivery_fee"] >= 4.49      # delivery fee in range
         assert result["delivery_fee"] <= 12.49
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# 6 — WOLFIE PRICING ENGINE DATABASE INTEGRATION TESTS
+# ══════════════════════════════════════════════════════════════════════════════
+
+class TestWolfiePricingEngineDatabase:
+
+    def test_pricing_engine_commission_tiers_with_sqlalchemy(self, app):
+        """Verify dynamic commission rate based on delivered monthly orders in DB."""
+        import uuid
+        from datetime import datetime, timezone, timedelta
+        from database.session import transaction
+        from database.schemas import User, Order
+        from services.pricing import WolfiePricingEngine
+
+        engine = WolfiePricingEngine({})
+        rest_id = f"rest_tier_{uuid.uuid4().hex[:8]}"
+        cust_id = f"cust_tier_{uuid.uuid4().hex[:8]}"
+
+        with app.app_context():
+            with transaction() as session:
+                rest_user = User(
+                    id=rest_id,
+                    email=f"{rest_id}@test.com",
+                    password_hash="fakehash",
+                    full_name="Tier Restaurant",
+                    phone="5550001",
+                    role="restaurant",
+                    is_active=True,
+                )
+                cust_user = User(
+                    id=cust_id,
+                    email=f"{cust_id}@test.com",
+                    password_hash="fakehash",
+                    full_name="Tier Customer",
+                    phone="5550002",
+                    role="customer",
+                    is_active=True,
+                )
+                session.add(rest_user)
+                session.add(cust_user)
+
+            # 0 orders -> 18% tier
+            count_0 = engine._get_restaurant_monthly_orders(rest_id)
+            assert count_0 == 0
+            assert engine._get_commission_rate(count_0) == 0.18
+
+            # Seed 55 delivered orders -> 15% tier
+            now = datetime.now(timezone.utc)
+            with transaction() as session:
+                for i in range(55):
+                    session.add(Order(
+                        id=str(uuid.uuid4()),
+                        customer_id=cust_id,
+                        restaurant_id=rest_id,
+                        status="delivered",
+                        pickup_address="123 St",
+                        delivery_address="456 Ave",
+                        items=[{"name": "Burger", "price": 10.0}],
+                        subtotal=10.0,
+                        total=15.0,
+                        payment_method="card",
+                        created_at=now - timedelta(days=5),
+                        delivered_at=now - timedelta(days=5),
+                    ))
+
+            count_55 = engine._get_restaurant_monthly_orders(rest_id)
+            assert count_55 == 55
+            assert engine._get_commission_rate(count_55) == 0.15
+
+            # Calculate price quote for this restaurant -> commission should be 15%
+            quote = engine.calculate(subtotal=100.0, distance_km=2.0, duration_min=15.0, restaurant_id=rest_id)
+            assert quote["commission_rate"] == 0.15
+            assert quote["restaurant_commission"] == 15.0
+
+    def test_pricing_engine_surge_multiplier_with_sqlalchemy(self, app):
+        """Verify dynamic surge pricing based on active orders in the last 30 minutes."""
+        import uuid
+        from datetime import datetime, timezone, timedelta
+        from database.session import transaction
+        from database.schemas import User, Order
+        from services.pricing import WolfiePricingEngine
+
+        engine = WolfiePricingEngine({"SURGE_MULTIPLIER_MAX": 2.50})
+        cust_id = f"cust_surge_{uuid.uuid4().hex[:8]}"
+        rest_id = f"rest_surge_{uuid.uuid4().hex[:8]}"
+
+        with app.app_context():
+            with transaction() as session:
+                session.add(User(
+                    id=rest_id, email=f"{rest_id}@test.com",
+                    password_hash="fakehash", full_name="Surge Rest",
+                    phone="5550003", role="restaurant", is_active=True,
+                ))
+                session.add(User(
+                    id=cust_id, email=f"{cust_id}@test.com",
+                    password_hash="fakehash", full_name="Surge Cust",
+                    phone="5550004", role="customer", is_active=True,
+                ))
+
+            # Seed 12 active orders in last 30 minutes -> surge 1.4x (>=10 orders)
+            now = datetime.now(timezone.utc)
+            with transaction() as session:
+                session.query(Order).filter(Order.created_at >= now - timedelta(minutes=30)).delete()
+                for _ in range(12):
+                    session.add(Order(
+                        id=str(uuid.uuid4()),
+                        customer_id=cust_id,
+                        restaurant_id=rest_id,
+                        status="pending",
+                        pickup_address="123 St",
+                        delivery_address="456 Ave",
+                        items=[{"name": "Pizza", "price": 20.0}],
+                        subtotal=20.0,
+                        total=25.0,
+                        payment_method="card",
+                        created_at=now - timedelta(minutes=5),
+                    ))
+
+            surge_mult = engine._get_surge_multiplier()
+            assert surge_mult == 1.4
+
+            # Calculate pricing -> verify surge is automatically applied
+            quote = engine.calculate(subtotal=50.0, distance_km=3.0, duration_min=10.0)
+            assert quote["surge_applied"] is True
+            assert quote["surge_multiplier"] == 1.4
+            assert quote["delivery_fee"] >= 4.49

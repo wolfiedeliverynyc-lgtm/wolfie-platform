@@ -16,6 +16,10 @@ from flask import current_app
 logger = logging.getLogger("wolfie")
 
 
+# In-process cooldown cache when Redis is unavailable
+_gps_warning_cooldowns: dict = {}
+
+
 class SmartMatchingEngine:
 
     def __init__(self, mapbox, config: dict):
@@ -94,30 +98,82 @@ class SmartMatchingEngine:
                         "lng": None,
                         "h_dist": 999.0
                     })
-                    # Send in-app notification & SMS warning to driver
-                    from routes.notifications import push_notification
-                    from tasks.notify import send_sms
-                    try:
-                        push_notification(
-                            user_id=driver.id,
-                            type_="gps_warning",
-                            title="GPS Location Required",
-                            body="You are online but we cannot detect your GPS. Please turn on location services on your device to start receiving orders.",
-                            icon="bell",
-                            link="/settings"
-                        )
-                        send_sms.delay(
-                            to=driver.phone,
-                            body="🐺 Wolfie: You are online but we cannot detect your GPS location. Please turn on location services on your device to receive orders."
-                        )
-                        logger.info(f"Sent GPS activation notification and in-app alert to driver {driver.id}")
-                    except Exception as ex:
-                        logger.warning(f"Could not notify driver {driver.id} about missing GPS: {ex}")
+                    # Send in-app notification & SMS warning to driver with 1-hour cooldown
+                    redis = getattr(current_app, "redis", None)
+                    cooldown_key = f"driver:{driver.id}:gps_warn_cooldown"
+                    should_warn = True
+                    now_ts = time.monotonic()
 
-            # Filter candidates with valid coordinates
-            valid_candidates = [c for c in candidates if c["lat"] is not None and c["lng"] is not None]
+                    if redis and hasattr(redis, "cache") and redis.cache:
+                        try:
+                            if redis.cache.get(cooldown_key):
+                                should_warn = False
+                            else:
+                                redis.cache.set(cooldown_key, "1", ttl=3600)
+                        except Exception:
+                            should_warn = (_gps_warning_cooldowns.get(driver.id, 0) < now_ts)
+                            if should_warn:
+                                _gps_warning_cooldowns[driver.id] = now_ts + 3600.0
+                    else:
+                        if _gps_warning_cooldowns.get(driver.id, 0) > now_ts:
+                            should_warn = False
+                        else:
+                            _gps_warning_cooldowns[driver.id] = now_ts + 3600.0
+
+                    if should_warn:
+                        from routes.notifications import push_notification
+                        from tasks.notify import send_sms
+                        try:
+                            push_notification(
+                                user_id=driver.id,
+                                type_="gps_warning",
+                                title="GPS Location Required",
+                                body="You are online but we cannot detect your GPS. Please turn on location services on your device to start receiving orders.",
+                                icon="bell",
+                                link="/settings"
+                            )
+                            send_sms.delay(
+                                to=driver.phone,
+                                body="🐺 Wolfie: You are online but we cannot detect your GPS location. Please turn on location services on your device to receive orders."
+                            )
+                            logger.info(f"Sent GPS activation notification and SMS to driver {driver.id}")
+                        except Exception as ex:
+                            logger.warning(f"Could not notify driver {driver.id} about missing GPS: {ex}")
+
+            # Fetch order to check items count for vehicle restrictions
+            from database.schemas import Order as OrderModel
+            order = session.query(OrderModel).filter(OrderModel.id == order_id).first()
+            item_count = sum(item.get("quantity", 1) for item in order.items) if order and order.items else 0
+
+            # Filter candidates with valid coordinates within maximum dispatch radius (default 15.0 km) and apply Hard Rules
+            max_radius_km = float(self.config.get("MATCHING_MAX_RADIUS_KM", 15.0))
+            valid_candidates = []
+            for c in candidates:
+                if c["lat"] is None or c["lng"] is None:
+                    continue
+                if c["h_dist"] > max_radius_km:
+                    continue
+
+                driver = c["driver"]
+                v_type = getattr(driver, "vehicle_type", "scooter") or "scooter"
+
+                # Apply Hard Rules
+                if v_type == "walker":
+                    if c["h_dist"] > 4.0:
+                        logger.info(f"SmartMatching: driver {driver.id} (walker) excluded due to distance {c['h_dist']}km > 4km")
+                        continue
+                    if item_count > 10:
+                        logger.info(f"SmartMatching: driver {driver.id} (walker) excluded due to items count {item_count} > 10")
+                        continue
+                elif v_type == "bike":
+                    if item_count > 10:
+                        logger.info(f"SmartMatching: driver {driver.id} (bike) excluded due to items count {item_count} > 10")
+                        continue
+
+                valid_candidates.append(c)
+
             if not valid_candidates:
-                logger.info("SmartMatching: no drivers with valid locations")
+                logger.info(f"SmartMatching: no eligible drivers with valid locations within {max_radius_km}km")
                 return None
 
             # Sort by Haversine distance and select top candidates
@@ -125,8 +181,7 @@ class SmartMatchingEngine:
             top_n = min(self.config.get("MATCHING_TOP_CANDIDATES", 9), 9)
             top_candidates = valid_candidates[:top_n]
 
-            # 3. Call Mapbox Matrix API for actual driving distances
-            fallback_enabled = True  # Forced fallback
+            # 3. Call Mapbox Matrix API for actual traffic durations & driving distances
             fallback_used = False
             
             best_driver = None
@@ -136,15 +191,67 @@ class SmartMatchingEngine:
             destinations = [{"lat": p_lat, "lng": p_lng}]
             
             try:
-                matrix = self.mapbox.distance_matrix(sources, destinations)
-                # Score drivers using Mapbox routing distances
+                matrix = None
+                if hasattr(self.mapbox, "traffic_matrix"):
+                    try:
+                        res = self.mapbox.traffic_matrix(sources, destinations)
+                        if isinstance(res, list) and res and isinstance(res[0], list) and isinstance(res[0][0], dict):
+                            matrix = res
+                    except Exception:
+                        matrix = None
+
+                if matrix is None:
+                    matrix = self.mapbox.distance_matrix(sources, destinations)
+
+                # Score drivers using live traffic ETA + distance + rating bonus + vehicle preference bonus
                 scored_count = min(len(top_candidates), len(matrix))
                 for idx in range(scored_count):
-                    dist_km = matrix[idx][0]
+                    raw_val = matrix[idx][0]
                     c = top_candidates[idx]
                     driver = c["driver"]
+                    rating = float(driver.rating or 5.0)
                     rating_weight = 0.5 if is_v2 else 0.3
-                    score = dist_km - (float(driver.rating or 5.0) * rating_weight)
+
+                    if isinstance(raw_val, dict):
+                        dist_km = float(raw_val.get("distance_km", 999.0))
+                        duration_min = float(raw_val.get("duration_min", dist_km * 3.0))
+                        eta_source = "mapbox"
+                    elif isinstance(raw_val, (int, float)):
+                        dist_km = float(raw_val)
+                        duration_min = dist_km * 3.0
+                        eta_source = "estimated"
+                    else:
+                        dist_km = 999.0
+                        duration_min = 999.0
+                        eta_source = "estimated"
+
+                    # Calculate vehicle preference bonus
+                    v_type = getattr(driver, "vehicle_type", "scooter") or "scooter"
+                    vehicle_bonus = 0.0
+                    if dist_km < 1.0:
+                        if v_type == "walker":
+                            vehicle_bonus = 2.0
+                        elif v_type == "bike":
+                            vehicle_bonus = 1.0
+                        elif v_type == "scooter":
+                            vehicle_bonus = 0.5
+                    elif 1.0 <= dist_km <= 4.0:
+                        if v_type == "scooter":
+                            vehicle_bonus = 1.5
+                        elif v_type == "bike":
+                            vehicle_bonus = 1.0
+                        elif v_type == "car":
+                            vehicle_bonus = 0.5
+                    else:
+                        if v_type in ("car", "scooter"):
+                            vehicle_bonus = 1.5
+                        elif v_type == "bike":
+                            vehicle_bonus = 0.5
+
+                    if dist_km == 999.0:
+                        score = 999.0
+                    else:
+                        score = (duration_min * 0.70) + (dist_km * 0.30) - (rating * rating_weight) - vehicle_bonus
                     
                     if score < best_score:
                         best_score = score
@@ -153,16 +260,45 @@ class SmartMatchingEngine:
                             "name": driver.full_name,
                             "phone": driver.phone,
                             "rating": driver.rating,
-                            "distance_km": round(dist_km, 2)
+                            "distance_km": round(dist_km, 2),
+                            "eta_minutes": round(duration_min, 1),
+                            "eta_source": eta_source
                         }
             except Exception as e:
                 logger.error(f"SmartMatching: Mapbox Matrix API failed: {e}. Falling back to straight-line Haversine distance.")
                 fallback_used = True
+                rating_weight = 0.5 if is_v2 else 0.3
                 for c in top_candidates:
                     dist_km = c["h_dist"]
+                    duration_min = dist_km * 3.0  # ~3 min/km baseline estimate in traffic
                     driver = c["driver"]
-                    rating_weight = 0.5 if is_v2 else 0.3
-                    score = dist_km - (float(driver.rating or 5.0) * rating_weight)
+                    rating = float(driver.rating or 5.0)
+                    eta_source = "estimated"
+                    
+                    # Calculate vehicle preference bonus
+                    v_type = getattr(driver, "vehicle_type", "scooter") or "scooter"
+                    vehicle_bonus = 0.0
+                    if dist_km < 1.0:
+                        if v_type == "walker":
+                            vehicle_bonus = 2.0
+                        elif v_type == "bike":
+                            vehicle_bonus = 1.0
+                        elif v_type == "scooter":
+                            vehicle_bonus = 0.5
+                    elif 1.0 <= dist_km <= 4.0:
+                        if v_type == "scooter":
+                            vehicle_bonus = 1.5
+                        elif v_type == "bike":
+                            vehicle_bonus = 1.0
+                        elif v_type == "car":
+                            vehicle_bonus = 0.5
+                    else:
+                        if v_type in ("car", "scooter"):
+                            vehicle_bonus = 1.5
+                        elif v_type == "bike":
+                            vehicle_bonus = 0.5
+
+                    score = (duration_min * 0.70) + (dist_km * 0.30) - (rating * rating_weight) - vehicle_bonus
                     
                     if score < best_score:
                         best_score = score
@@ -171,7 +307,9 @@ class SmartMatchingEngine:
                             "name": driver.full_name,
                             "phone": driver.phone,
                             "rating": driver.rating,
-                            "distance_km": round(dist_km, 2)
+                            "distance_km": round(dist_km, 2),
+                            "eta_minutes": round(duration_min, 1),
+                            "eta_source": eta_source
                         }
 
             execution_time_ms = int((time.monotonic() - start_time) * 1000)
@@ -181,12 +319,13 @@ class SmartMatchingEngine:
                 "execution_time_ms": execution_time_ms,
                 "candidate_count": len(valid_candidates),
                 "matched_driver_id": best_driver["id"] if best_driver else None,
-                "fallback_used": fallback_used
+                "fallback_used": fallback_used,
+                "eta_source": best_driver.get("eta_source") if best_driver else "none"
             }
             logger.info(f"Structured matching result: {log_data}", extra=log_data)
             
             if best_driver:
-                logger.info(f"Matched driver {best_driver['id']} for order {order_id} (dist={best_driver['distance_km']}km)")
+                logger.info(f"Matched driver {best_driver['id']} for order {order_id} (dist={best_driver['distance_km']}km, source={best_driver['eta_source']})")
             return best_driver
 
     @staticmethod

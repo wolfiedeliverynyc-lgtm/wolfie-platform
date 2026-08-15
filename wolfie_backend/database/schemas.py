@@ -63,6 +63,7 @@ class User(Base):
     trial_ends_at      = Column(DateTime(timezone=True))
     kyc_status         = Column(String(20), default="not_started") # not_started, pending, approved, rejected
     kyc_documents      = Column(JSON, default=dict)
+    vehicle_type       = Column(String(20), default="scooter") # walker, bike, scooter, car
 
 
     # ── Restaurant fields ──
@@ -827,6 +828,50 @@ class PasswordResetOTP(Base):
     created_at = Column(DateTime(timezone=True), default=_now, nullable=False)
 
     user = relationship("User", foreign_keys=[user_id])
+
+
+# ══════════════════════════════════════════════════════════════
+# WEBHOOKS  (Outbound partner/POS webhooks & delivery logs)
+# ══════════════════════════════════════════════════════════════
+
+class WebhookSubscription(Base):
+    __tablename__ = "webhook_subscriptions"
+
+    id            = Column(String(36), primary_key=True, default=_uuid)
+    restaurant_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
+    target_url    = Column(String(500), nullable=False)
+    secret        = Column(String(255), nullable=False)
+    event_types   = Column(JSON, default=list, nullable=False)  # e.g. ["order.created", "order.status_updated"]
+    is_active     = Column(Boolean, default=True, nullable=False)
+    created_at    = Column(DateTime(timezone=True), default=_now, nullable=False)
+    updated_at    = Column(DateTime(timezone=True), default=_now, onupdate=_now, nullable=False)
+
+    restaurant = relationship("User", foreign_keys=[restaurant_id])
+
+
+class WebhookDeliveryLog(Base):
+    __tablename__ = "webhook_delivery_logs"
+
+    id              = Column(String(36), primary_key=True, default=_uuid)
+    subscription_id = Column(String(36), ForeignKey("webhook_subscriptions.id", ondelete="SET NULL"), nullable=True, index=True)
+    event_type      = Column(String(100), nullable=False, index=True)
+    target_url      = Column(String(500), nullable=False)
+    payload         = Column(JSON, nullable=False)
+    attempt_count   = Column(Integer, default=1, nullable=False)
+    status          = Column(String(50), default="pending", nullable=False, index=True)  # pending, success, retrying, failed
+    response_code   = Column(Integer, nullable=True)
+    response_body   = Column(Text, nullable=True)
+    error_message   = Column(Text, nullable=True)
+    next_retry_at   = Column(DateTime(timezone=True), nullable=True)
+    created_at      = Column(DateTime(timezone=True), default=_now, nullable=False)
+    updated_at      = Column(DateTime(timezone=True), default=_now, onupdate=_now, nullable=False)
+
+    subscription = relationship("WebhookSubscription", foreign_keys=[subscription_id])
+
+    __table_args__ = (
+        Index("ix_webhook_event_status", "event_type", "status"),
+    )
+
 
 
 

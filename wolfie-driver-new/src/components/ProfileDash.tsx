@@ -3,6 +3,7 @@ import {
   ArrowLeft, Settings, User, FileCheck2, Car, Wallet, ChevronRight, Star, Phone, Mail, MapPin, ShieldCheck, Battery, Volume2, VolumeX, RotateCcw, CheckCircle, HelpCircle, Sliders
 } from 'lucide-react';
 import { useDriverStore } from '../store/useDriverStore';
+import { API_BASE } from '../lib/api';
 
 interface ProfileDashProps {
   onBack?: () => void;
@@ -24,6 +25,36 @@ export default function ProfileDash({
   const store = useDriverStore();
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [soundVolume, setSoundVolume] = useState<number>(0.8);
+  const [updatingVehicle, setUpdatingVehicle] = useState(false);
+
+  const handleVehicleTypeChange = async (newType: string) => {
+    setUpdatingVehicle(true);
+    try {
+      const res = await fetch(`${API_BASE}/auth/me`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${store.token}`
+        },
+        body: JSON.stringify({ vehicle_type: newType })
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to update vehicle type');
+      }
+      if (store.driverProfile) {
+        store.setDriverProfile({
+          ...store.driverProfile,
+          vehicleType: newType
+        });
+      }
+      if (playBeep) playBeep('SUCCESS');
+    } catch (err: any) {
+      alert(err.message || 'Error updating vehicle type');
+    } finally {
+      setUpdatingVehicle(false);
+    }
+  };
 
   const toggleMenu = (menuName: string) => {
     setActiveMenu(activeMenu === menuName ? null : menuName);
@@ -173,8 +204,21 @@ export default function ProfileDash({
           {activeMenu === 'VEHICLE' && (
             <div className="px-5 pb-5 pt-1 space-y-3.5 bg-bg-app/30 text-xs font-bold font-sans animate-[fadeIn_0.15s_ease-out]">
               <div className="grid grid-cols-2 gap-3.5 border-t border-slate-900/60 pt-4">
-                <div><span className="text-text-secondary text-[10px] uppercase block">Vehicle Category</span><span className="text-text-primary mt-1 block">{store.driverProfile?.vehicleType}</span></div>
-                <div><span className="text-text-secondary text-[10px] uppercase block">Assigned Plate ID</span><span className="text-text-primary mt-1 block font-mono">{store.driverProfile?.vehiclePlate || 'N/A'}</span></div>
+                <div>
+                  <span className="text-text-secondary text-[10px] uppercase block mb-1">Vehicle Category</span>
+                  <select
+                    value={store.driverProfile?.vehicleType || 'scooter'}
+                    onChange={(e) => handleVehicleTypeChange(e.target.value)}
+                    disabled={updatingVehicle}
+                    className="w-full bg-[#080916] border border-slate-900 text-text-primary rounded-xl px-2 py-1.5 focus:outline-none focus:border-primary/40 font-bold capitalize cursor-pointer disabled:opacity-50"
+                  >
+                    <option value="walker">Walker</option>
+                    <option value="bike">Bike</option>
+                    <option value="scooter">Scooter</option>
+                    <option value="car">Car</option>
+                  </select>
+                </div>
+                <div><span className="text-text-secondary text-[10px] uppercase block">Assigned Plate ID</span><span className="text-text-primary mt-2 block font-mono">{store.driverProfile?.vehiclePlate || 'N/A'}</span></div>
                 <div className="col-span-2"><span className="text-text-secondary text-[10px] uppercase block">Model</span><span className="text-text-primary mt-1 block">{store.driverProfile?.vehicleModel || 'N/A'}</span></div>
               </div>
             </div>

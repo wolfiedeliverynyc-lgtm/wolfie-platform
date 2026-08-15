@@ -16,8 +16,7 @@ def app():
                 os.remove(db_file)
             except Exception:
                 pass
-    with patch("services.payment.PaymentService"),      \
-         patch("services.mapbox.MapboxClient"),          \
+    with patch("services.mapbox.MapboxClient"),          \
          patch("services.realtime.RealTimeService"),     \
          patch("services.matching.SmartMatchingEngine"), \
          patch("services.push.PushNotificationEngine"):

@@ -119,6 +119,7 @@ interface Order {
   driverName?: string;
   driverRating?: number;
   driverAvatar?: string;
+  proof_photo_url?: string;
   id: string;
   restaurantId: string;
   restaurantName: string;
@@ -203,7 +204,7 @@ interface Restaurant {
 const restaurantsList: Restaurant[] = [
   {
     id: 'rest_wendys',
-    name: "Wendy's Burger",
+    name: "Wendy's Burger [Test Mode]",
     logo: '/assets/restaurant_logo_wendys.png',
     cover: '/assets/restaurant_cover_wendys.png',
     rating: 4.8,
@@ -211,14 +212,14 @@ const restaurantsList: Restaurant[] = [
     deliveryTime: '26 mins',
     deliveryFee: 0.99,
     minOrder: 15.00,
-    tags: ['Burgers', 'American', 'Fast Food'],
+    tags: ['Burgers', 'American', 'Fast Food', 'Test Demo'],
     distance: 0.4,
     isBestSeller: true,
-    description: "Wendy's is known for its square hamburger patties, which are made from fresh, never-frozen beef. Try our signature Cheeseburger, Spicy Chicken Nuggets, or double stack burger, delivered hot and fresh directly to your door in NYC."
+    description: "[Test Mode] Wendy's is known for its square hamburger patties, which are made from fresh, never-frozen beef. Try our signature Cheeseburger, Spicy Chicken Nuggets, or double stack burger."
   },
   {
     id: 'rest_mcdonalds',
-    name: "McDonald's",
+    name: "McDonald's [Test Mode]",
     logo: '/assets/restaurant_logo_mcdonalds.png',
     cover: '/assets/restaurant_cover_mcdonalds.png',
     rating: 4.5,
@@ -226,14 +227,14 @@ const restaurantsList: Restaurant[] = [
     deliveryTime: '18 mins',
     deliveryFee: 1.99,
     minOrder: 10.00,
-    tags: ['Burgers', 'Fries', 'Fast Food'],
+    tags: ['Burgers', 'Fries', 'Fast Food', 'Test Demo'],
     distance: 0.8,
     isBestSeller: false,
-    description: "McDonald's is the classic American fast-food chain. Enjoy the legendary Big Mac, Cheeseburger, golden-crisp Fries, and the world-famous Chicken McNuggets delivered fast to your location."
+    description: "[Test Mode] McDonald's is the classic American fast-food chain. Enjoy the legendary Big Mac, Cheeseburger, golden-crisp Fries, and the world-famous Chicken McNuggets."
   },
   {
     id: 'rest_shakeshack',
-    name: "Shake Shack",
+    name: "Shake Shack [Test Mode]",
     logo: '/assets/restaurant_logo_shakeshack.png',
     cover: '/assets/restaurant_cover_shakeshack.png',
     rating: 4.9,
@@ -241,10 +242,10 @@ const restaurantsList: Restaurant[] = [
     deliveryTime: '15 mins',
     deliveryFee: 2.99,
     minOrder: 12.00,
-    tags: ['Burgers', 'Shakes', 'Premium'],
+    tags: ['Burgers', 'Shakes', 'Premium', 'Test Demo'],
     distance: 0.2,
     isBestSeller: true,
-    description: "Shake Shack started as a hot dog cart in Madison Square Park and is now a global brand. Known for its 100% all-natural Angus beef ShackBurgers, flat-top dogs, crinkle-cut fries, and rich frozen custard shakes."
+    description: "[Test Mode] Shake Shack started as a hot dog cart in Madison Square Park and is now a global brand. Known for its 100% all-natural Angus beef ShackBurgers."
   }
 ];
 
@@ -364,6 +365,12 @@ export default function HomePage() {
   const [restaurantRating, setRestaurantRating] = useState(5);
   const [driverComment, setDriverComment] = useState('');
   const [restaurantComment, setRestaurantComment] = useState('');
+  const [trackingTelemetry, setTrackingTelemetry] = useState<{
+    etaMinutes: number | null;
+    weather: { label: string; icon: string; code?: string; temp_c?: number } | null;
+    traffic: { label: string; icon: string; density?: string } | null;
+  }>({ etaMinutes: null, weather: null, traffic: null });
+
 
   // User Profile and Account States
   const [profilePicture, setProfilePicture] = useState('/assets/avatar.png');
@@ -588,6 +595,18 @@ export default function HomePage() {
         const pickupAddr = res.data.pickup_address;
         const deliveryAddr = res.data.delivery_address;
 
+        if (res.data.eta_minutes !== undefined || res.data.weather || res.data.traffic) {
+          setTrackingTelemetry({
+            etaMinutes: res.data.eta_minutes ? Number(res.data.eta_minutes) : null,
+            weather: res.data.weather || null,
+            traffic: res.data.traffic || null,
+          });
+        }
+
+        if (res.data.proof_photo_url && isSubscribed) {
+          setOrders(prev => prev.map(o => o.id === orderId ? { ...o, proof_photo_url: res.data.proof_photo_url } : o));
+        }
+
         if (pickupAddr) {
           const coords = await geocodeAddress(pickupAddr);
           if (coords && isSubscribed) {
@@ -659,7 +678,11 @@ export default function HomePage() {
           }
           if (isSubscribed) {
             setTrackingStatus(mappedStatus);
-            setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: data.status } : o));
+            setOrders(prev => prev.map(o => o.id === orderId ? { 
+              ...o, 
+              status: data.status, 
+              ...(data.proof_photo_url ? { proof_photo_url: data.proof_photo_url } : {}) 
+            } : o));
           }
         }
       });
@@ -1897,6 +1920,7 @@ export default function HomePage() {
           date: new Date(o.created_at).toLocaleDateString(),
           status: o.status === 'delivered' ? 'Completed' : o.status,
           totalPrice: o.total || 0,
+          proof_photo_url: o.proof_photo_url || undefined,
           items: (o.items || []).map((i: any) => ({
             foodItem: { name: i.name },
             quantity: i.quantity,
@@ -3426,12 +3450,26 @@ export default function HomePage() {
                     Status: <span className="text-green-600">Delivered</span>
                   </span>
                 </div>
-                <button
-                  onClick={() => handleReorder(order)}
-                  className="px-4.5 py-2 bg-white border border-gray-200 hover:bg-gray-50 active:scale-95 transition-all rounded-[14px] font-roboto font-bold text-[12.5px] text-[#3C2F2F] cursor-pointer focus:outline-none"
-                >
-                  Re-order
-                </button>
+                <div className="flex items-center gap-2">
+                  {order.proof_photo_url && (
+                    <a
+                      href={order.proof_photo_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-[14px] font-roboto font-bold text-[12px] transition-all flex items-center gap-1 cursor-pointer"
+                      title="View Drop-off Photo Proof"
+                    >
+                      <span>📷</span>
+                      <span>Proof</span>
+                    </a>
+                  )}
+                  <button
+                    onClick={() => handleReorder(order)}
+                    className="px-4.5 py-2 bg-white border border-gray-200 hover:bg-gray-50 active:scale-95 transition-all rounded-[14px] font-roboto font-bold text-[12.5px] text-[#3C2F2F] cursor-pointer focus:outline-none"
+                  >
+                    Re-order
+                  </button>
+                </div>
               </div>
             </div>
           ))}
@@ -7396,21 +7434,25 @@ export default function HomePage() {
                 <div className="text-right">
                   <div className="flex items-center gap-1.5 justify-end">
                     <span className="font-roboto font-bold text-[18px] text-[#3C2F2F]">
-                      {trackingStatus === 'arrived' ? 'Delivered' : 
-                       trackingStatus === 'ontheway' ? '7 mins' : 
-                       trackingStatus === 'preparing' ? '15 mins' : '20 mins'}
+                      {trackingStatus === 'arrived' 
+                        ? 'Delivered' 
+                        : trackingTelemetry.etaMinutes !== null 
+                          ? `${Math.max(1, Math.round(trackingTelemetry.etaMinutes))} mins` 
+                          : trackingStatus === 'ontheway' 
+                            ? '7 mins' 
+                            : trackingStatus === 'preparing' 
+                              ? '15 mins' 
+                              : '20 mins'}
                     </span>
                     <span className="font-roboto font-semibold text-[12px] text-[#EF2A39] bg-[#EF2A39]/10 px-2 py-0.5 rounded-full">
-                      {trackingStatus === 'arrived' ? 'Completed' : 
-                       trackingStatus === 'ontheway' ? 'Late: 12m' : 
-                       trackingStatus === 'preparing' ? 'Late: 22m' : 'Late: 25m'}
+                      {trackingStatus === 'arrived' ? 'Completed' : 'Precision Radar'}
                     </span>
                   </div>
                   <span className="font-roboto font-normal text-[11px] text-[#A6A6A6] block mt-0.5">Estimated Drop-off</span>
                 </div>
               </div>
 
-              {/* Traffic & Weather Info */}
+              {/* Traffic & Weather Info Telemetry */}
               <div className="flex items-center gap-4 bg-gray-50/70 border border-gray-100/30 rounded-[16px] p-2.5 mt-3.5 text-left shrink-0">
                 <div className="flex items-center gap-1.5 font-roboto text-[12px] text-[#6A6A6A]">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#EF2A39" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
@@ -7418,7 +7460,7 @@ export default function HomePage() {
                     <circle cx="7" cy="17" r="2" />
                     <circle cx="16" cy="17" r="2" />
                   </svg>
-                  <span>Traffic: <strong className="text-[#3C2F2F] font-semibold">—</strong></span>
+                  <span>Traffic: <strong className="text-[#3C2F2F] font-semibold">{trackingTelemetry.traffic?.label || 'Moderate'} {trackingTelemetry.traffic?.icon || '🚗'}</strong></span>
                 </div>
                 <div className="w-[1px] h-[12px] bg-gray-200" />
                 <div className="flex items-center gap-1.5 font-roboto text-[12px] text-[#6A6A6A]">
@@ -7433,7 +7475,7 @@ export default function HomePage() {
                     <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
                     <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
                   </svg>
-                  <span>Weather: <strong className="text-[#3C2F2F] font-semibold">—</strong></span>
+                  <span>Weather: <strong className="text-[#3C2F2F] font-semibold">{trackingTelemetry.weather?.label || 'Clear'} {trackingTelemetry.weather?.icon || '☀️'}</strong></span>
                 </div>
               </div>
 
@@ -7643,15 +7685,19 @@ export default function HomePage() {
                   
                   <div className="flex-1 overflow-y-auto scrollbar-hide space-y-5 pr-1">
                     {/* Proof of Delivery Image */}
-                    <div className="relative rounded-2xl overflow-hidden border border-gray-100/50">
+                    <div className="relative rounded-2xl overflow-hidden border border-gray-100/50 bg-black/5">
                       <img 
-                        src="/assets/delivery_proof.png" 
+                        src={activeOrder?.proof_photo_url || "/assets/delivery_proof.png"} 
                         alt="Delivery Proof" 
-                        className="w-full h-[150px] object-cover"
+                        onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/assets/delivery_proof.png'; }}
+                        className="w-full h-[180px] object-cover"
                       />
-                      <div className="absolute bottom-0 inset-x-0 bg-black/60 p-2.5 text-left text-white text-[12px] font-roboto font-medium flex items-center gap-2">
-                        <span>📷</span>
-                        <span>Photo proof left by {activeOrder?.driverName || 'Driver'}</span>
+                      <div className="absolute bottom-0 inset-x-0 bg-black/65 backdrop-blur-xs p-2.5 text-left text-white text-[12px] font-roboto font-medium flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span>📷</span>
+                          <span>Photo proof left by {activeOrder?.driverName || 'Driver'}</span>
+                        </div>
+                        <span className="text-[10px] text-emerald-300 font-bold bg-emerald-950/60 px-2 py-0.5 rounded-md">Verified Drop-off</span>
                       </div>
                     </div>
                     

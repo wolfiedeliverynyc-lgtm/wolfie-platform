@@ -101,6 +101,9 @@ class DriverPayoutRepository(BaseRepository[DriverPayout]):
     def find_by_driver(self, driver_id: str) -> list[DriverPayout]:
         return self.list(filters={"driver_id": driver_id}, order_by="created_at")
 
+    def find_by_order(self, order_id: str) -> DriverPayout | None:
+        return self.find_by(order_id=order_id)
+
     def create(self, driver_id: str, order_id: str, amount: float,
                week_start: str = None) -> DriverPayout:
         now = datetime.now(UTC)
@@ -121,6 +124,9 @@ class RestaurantPayoutRepository(BaseRepository[RestaurantOrderPayout]):
 
     def find_by_restaurant(self, restaurant_id: str) -> list[RestaurantOrderPayout]:
         return self.list(filters={"restaurant_id": restaurant_id}, order_by="created_at")
+
+    def find_by_order(self, order_id: str) -> RestaurantOrderPayout | None:
+        return self.find_by(order_id=order_id)
 
     def create(self, restaurant_id: str, order_id: str,
                net_amount: float, commission: float) -> RestaurantOrderPayout:

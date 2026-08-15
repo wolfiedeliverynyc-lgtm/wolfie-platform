@@ -34,6 +34,12 @@ def chat_with_agent():
     if not message or not session_id:
         return jsonify({"error": "message and session_id are required"}), 400
         
+    if len(message) > 1000:
+        return jsonify({"error": "Message exceeds maximum allowed length of 1000 characters."}), 400
+        
+    if len(session_id) > 64:
+        return jsonify({"error": "session_id exceeds maximum length of 64 characters."}), 400
+        
     user_id = request.user_id
     user_role = request.user_role
     
@@ -42,7 +48,10 @@ def chat_with_agent():
     
     return jsonify({
         "response": result.get("response"),
-        "escalated": result.get("escalate", False)
+        "escalated": result.get("escalate", False),
+        "order_id": result.get("order_id"),
+        "tracking_url": result.get("tracking_url"),
+        "order_status": result.get("order_status")
     }), 200
 
 
@@ -100,7 +109,7 @@ def update_agent_feedback():
     if not conv:
         return jsonify({"error": "Conversation session not found"}), 404
         
-    if conv.user_id != request.user_id:
+    if conv.user_id != request.user_id and request.user_role != "admin":
         return jsonify({"error": "Unauthorized to rate this conversation"}), 403
         
     with transaction() as tx_session:

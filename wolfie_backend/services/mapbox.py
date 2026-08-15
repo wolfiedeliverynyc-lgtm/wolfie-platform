@@ -279,12 +279,13 @@ class MapboxClient:
         except Exception:
             return 20   # safe fallback
 
-    # ── Distance Matrix ───────────────────────
+    # ── Distance & Traffic Matrix ─────────────
 
-    def distance_matrix(self, sources: list, destinations: list) -> list:
+    def traffic_matrix(self, sources: list, destinations: list) -> list:
         """
         sources/destinations: [{"lat":.., "lng":..}]
-        Returns matrix of distances in km. Used by SmartMatchingEngine.
+        Returns matrix with both distance_km and duration_min considering live traffic.
+        Example item in row: {"distance_km": 2.4, "duration_min": 6.5}
         ✅ Cached per unique sources/destinations combination.
         """
         if self._mock:
@@ -294,13 +295,13 @@ class MapboxClient:
 
         # Deterministic cache key from coords
         cache_key = _cache_key(
-            "matrix",
+            "traffic_matrix",
             json.dumps(sources,      sort_keys=True),
             json.dumps(destinations, sort_keys=True),
         )
         cached = _cache_get(cache_key)
         if cached:
-            logger.debug("Mapbox distance_matrix cache HIT")
+            logger.debug("Mapbox traffic_matrix cache HIT")
             return cached.get("matrix", [])
 
         coords    = ";".join([f"{p['lng']},{p['lat']}" for p in sources + destinations])
@@ -311,20 +312,35 @@ class MapboxClient:
         url = (
             f"{MAPBOX_BASE}/directions-matrix/v1/mapbox/driving-traffic/{coords}"
             f"?sources={src_idxs}&destinations={dest_idxs}"
-            f"&annotations=distance"
+            f"&annotations=distance,duration"
             f"&access_token={self.token}"
         )
         data = _request_with_retry(url, timeout=_MATRIX_TIMEOUT)
 
-        if "distances" not in data:
-            raise KeyError("Mapbox directions-matrix API response is missing 'distances' field")
+        distances = data.get("distances", [])
+        durations = data.get("durations", [])
 
-        matrix = [
-            [d / 1000 if d is not None else 999.0 for d in row]
-            for row in data["distances"]
-        ]
+        matrix = []
+        for i in range(len(sources)):
+            row = []
+            for j in range(len(destinations)):
+                dist = distances[i][j] if i < len(distances) and j < len(distances[i]) else None
+                dur  = durations[i][j] if i < len(durations) and j < len(durations[i]) else None
+                row.append({
+                    "distance_km": round(dist / 1000, 2) if dist is not None else 999.0,
+                    "duration_min": round(dur / 60, 2) if dur is not None else 999.0
+                })
+            matrix.append(row)
+
         _cache_set(cache_key, {"matrix": matrix}, ttl=_ROUTE_CACHE_TTL)
         return matrix
+
+    def distance_matrix(self, sources: list, destinations: list) -> list:
+        """
+        Backward-compatible distance matrix returning list of distances in km.
+        """
+        t_matrix = self.traffic_matrix(sources, destinations)
+        return [[item["distance_km"] for item in row] for row in t_matrix]
 
     # ── Geofence check ────────────────────────
 

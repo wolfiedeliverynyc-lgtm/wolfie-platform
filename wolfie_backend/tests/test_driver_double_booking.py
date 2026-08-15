@@ -127,6 +127,46 @@ def test_driver_double_booking_prevention(client):
             tx_session.flush()
             
             # 2. Attempt to assign the same driver to order2 - should raise ValueError
-            import pytest
             with pytest.raises(ValueError, match="already assigned to another active order"):
                 order_repo.assign_driver(order2, driver.id)
+
+
+def test_driver_double_claim_conflict(client):
+    """
+    Verify that when Driver A is assigned/claims an order, Driver B's attempt
+    to accept or transition the order is rejected.
+    """
+    with client.application.app_context():
+        with transaction() as tx_session:
+            uid = str(uuid.uuid4())[:8]
+            
+            customer = User(id=f"cust_{uid}", email=f"c_{uid}@test.com", password_hash="hash", full_name="Cust", role="customer", phone="+1234567890", is_active=True)
+            driver_a = User(id=f"drv_a_{uid}", email=f"da_{uid}@test.com", password_hash="hash", full_name="Driver A", role="driver", phone="+111222", is_active=True, is_available=True)
+            driver_b = User(id=f"drv_b_{uid}", email=f"db_{uid}@test.com", password_hash="hash", full_name="Driver B", role="driver", phone="+333444", is_active=True, is_available=True)
+            restaurant = User(id=f"rest_{uid}", email=f"r_{uid}@test.com", password_hash="hash", full_name="Rest", role="restaurant", phone="+1234567890", is_active=True)
+            
+            tx_session.add_all([customer, driver_a, driver_b, restaurant])
+            tx_session.flush()
+            
+            order_repo = OrderRepository(tx_session)
+            
+            order = order_repo.create(
+                customer_id=customer.id, restaurant_id=restaurant.id,
+                items=[{"name": "Pizza", "price": 20, "quantity": 1}],
+                pickup_address="123 Street", delivery_address="456 Ave", payment_method="cash",
+                pricing={"total": 20}, route_info={}
+            )
+            
+            # Driver A is assigned to order
+            order_repo.assign_driver(order, driver_a.id)
+            tx_session.flush()
+            
+            # Driver B attempts to accept the order
+            with pytest.raises(ValueError, match="already been claimed by another driver"):
+                order_repo.transition(
+                    order,
+                    new_status="accepted",
+                    actor_role="driver",
+                    actor_id=driver_b.id
+                )
+

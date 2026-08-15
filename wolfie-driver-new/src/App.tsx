@@ -16,6 +16,7 @@ import ActiveDeliveryWidget from './components/ActiveDeliveryWidget';
 import WolfSvg from './components/WolfSvg';
 import NotificationsPanel from './components/NotificationsPanel';
 import ErrorBoundary from './components/ErrorBoundary';
+import GPSRequiredOverlay from './components/GPSRequiredOverlay';
 import { API_BASE } from './lib/api';
 
 // Pre-configured custom high-fidelity orders corresponding to screenshot template
@@ -94,7 +95,7 @@ export default function App() {
   const store = useDriverStore();
   const theme = store.theme;
   
-  useGPS({
+  const { startTracking } = useGPS({
     onLocation: async (lat, lng, heading) => {
       if (store.token) {
         const controller = new AbortController();
@@ -598,6 +599,16 @@ export default function App() {
                       >
                         <Menu className="w-5 h-5" />
                       </button>
+
+                      {/* GPS status indicator */}
+                      <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[10px] font-black tracking-wide ${
+                        store.gpsStatus === 'active' 
+                          ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' 
+                          : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
+                      }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${store.gpsStatus === 'active' ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`}></span>
+                        <span>{store.gpsStatus === 'active' ? 'GPS ACTIVE' : 'GPS OFF'}</span>
+                      </div>
                       
                       {/* Theme Toggle Button */}
                       <button
@@ -649,10 +660,24 @@ export default function App() {
                     <button
                       id="btn-go-online-central"
                       onClick={() => handleToggleOnline(true)}
-                      className="w-full py-4.5 bg-primary hover:bg-primary-hover text-black rounded-3xl text-sm font-black tracking-wider shadow-xl border-none flex items-center justify-center gap-3 transition-all cursor-pointer transform hover:scale-[1.01] active:scale-[0.99]"
+                      disabled={store.gpsStatus !== 'active'}
+                      className={`w-full py-4.5 rounded-3xl text-sm font-black tracking-wider shadow-xl border-none flex items-center justify-center gap-3 transition-all cursor-pointer transform hover:scale-[1.01] active:scale-[0.99] ${
+                        store.gpsStatus === 'active' 
+                          ? 'bg-primary hover:bg-primary-hover text-black' 
+                          : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700/50'
+                      }`}
                     >
-                      <span className="w-2.5 h-2.5 rounded-full bg-black block animate-ping"></span>
-                      <span>GO ONLINE NOW</span>
+                      {store.gpsStatus === 'active' ? (
+                        <>
+                          <span className="w-2.5 h-2.5 rounded-full bg-black block animate-ping"></span>
+                          <span>GO ONLINE NOW</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="w-2.5 h-2.5 rounded-full bg-rose-500 block"></span>
+                          <span>GPS REQUIRED TO GO ONLINE</span>
+                        </>
+                      )}
                     </button>
                   </div>
                 ) : (
@@ -1148,6 +1173,10 @@ export default function App() {
             </button>
           </div>
         </div>
+      )}
+
+      {store.gpsStatus !== 'active' && (
+        <GPSRequiredOverlay onRetry={startTracking} />
       )}
 
       </div>

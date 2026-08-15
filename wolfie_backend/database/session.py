@@ -43,6 +43,9 @@ def init_engine(
     """
     global _engine, _SessionLocal
 
+    if database_url.startswith("postgres://"):
+        database_url = database_url.replace("postgres://", "postgresql://", 1)
+
     is_sqlite = database_url.startswith("sqlite")
 
     engine_kwargs = {

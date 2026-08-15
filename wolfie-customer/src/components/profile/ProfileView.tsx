@@ -557,19 +557,33 @@ export default function ProfileView({
                       </div>
                       <div className="flex justify-between items-center border-t border-gray-50 pt-3.5 mt-3.5">
                         <span className="font-poppins font-black text-[16px] text-[#3C2F2F]">${(order.totalPrice || 0).toFixed(2)}</span>
-                        <button 
-                          onClick={() => {
-                            const reorderItems = (order.items || []).map((item: any) => ({
-                              ...item,
-                              cartId: `cart_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`
-                            }));
-                            setCartItems(prev => [...prev, ...reorderItems]);
-                            setCurrentView('cart');
-                          }}
-                          className="px-4.5 py-2 bg-[#FFE100] text-[#3C2F2F] hover:brightness-95 rounded-full font-roboto font-bold text-[13px] transition-all cursor-pointer"
-                        >
-                          Re-order
-                        </button>
+                        <div className="flex items-center gap-2">
+                          {order.proof_photo_url && (
+                            <a 
+                              href={order.proof_photo_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-full font-roboto font-bold text-[12px] transition-all flex items-center gap-1 cursor-pointer"
+                              title="View Proof of Delivery"
+                            >
+                              <span>📷</span>
+                              <span>Proof</span>
+                            </a>
+                          )}
+                          <button 
+                            onClick={() => {
+                              const reorderItems = (order.items || []).map((item: any) => ({
+                                ...item,
+                                cartId: `cart_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`
+                              }));
+                              setCartItems(prev => [...prev, ...reorderItems]);
+                              setCurrentView('cart');
+                            }}
+                            className="px-4.5 py-2 bg-[#FFE100] text-[#3C2F2F] hover:brightness-95 rounded-full font-roboto font-bold text-[13px] transition-all cursor-pointer"
+                          >
+                            Re-order
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))

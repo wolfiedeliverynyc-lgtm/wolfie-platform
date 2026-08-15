@@ -7,7 +7,7 @@ interface GPSOptions {
 }
 
 export function useGPS({ onLocation, batteryAware = true }: GPSOptions = {}) {
-  const { setCurrentLocation, setDriverHeading, isOnline } = useDriverStore()
+  const { setCurrentLocation, setDriverHeading, isOnline, setGpsStatus } = useDriverStore()
   const watchId = useRef<number | null>(null)
   const lastPosition = useRef<[number, number] | null>(null)
   const batteryLevel = useRef<number>(100)
@@ -58,9 +58,10 @@ export function useGPS({ onLocation, batteryAware = true }: GPSOptions = {}) {
     if (!navigator.geolocation) {
       if (enableSim) {
         console.warn('GPS: geolocation not available, using simulation')
+        setGpsStatus('active')
         startSimulation()
       } else {
-        alert('GPS unavailable. Cannot go online.');
+        setGpsStatus('off')
         useDriverStore.getState().setOnline(false);
       }
       return
@@ -78,14 +79,16 @@ export function useGPS({ onLocation, batteryAware = true }: GPSOptions = {}) {
         lastPosition.current = [smoothLat, smoothLng]
         setCurrentLocation([smoothLat, smoothLng])
         setDriverHeading(heading)
+        setGpsStatus('active')
         onLocation?.(smoothLat, smoothLng, heading)
       },
       (error) => {
         if (enableSim) {
           console.warn('GPS error:', error.message, '- using simulation fallback')
+          setGpsStatus('active')
           startSimulation()
         } else {
-          alert('GPS unavailable. Cannot go online.');
+          setGpsStatus(error.code === 1 ? 'denied' : 'off')
           useDriverStore.getState().setOnline(false);
         }
       },
@@ -106,7 +109,8 @@ export function useGPS({ onLocation, batteryAware = true }: GPSOptions = {}) {
       simulationCleanup.current()
       simulationCleanup.current = null
     }
-  }, [])
+    setGpsStatus('off')
+  }, [setGpsStatus])
 
   useEffect(() => {
     if (!isOnline) return

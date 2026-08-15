@@ -164,9 +164,11 @@ interface DriverStore {
   soundEnabled: boolean
   token: string | null
   theme: 'dark' | 'light'
+  gpsStatus: 'active' | 'off' | 'denied' | 'error'
 
   setToken: (token: string | null) => void
   setTheme: (theme: 'dark' | 'light') => void
+  setGpsStatus: (status: 'active' | 'off' | 'denied' | 'error') => void
 
   setLifecycleState: (state: DriverLifecycleState) => void
   setOnline: (online: boolean) => void
@@ -275,6 +277,7 @@ const defaultState = {
   routeGeoJSON: null,
   soundEnabled: true,
   theme: 'dark' as const,
+  gpsStatus: 'active' as const,
 }
 
 const authChannel = typeof window !== 'undefined' && 'BroadcastChannel' in window
@@ -327,6 +330,7 @@ export const useDriverStore = create<DriverStore>()(
       setNetworkLatency: (ms) => set({ networkLatency: ms }),
       setBatteryLevel: (level) => set({ batteryLevel: level }),
       setGpsAccuracy: (accuracy) => set({ gpsAccuracy: accuracy }),
+      setGpsStatus: (status) => set({ gpsStatus: status }),
       setKycStatus: (status) => set({ kycStatus: status }),
       setOnboarded: (onboarded) => set({ onboarded }),
       setDriverProfile: (profile) => {
