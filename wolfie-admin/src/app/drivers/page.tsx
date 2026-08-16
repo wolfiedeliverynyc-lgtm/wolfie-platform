@@ -21,7 +21,7 @@ export default function DriversFleetPage() {
     setLoadingReviews(true);
     setDriverReviews([]);
     try {
-      let apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+      let apiBase = process.env.NEXT_PUBLIC_API_URL || (typeof window !== 'undefined' && window.location.hostname !== 'localhost' ? 'https://wolfie-backend-pt9u.onrender.com/api/v1' : 'http://localhost:5000/api/v1');
       apiBase = apiBase.trim().replace(/\/+$/, '');
       if (!apiBase.endsWith('/api/v1')) {
         apiBase = apiBase + '/api/v1';

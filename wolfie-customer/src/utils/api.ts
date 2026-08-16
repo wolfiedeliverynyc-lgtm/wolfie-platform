@@ -9,8 +9,13 @@ const formatApiUrl = (url: string | undefined, defaultUrl: string): string => {
   return trimmed;
 };
 
-// Dynamically read the base API url, default to localhost Flask port
-export const API_BASE_URL = formatApiUrl(process.env.NEXT_PUBLIC_API_URL, 'http://localhost:5000/api/v1');
+// Dynamically read the base API url with smart production fallback
+export const API_BASE_URL = formatApiUrl(
+  process.env.NEXT_PUBLIC_API_URL,
+  typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1'
+    ? 'https://wolfie-backend-pt9u.onrender.com/api/v1'
+    : 'http://localhost:5000/api/v1'
+);
 
 
 const getTokenFromCookie = () => {
