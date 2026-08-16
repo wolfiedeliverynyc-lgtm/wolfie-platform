@@ -98,24 +98,48 @@ def ensure_schema_up_to_date(engine=None):
 
     try:
         inspector = inspect(eng)
-        with eng.begin() as conn:
-            for table_name, table in Base.metadata.tables.items():
-                if not inspector.has_table(table_name):
-                    continue
-                
-                existing_cols = {c["name"] for c in inspector.get_columns(table_name)}
-                for col in table.columns:
-                    if col.name not in existing_cols:
-                        col_type = col.type.compile(eng.dialect)
+        for table_name, table in Base.metadata.tables.items():
+            if not inspector.has_table(table_name):
+                continue
+            
+            existing_cols = {c["name"] for c in inspector.get_columns(table_name)}
+            for col in table.columns:
+                if col.name not in existing_cols:
+                    # Clean type resolution for PostgreSQL and SQLite
+                    type_repr = str(col.type)
+                    if "JSON" in type_repr:
+                        col_type_str = "JSON" if eng.dialect.name == "sqlite" else "JSONB"
+                    elif "Boolean" in type_repr:
+                        col_type_str = "BOOLEAN"
+                    elif "DateTime" in type_repr:
+                        col_type_str = "TIMESTAMP WITH TIME ZONE" if eng.dialect.name == "postgresql" else "DATETIME"
+                    elif "Integer" in type_repr:
+                        col_type_str = "INTEGER"
+                    elif "Float" in type_repr:
+                        col_type_str = "DOUBLE PRECISION" if eng.dialect.name == "postgresql" else "REAL"
+                    elif "Text" in type_repr:
+                        col_type_str = "TEXT"
+                    elif "Enum" in type_repr or "VARCHAR" in type_repr or "String" in type_repr:
+                        col_type_str = "VARCHAR(255)"
+                    else:
+                        col_type_str = str(col.type.compile(eng.dialect))
+
+                    # Execute each column alteration in its own isolated connection
+                    try:
+                        with eng.connect() as conn:
+                            conn.execution_options(isolation_level="AUTOCOMMIT")
+                            conn.execute(text(f'ALTER TABLE "{table_name}" ADD COLUMN IF NOT EXISTS "{col.name}" {col_type_str}'))
+                            conn.commit()
+                            logger.info(f"✅ Added missing column: {table_name}.{col.name} ({col_type_str})")
+                    except Exception:
                         try:
-                            conn.execute(text(f'ALTER TABLE "{table_name}" ADD COLUMN IF NOT EXISTS "{col.name}" {col_type}'))
-                            logger.info(f"✅ Added missing column: {table_name}.{col.name} ({col_type})")
-                        except Exception:
-                            try:
-                                conn.execute(text(f'ALTER TABLE "{table_name}" ADD COLUMN "{col.name}" {col_type}'))
-                                logger.info(f"✅ Added missing column: {table_name}.{col.name} ({col_type})")
-                            except Exception as e:
-                                logger.warning(f"Note on adding {table_name}.{col.name}: {e}")
+                            with eng.connect() as conn:
+                                conn.execution_options(isolation_level="AUTOCOMMIT")
+                                conn.execute(text(f'ALTER TABLE "{table_name}" ADD COLUMN "{col.name}" {col_type_str}'))
+                                conn.commit()
+                                logger.info(f"✅ Added missing column: {table_name}.{col.name} ({col_type_str})")
+                        except Exception as e:
+                            logger.warning(f"Could not auto-add column {table_name}.{col.name}: {e}")
     except Exception as e:
         logger.warning(f"Schema inspection warning: {e}")
 
