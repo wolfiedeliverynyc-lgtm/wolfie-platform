@@ -84,12 +84,48 @@ def init_engine(
     return _engine
 
 
+def ensure_schema_up_to_date(engine=None):
+    """
+    Ensure all tables and columns defined in SQLAlchemy models exist in the database.
+    Performs non-destructive auto-migrations for missing columns across dialects.
+    """
+    eng = engine or _engine
+    if eng is None:
+        raise RuntimeError("Engine not initialized — call init_engine() first")
+
+    from sqlalchemy import inspect, text
+    Base.metadata.create_all(bind=eng)
+
+    try:
+        inspector = inspect(eng)
+        with eng.begin() as conn:
+            for table_name, table in Base.metadata.tables.items():
+                if not inspector.has_table(table_name):
+                    continue
+                
+                existing_cols = {c["name"] for c in inspector.get_columns(table_name)}
+                for col in table.columns:
+                    if col.name not in existing_cols:
+                        col_type = col.type.compile(eng.dialect)
+                        try:
+                            conn.execute(text(f'ALTER TABLE "{table_name}" ADD COLUMN IF NOT EXISTS "{col.name}" {col_type}'))
+                            logger.info(f"✅ Added missing column: {table_name}.{col.name} ({col_type})")
+                        except Exception:
+                            try:
+                                conn.execute(text(f'ALTER TABLE "{table_name}" ADD COLUMN "{col.name}" {col_type}'))
+                                logger.info(f"✅ Added missing column: {table_name}.{col.name} ({col_type})")
+                            except Exception as e:
+                                logger.warning(f"Note on adding {table_name}.{col.name}: {e}")
+    except Exception as e:
+        logger.warning(f"Schema inspection warning: {e}")
+
+
 def create_tables():
-    """Create all tables (dev/testing only — use migrations in production)."""
+    """Create all tables and ensure all columns exist."""
     if _engine is None:
         raise RuntimeError("Engine not initialized — call init_engine() first")
-    Base.metadata.create_all(bind=_engine)
-    logger.info("✅ All tables created")
+    ensure_schema_up_to_date(_engine)
+    logger.info("✅ All tables and schema columns ensured")
 
 
 def drop_tables():
