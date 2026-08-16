@@ -157,7 +157,7 @@ def register():
         return jsonify({"error": str(e)}), 400
     except Exception as e:
         logger.error(f"register: {e}")
-        return jsonify({"error": "Registration failed"}), 500
+        return jsonify({"error": "Registration failed", "details": str(e)}), 500
 
     logger.info(f"New {role} registered: {data['email']}")
     return jsonify({"message": "Account created", "user_id": user_id,
@@ -190,7 +190,7 @@ def login():
                 user_data["admin_type"] = user.admin_type
     except Exception as e:
         logger.error(f"login: {e}")
-        return jsonify({"error": "Login failed"}), 500
+        return jsonify({"error": "Login failed", "details": str(e)}), 500
 
     logger.info(f"Login: {email} ({user_data['role']})")
     return jsonify({**user_data, **tokens}), 200
