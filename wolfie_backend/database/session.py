@@ -230,12 +230,24 @@ def init_db(app):
         pool_recycle=pool_recycle
     )
 
-    # Only run create_tables in development or testing (Alembic handles production)
-    if not is_prod:
-        try:
-            create_tables()
-        except Exception as e:
-            logger.error(f"⚠️ Failed to auto-create tables: {e}")
+    # Ensure all tables exist in all environments (uses safe CREATE TABLE IF NOT EXISTS)
+    try:
+        create_tables()
+    except Exception as e:
+        logger.error(f"⚠️ Failed to auto-create tables: {e}")
+
+    # Auto-seed demo accounts if database is empty
+    try:
+        with get_session() as s:
+            from database.schemas import User as UserModel
+            if s.query(UserModel).count() == 0:
+                logger.info("Empty database detected — auto-seeding demo accounts...")
+                from seed_all_data import seed_initial_data
+                seed_initial_data(s)
+                s.commit()
+                logger.info("✅ Demo accounts auto-seeded successfully")
+    except Exception as e:
+        logger.warning(f"Auto-seed check note: {e}")
 
     # Attach session factory to app
     app.db_session = _SessionLocal

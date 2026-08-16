@@ -10,41 +10,26 @@ from database import transaction, get_db_session
 from database.schemas import User, MenuItem
 from database.repositories import UserRepository
 
-def seed():
-    app = create_app("development")
-    with app.app_context():
-        session = get_db_session()
-        user_repo = UserRepository(session)
+def seed_initial_data(session):
+    """Seed initial demo accounts and restaurants if not already present."""
+    from database.schemas import User, MenuItem
+    from database.repositories import UserRepository
 
-        # 0. Clean all existing tables
-        tables = [
-            "reviews", "payments", "driver_locations", "driver_payouts",
-            "driver_decline_logs", "restaurant_order_payouts", "wap_predictions",
-            "wap_feedback", "wap_model_metrics", "sync_agents", "kitchen_metrics",
-            "restaurant_scores", "score_history", "support_tickets", "refund_requests",
-            "fraud_flags", "support_logs", "notifications", "addresses",
-            "chat_messages", "favorites", "orders", "menu_items", "users"
-        ]
-        print("Cleaning existing database tables...")
-        for table in tables:
-            try:
-                session.execute(f"DELETE FROM {table}")
-            except Exception as e:
-                # Table might not exist or be empty, ignore
-                pass
-        session.commit()
-        print("Database tables cleaned successfully.")
+    # Check if already seeded
+    existing = session.query(User).filter(User.email == "customer_demo@wolfie.delivery").first()
+    if existing:
+        return
 
-        # 1. Seed Customer
-        customer = User(
-            email="customer_demo@wolfie.delivery",
-            password_hash=UserRepository.hash_password("password123"),
-            full_name="M. Takahashi",
-            phone="+1 (555) 019-2831",
-            role="customer",
-            is_active=True
-        )
-        session.add(customer)
+    # 1. Seed Customer
+    customer = User(
+        email="customer_demo@wolfie.delivery",
+        password_hash=UserRepository.hash_password("password123"),
+        full_name="M. Takahashi",
+        phone="+1 (555) 019-2831",
+        role="customer",
+        is_active=True
+    )
+    session.add(customer)
         print("Customer customer_demo@wolfie.delivery seeded successfully!")
 
         # 2. Seed Restaurants
@@ -241,6 +226,12 @@ def seed():
 
         session.commit()
         print("Seeding process completed!")
+
+def seed():
+    app = create_app("development")
+    with app.app_context():
+        session = get_db_session()
+        seed_initial_data(session)
 
 if __name__ == "__main__":
     seed()
