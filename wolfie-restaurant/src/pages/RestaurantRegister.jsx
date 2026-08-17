@@ -23,6 +23,11 @@ const RestaurantRegister = () => {
   const [accountNumber, setAccountNumber] = useState('');
   const [accountHolderName, setAccountHolderName] = useState('');
 
+  // Menu Operations States
+  const [menuManagementType, setMenuManagementType] = useState('Upload PDF / Images');
+  const [menuFile, setMenuFile] = useState(null);
+  const [estimatedMenuItems, setEstimatedMenuItems] = useState('1-15');
+
   const steps = [
     { num: 1, title: 'Basic Info', icon: <Store size={16} /> },
     { num: 2, title: 'Menu Setup', icon: <FileText size={16} /> },
@@ -48,7 +53,10 @@ const RestaurantRegister = () => {
           phone,
           restaurant_name: restaurantName,
           cuisine_type: cuisineType,
-          address
+          address,
+          menu_management_type: menuManagementType,
+          estimated_menu_items: estimatedMenuItems,
+          menu_file_name: menuFile ? menuFile.name : null
         });
         
         // Save access token
@@ -251,36 +259,97 @@ const RestaurantRegister = () => {
                   <div>
                     <label className={labelClass}>How do you manage your menu?</label>
                     <div className="relative">
-                      <select className={`${inputClass} appearance-none cursor-pointer pr-10`}>
-                        <option className="bg-[#080808] text-white">Upload PDF / Images</option>
-                        <option className="bg-[#080808] text-white">Link to existing POS</option>
-                        <option className="bg-[#080808] text-white">Build manually</option>
+                      <select 
+                        value={menuManagementType}
+                        onChange={e => setMenuManagementType(e.target.value)}
+                        className={`${inputClass} appearance-none cursor-pointer pr-10`}
+                      >
+                        <option className="bg-[#080808] text-white" value="Upload PDF / Images">Upload PDF / Images</option>
+                        <option className="bg-[#080808] text-white" value="Link to existing POS">Link to existing POS</option>
+                        <option className="bg-[#080808] text-white" value="Build manually">Build manually</option>
                       </select>
                       <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-[#94a3b8]/50 text-xs">▼</div>
                     </div>
                   </div>
                   <div>
                     <label className={labelClass}>Upload Menu (Optional)</label>
-                    <div className="border-2 border-dashed border-white/10 hover:border-[#FFE100]/40 rounded-2xl p-10 text-center text-[#94a3b8] transition-all cursor-pointer flex flex-col items-center gap-3 group">
+                    <input
+                      type="file"
+                      id="menu-file-picker"
+                      accept="image/*,application/pdf"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setMenuFile({
+                            name: file.name,
+                            size: (file.size / 1024 / 1024).toFixed(2) + ' MB'
+                          });
+                        }
+                      }}
+                    />
+                    <div
+                      onClick={() => document.getElementById('menu-file-picker').click()}
+                      onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const file = e.dataTransfer.files?.[0];
+                        if (file) {
+                          setMenuFile({
+                            name: file.name,
+                            size: (file.size / 1024 / 1024).toFixed(2) + ' MB'
+                          });
+                        }
+                      }}
+                      className="border-2 border-dashed border-white/10 hover:border-[#FFE100]/40 rounded-2xl p-10 text-center text-[#94a3b8] transition-all cursor-pointer flex flex-col items-center gap-3 group animate-all duration-300"
+                    >
                       <div className="w-14 h-14 rounded-2xl bg-[#FFE100]/10 flex items-center justify-center text-[#FFE100] group-hover:shadow-[0_0_20px_rgba(255,225,0,0.2)] transition-all">
                         <Upload size={24} />
                       </div>
                       <p className="text-[12px] uppercase tracking-[0.1em] font-bold font-['Poppins',sans-serif]">Drag and drop or click to upload</p>
                       <p className="text-[11px] text-[#94a3b8]/50 font-['Poppins',sans-serif]">PDF, JPG, PNG — Max 10MB</p>
                     </div>
+                    {menuFile && (
+                      <div className="mt-3 flex items-center justify-between p-3 bg-white/5 border border-white/10 rounded-xl animate-fadeIn">
+                        <div className="flex items-center gap-2 text-xs">
+                          <FileText size={16} className="text-[#FFE100]" />
+                          <span className="text-white font-bold truncate max-w-[200px]">{menuFile.name}</span>
+                          <span className="text-[#94a3b8] text-[10px]">({menuFile.size})</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setMenuFile(null);
+                          }}
+                          className="text-red-500 hover:text-red-400 font-bold text-[11px] uppercase tracking-wider bg-transparent border-none cursor-pointer"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    )}
                   </div>
                   <div>
                     <label className={labelClass}>Estimated Menu Items</label>
                     <div className="flex gap-3">
-                      {['1-15', '16-40', '40+'].map(range => (
-                        <button
-                          key={range}
-                          type="button"
-                          className="flex-1 py-3 rounded-xl text-[12px] font-bold uppercase tracking-[0.1em] border border-white/10 bg-transparent text-[#94a3b8] hover:border-[#FFE100] hover:text-[#FFE100] transition-all cursor-pointer font-['Poppins',sans-serif]"
-                        >
-                          {range}
-                        </button>
-                      ))}
+                      {['1-15', '16-40', '40+'].map(range => {
+                        const isSelected = estimatedMenuItems === range;
+                        return (
+                          <button
+                            key={range}
+                            type="button"
+                            onClick={() => setEstimatedMenuItems(range)}
+                            className={`flex-1 py-3 rounded-xl text-[12px] font-bold uppercase tracking-[0.1em] border transition-all cursor-pointer font-['Poppins',sans-serif] ${
+                              isSelected
+                                ? 'bg-[#FFE100] text-black border-[#FFE100] shadow-[0_0_15px_rgba(255,225,0,0.2)]'
+                                : 'bg-transparent text-[#94a3b8] border-white/10 hover:border-[#FFE100] hover:text-[#FFE100]'
+                            }`}
+                          >
+                            {range}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
