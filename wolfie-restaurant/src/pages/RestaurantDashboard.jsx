@@ -70,6 +70,10 @@ export default function RestaurantDashboard() {
     );
   }
 
+  if (onboarding && (onboarding.kycStatus === 'pending' || onboarding.kycStatus === 'rejected' || !onboarding.isActive)) {
+    return <PendingApproval />;
+  }
+
   if (onboarding && onboarding.status === 'incomplete') {
     return <OnboardingIndex />;
   }

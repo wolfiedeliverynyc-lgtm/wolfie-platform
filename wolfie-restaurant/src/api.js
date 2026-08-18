@@ -142,6 +142,21 @@ export const onboardingApi = {
   acceptLegal:  (body) => request('/restaurants/legal/accept', { method: 'POST', body: JSON.stringify(body) }),
   activateWap:  (body) => request('/restaurants/wap/activate', { method: 'POST', body: JSON.stringify(body) }),
   setupPayout:  (body) => request('/restaurants/payout/setup', { method: 'POST', body: JSON.stringify(body) }),
+  uploadKyc:    (formData) => {
+    const token = getToken();
+    return fetch(`${BASE}/restaurants/kyc/upload`, {
+      method: 'POST',
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: formData,
+      credentials: 'include',
+    }).then(res => res.json().then(data => {
+      if (!res.ok) throw { status: res.status, message: data.error || 'Upload failed', data };
+      return data;
+    }));
+  },
+  setupProfile: (body) => request('/restaurants/profile/setup', { method: 'POST', body: JSON.stringify(body) }),
 }
 
 // ── Finance & Payouts ─────────────────────────

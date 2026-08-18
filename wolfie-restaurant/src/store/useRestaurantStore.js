@@ -375,6 +375,8 @@ export const useRestaurantStore = create((set, get) => ({
     totalSteps: 6,
     nextStep: null,
     aiPlan: 'none',
+    kycStatus: 'not_submitted',
+    isActive: false,
   },
   setOnboarding: (data) => set(s => ({ onboarding: { ...s.onboarding, ...data } })),
 
@@ -445,7 +447,9 @@ export const useRestaurantStore = create((set, get) => ({
           completedSteps: onboardingData.completed_steps,
           totalSteps: onboardingData.total_steps,
           nextStep: onboardingData.next_step,
-          aiPlan: onboardingData.ai_plan
+          aiPlan: onboardingData.ai_plan,
+          kycStatus: onboardingData.kyc_status,
+          isActive: onboardingData.is_active,
         }
       });
 

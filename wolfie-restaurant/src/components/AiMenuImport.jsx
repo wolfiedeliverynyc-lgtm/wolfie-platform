@@ -24,7 +24,7 @@ export default function AiMenuImport({ isOpen, onClose }) {
   const [logIndex, setLogIndex] = useState(0);
 
   // Gemini API Key
-  const [apiKey, setApiKey] = useState(() => localStorage.getItem('GEMINI_API_KEY') || '');
+  const [apiKey, setApiKey] = useState(() => import.meta.env.VITE_GEMINI_API_KEY || localStorage.getItem('GEMINI_API_KEY') || '');
 
   // Step 3: Review Grid
   const [extractedItems, setExtractedItems] = useState(MOCK_EXTRACTED_ITEMS);
