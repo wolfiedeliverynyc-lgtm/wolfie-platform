@@ -66,10 +66,10 @@ export default function AiMenuImport({ isOpen, onClose }) {
       type: file.type || ''
     });
     
-    const isImage = (file.type && file.type.startsWith('image/')) || 
-                    (/\.(jpe?g|png|gif|webp|svg|heic)$/i.test(file.name));
+    const isSupported = (file.type && (file.type.startsWith('image/') || file.type === 'application/pdf')) || 
+                    (/\.(jpe?g|png|gif|webp|svg|heic|pdf)$/i.test(file.name));
                     
-    if (isImage) {
+    if (isSupported) {
       if (file.name.toLowerCase().endsWith('.heic') || file.type === 'image/heic') {
         import('heic2any').then(heic2any => {
           heic2any.default({ blob: file, toType: "image/jpeg" }).then(conversionResult => {
@@ -114,7 +114,7 @@ export default function AiMenuImport({ isOpen, onClose }) {
       body: JSON.stringify({
         contents: [{
           parts: [
-            { text: "Extract the menu items from this image into a JSON array of objects. Each object must have: 'name' (string), 'category' (string, e.g. Burgers, Pizza, Sides, Drinks), 'price' (number), 'ingredients' (string, comma-separated list of ingredients), 'confidence' (number 1-100). Return ONLY the raw JSON array string. No markdown formatting." },
+            { text: "Extract the menu items from this document into a JSON array of objects. Each object must have: 'name' (string), 'category' (string, e.g. Burgers, Pizza, Sides, Drinks), 'price' (number), 'ingredients' (string, comma-separated list of ingredients), 'confidence' (number 1-100). Return ONLY the raw JSON array string. No markdown formatting." },
             { inlineData: { mimeType: mimeType || "image/jpeg", data: base64Data } }
           ]
         }]
@@ -268,11 +268,11 @@ export default function AiMenuImport({ isOpen, onClose }) {
         </div>
 
         {/* Wizard Stages Content Area */}
-        <div className="flex-1 overflow-hidden">
+        <div className={`flex-1 ${step === 3 || step === 4 ? 'overflow-hidden' : 'overflow-y-auto'}`}>
           
           {/* STEP 1: Upload */}
           {step === 1 && (
-            <div className="h-full flex flex-col items-center justify-center p-8 space-y-6">
+            <div className="min-h-full flex flex-col items-center justify-center p-8 space-y-6">
               <input
                 type="file"
                 id="ai-menu-file-picker"
