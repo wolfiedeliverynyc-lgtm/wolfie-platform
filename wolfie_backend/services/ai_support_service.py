@@ -140,7 +140,7 @@ class AISupportService:
         }
         
         res = cls.call_gemini_api(
-            model_name="gemini-3.5-flash",
+            model_name="gemini-1.5-flash",
             system_instruction=system_instruction,
             prompt=f"Classify this message: '{message}'",
             schema=schema
@@ -203,7 +203,7 @@ class AISupportService:
             
         system_instruction = "Summarize the key events and resolution status of the support conversation in a single short paragraph."
         res = cls.call_gemini_api(
-            model_name="gemini-3.5-flash",
+            model_name="gemini-1.5-flash",
             system_instruction=system_instruction,
             prompt=f"Summarize this conversation so far:\n{history_text}"
         )
@@ -250,7 +250,7 @@ class AISupportService:
                 summary, recent_msgs = cls.build_memory(session_id, user_id, db)
                 
                 # 6. Model selection
-                model_name = "gemini-3.5-flash"
+                model_name = "gemini-1.5-flash"
                     
                 # 7. Context building (Order Tracking, KYC, Payouts)
                 context_data = ""
