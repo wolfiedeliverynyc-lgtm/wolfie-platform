@@ -29,18 +29,37 @@ const AVAILABLE_COVERS = [
 
 const RestaurantRegister = () => {
   const navigate = useNavigate();
-  const [step, setStep] = useState(1);
+  // Load from localStorage helpers
+  const getLocal = (key, fallback) => {
+    try {
+      const val = localStorage.getItem(`register_${key}`);
+      return val !== null ? val : fallback;
+    } catch {
+      return fallback;
+    }
+  };
+
+  const getLocalNum = (key, fallback) => {
+    try {
+      const val = localStorage.getItem(`register_${key}`);
+      return val !== null ? parseFloat(val) : fallback;
+    } catch {
+      return fallback;
+    }
+  };
+
+  const [step, setStep] = useState(() => parseInt(getLocal('step', '1')));
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
   // Controlled Form States (Step 1)
-  const [restaurantName, setRestaurantName] = useState('');
-  const [cuisineType, setCuisineType] = useState('');
-  const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [restaurantName, setRestaurantName] = useState(() => getLocal('restaurantName', ''));
+  const [cuisineType, setCuisineType] = useState(() => getLocal('cuisineType', ''));
+  const [phone, setPhone] = useState(() => getLocal('phone', ''));
+  const [email, setEmail] = useState(() => getLocal('email', ''));
+  const [password, setPassword] = useState(() => getLocal('password', ''));
 
   // Password Validation States
   const [passChecks, setPassChecks] = useState({
@@ -57,37 +76,81 @@ const RestaurantRegister = () => {
   const [storefrontPhotoFile, setStorefrontPhotoFile] = useState(null);
 
   // Banking Details States (Step 3)
-  const [bankName, setBankName] = useState('Wolfie Bank');
-  const [routingNumber, setRoutingNumber] = useState('');
-  const [accountNumber, setAccountNumber] = useState('');
-  const [accountHolderName, setAccountHolderName] = useState('');
+  const [bankName, setBankName] = useState(() => getLocal('bankName', 'Wolfie Bank'));
+  const [routingNumber, setRoutingNumber] = useState(() => getLocal('routingNumber', ''));
+  const [accountNumber, setAccountNumber] = useState(() => getLocal('accountNumber', ''));
+  const [accountHolderName, setAccountHolderName] = useState(() => getLocal('accountHolderName', ''));
 
   // Menu Operations States (Step 4)
-  const [menuManagementType, setMenuManagementType] = useState('Upload PDF / Images');
+  const [menuManagementType, setMenuManagementType] = useState(() => getLocal('menuManagementType', 'Upload PDF / Images'));
   const [menuFile, setMenuFile] = useState(null);
-  const [estimatedMenuItems, setEstimatedMenuItems] = useState('1-15');
+  const [estimatedMenuItems, setEstimatedMenuItems] = useState(() => getLocal('estimatedMenuItems', '1-15'));
   const [isAiImportOpen, setIsAiImportOpen] = useState(false);
   const [posIntegration, setPosIntegration] = useState(false);
 
   // Profile & Survey States (Step 5)
-  const [description, setDescription] = useState('');
-  const [logoUrl, setLogoUrl] = useState('./assets/wolf_logo.png');
-  const [heroImageUrl, setHeroImageUrl] = useState('./assets/wolf_hero.png');
-  const [address, setAddress] = useState('');
-  const [locLatitude, setLocLatitude] = useState(40.7128);
-  const [locLongitude, setLocLongitude] = useState(-74.0060);
-  const [viewport, setViewport] = useState({
-    latitude: 40.7128,
-    longitude: -74.0060,
+  const [description, setDescription] = useState(() => getLocal('description', ''));
+  const [logoUrl, setLogoUrl] = useState(() => getLocal('logoUrl', './assets/wolf_logo.png'));
+  const [heroImageUrl, setHeroImageUrl] = useState(() => getLocal('heroImageUrl', './assets/wolf_hero.png'));
+  const [address, setAddress] = useState(() => getLocal('address', ''));
+  const [locLatitude, setLocLatitude] = useState(() => getLocalNum('locLatitude', 40.7128));
+  const [locLongitude, setLocLongitude] = useState(() => getLocalNum('locLongitude', -74.0060));
+  const [viewport, setViewport] = useState(() => ({
+    latitude: getLocalNum('locLatitude', 40.7128),
+    longitude: getLocalNum('locLongitude', -74.0060),
     zoom: 13
-  });
+  }));
 
   // Operational Questions (Step 5)
-  const [dailyOrdersEstimate, setDailyOrdersEstimate] = useState('1-20');
-  const [peakHours, setPeakHours] = useState('Both');
-  const [usesDeliveryCurrently, setUsesDeliveryCurrently] = useState('No');
-  const [currentPlatform, setCurrentPlatform] = useState('None');
-  const [deliveryRadiusKm, setDeliveryRadiusKm] = useState(5);
+  const [dailyOrdersEstimate, setDailyOrdersEstimate] = useState(() => getLocal('dailyOrdersEstimate', '1-20'));
+  const [peakHours, setPeakHours] = useState(() => getLocal('peakHours', 'Both'));
+  const [usesDeliveryCurrently, setUsesDeliveryCurrently] = useState(() => getLocal('usesDeliveryCurrently', 'No'));
+  const [currentPlatform, setCurrentPlatform] = useState(() => getLocal('currentPlatform', 'None'));
+  const [deliveryRadiusKm, setDeliveryRadiusKm] = useState(() => getLocalNum('deliveryRadiusKm', 5));
+
+  // Sync to localStorage
+  useEffect(() => {
+    localStorage.setItem('register_step', step.toString());
+    localStorage.setItem('register_restaurantName', restaurantName);
+    localStorage.setItem('register_cuisineType', cuisineType);
+    localStorage.setItem('register_phone', phone);
+    localStorage.setItem('register_email', email);
+    localStorage.setItem('register_password', password);
+    localStorage.setItem('register_bankName', bankName);
+    localStorage.setItem('register_routingNumber', routingNumber);
+    localStorage.setItem('register_accountNumber', accountNumber);
+    localStorage.setItem('register_accountHolderName', accountHolderName);
+    localStorage.setItem('register_menuManagementType', menuManagementType);
+    localStorage.setItem('register_estimatedMenuItems', estimatedMenuItems);
+    localStorage.setItem('register_description', description);
+    localStorage.setItem('register_address', address);
+    localStorage.setItem('register_locLatitude', locLatitude.toString());
+    localStorage.setItem('register_locLongitude', locLongitude.toString());
+    localStorage.setItem('register_dailyOrdersEstimate', dailyOrdersEstimate);
+    localStorage.setItem('register_peakHours', peakHours);
+    localStorage.setItem('register_usesDeliveryCurrently', usesDeliveryCurrently);
+    localStorage.setItem('register_currentPlatform', currentPlatform);
+    localStorage.setItem('register_deliveryRadiusKm', deliveryRadiusKm.toString());
+    localStorage.setItem('register_logoUrl', logoUrl);
+    localStorage.setItem('register_heroImageUrl', heroImageUrl);
+  }, [
+    step, restaurantName, cuisineType, phone, email, password,
+    bankName, routingNumber, accountNumber, accountHolderName,
+    menuManagementType, estimatedMenuItems, description, address,
+    locLatitude, locLongitude, dailyOrdersEstimate, peakHours,
+    usesDeliveryCurrently, currentPlatform, deliveryRadiusKm, logoUrl, heroImageUrl
+  ]);
+
+  const clearLocalData = () => {
+    const keys = [
+      'step', 'restaurantName', 'cuisineType', 'phone', 'email', 'password',
+      'bankName', 'routingNumber', 'accountNumber', 'accountHolderName',
+      'menuManagementType', 'estimatedMenuItems', 'description', 'address',
+      'locLatitude', 'locLongitude', 'dailyOrdersEstimate', 'peakHours',
+      'usesDeliveryCurrently', 'currentPlatform', 'deliveryRadiusKm', 'logoUrl', 'heroImageUrl'
+    ];
+    keys.forEach(k => localStorage.removeItem(`register_${k}`));
+  };
 
   useEffect(() => {
     setPassChecks({
@@ -218,6 +281,7 @@ const RestaurantRegister = () => {
           delivery_radius_km: parseFloat(deliveryRadiusKm)
         });
 
+        clearLocalData();
         navigate('/pending-approval');
       } catch (err) {
         setError(err.message || 'Failed to submit profile details.');
