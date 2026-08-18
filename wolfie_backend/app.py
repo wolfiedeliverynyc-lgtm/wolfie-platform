@@ -381,6 +381,7 @@ def _register_blueprints(app: Flask):
     from routes.favorites import favorites_bp
     from routes.driver_kyc import driver_kyc_bp
     from routes.ai_support import ai_support_bp
+    from routes.ai_menu_ocr import ai_menu_ocr_bp
     from routes.uploads      import uploads_bp
 
     app.register_blueprint(auth_bp,         url_prefix="/api/v1/auth")
@@ -400,6 +401,7 @@ def _register_blueprints(app: Flask):
     app.register_blueprint(chat_bp,         url_prefix="/api/v1/chat")
     app.register_blueprint(favorites_bp,    url_prefix="/api/v1/favorites")
     app.register_blueprint(ai_support_bp,   url_prefix="/api/v1/support")
+    app.register_blueprint(ai_menu_ocr_bp,  url_prefix="")
     app.register_blueprint(uploads_bp,      url_prefix="/api/v1")
     app.register_blueprint(admin_bp,        url_prefix="/api/v1/admin")
 
