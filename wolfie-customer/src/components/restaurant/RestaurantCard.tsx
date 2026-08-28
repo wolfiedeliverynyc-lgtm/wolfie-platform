@@ -11,41 +11,43 @@ export default function RestaurantCard({ restaurant, onClick }: RestaurantCardPr
   return (
     <div 
       onClick={onClick}
-      className="bg-white rounded-[26px] border border-gray-105 overflow-hidden shadow-[0_5px_15px_rgba(0,0,0,0.02)] hover:shadow-[0_12px_25px_rgba(0,0,0,0.07)] hover:-translate-y-0.5 transition-all duration-300 cursor-pointer group active:scale-[0.99]"
+      className="bg-white rounded-2xl border border-slate-200/60 overflow-hidden shadow-sm hover:shadow-md hover:border-slate-300 hover:-translate-y-1 transition-all duration-300 cursor-pointer group active:scale-[0.99]"
     >
-      <div className="h-[140px] relative overflow-hidden bg-gray-150">
+      <div className="h-[145px] relative overflow-hidden bg-slate-100">
         <img 
           src={restaurant.cover} 
           alt={restaurant.name} 
           onError={(e) => handleImageError(e, '/assets/restaurant_cover_wendys.png')}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
         />
         {restaurant.isBestSeller && (
-          <span className="absolute left-4 top-4 bg-[#FFE100] text-[#3C2F2F] font-roboto font-black text-[11px] px-3 py-1 rounded-full uppercase tracking-wider shadow">
+          <span className="absolute left-3.5 top-3.5 bg-slate-900/90 backdrop-blur-md text-white font-medium text-[10px] px-2.5 py-1 rounded-full uppercase tracking-wider shadow-sm">
             Best Seller
           </span>
         )}
       </div>
-      <div className="p-5 flex gap-3.5 relative">
-        <div className="w-[54px] h-[54px] rounded-[16px] bg-white border border-gray-100 shadow-sm overflow-hidden flex items-center justify-center shrink-0 -mt-10 relative z-10">
+      <div className="p-4 flex gap-3.5 relative">
+        <div className="w-[52px] h-[52px] rounded-xl bg-white border border-slate-100 shadow-sm overflow-hidden flex items-center justify-center shrink-0 -mt-9 relative z-10 p-0.5">
           <img 
             src={restaurant.logo} 
             alt={restaurant.name} 
             onError={(e) => handleImageError(e, '/assets/restaurant_logo_wendys.png')}
-            className="w-full h-full object-cover" 
+            className="w-full h-full object-cover rounded-lg" 
           />
         </div>
-        <div className="text-left flex-1">
-          <h4 className="font-poppins font-bold text-[16px] text-[#3C2F2F] group-hover:text-[#EF2A39] transition-colors">
+        <div className="text-left flex-1 min-w-0">
+          <h4 className="font-semibold text-[15px] text-slate-900 group-hover:text-[#EF2A39] transition-colors truncate">
             {restaurant.name}
           </h4>
-          <p className="font-roboto text-[12px] text-[#A6A6A6] mt-0.5">
+          <p className="text-[12px] text-slate-500 mt-0.5 truncate">
             {restaurant.tags.join(' • ')}
           </p>
-          <div className="flex items-center gap-3.5 mt-2.5 font-roboto text-[12px] font-bold text-[#6A6A6A]">
-            <span className="flex items-center gap-0.5 text-yellow-500">★ {restaurant.rating}</span>
-            <span>• {restaurant.distance} miles</span>
-            <span>• Free Delivery</span>
+          <div className="flex items-center gap-2 mt-2 text-[12px] font-medium text-slate-600">
+            <span className="flex items-center gap-1 text-amber-500 font-semibold">★ {restaurant.rating}</span>
+            <span className="text-slate-300">•</span>
+            <span>{restaurant.distance} miles</span>
+            <span className="text-slate-300">•</span>
+            <span className="text-emerald-600 font-medium">Free Delivery</span>
           </div>
         </div>
       </div>

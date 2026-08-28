@@ -151,45 +151,45 @@ export default function HomeView({
     <div className="max-w-[1400px] mx-auto flex gap-8 select-none animate-fadeIn text-left py-6 px-4">
       <div className="flex-1 min-w-0">
         
-        {/* Promo Banner Section */}
-        <div className="w-full h-[280px] bg-gradient-to-r from-[#EF2A39] to-[#C21A28] rounded-[32px] p-10 text-white relative overflow-hidden mb-8 shadow-[0_15px_30px_rgba(239,42,57,0.15)] flex items-center justify-between">
-          <div className="max-w-[500px] z-10 text-left">
-            <span className="font-poppins font-bold text-[14px] bg-white/20 px-4 py-1.5 rounded-full uppercase tracking-wider">NYC Gourmet Delivery</span>
-            <h2 className="font-poppins font-bold text-[34px] mt-4 mb-3 leading-tight">Order premium burgers & meals under 25 mins!</h2>
-            <p className="font-roboto text-[16px] text-white/80">Tailored dietary screening protects your lifestyle and allergy preferences.</p>
+        {/* Minimalist Hero Section */}
+        <div className="w-full h-[260px] bg-slate-900 rounded-3xl p-10 text-white relative overflow-hidden mb-8 shadow-sm flex items-center justify-between border border-slate-800">
+          <div className="max-w-[480px] z-10 text-left">
+            <span className="text-[12px] font-semibold bg-white/10 text-slate-200 px-3.5 py-1.5 rounded-full uppercase tracking-widest backdrop-blur-md">NYC Gourmet Delivery</span>
+            <h2 className="font-bold text-[32px] mt-4 mb-2.5 leading-tight tracking-tight text-white">Order premium meals delivered under 25 mins.</h2>
+            <p className="text-[14px] text-slate-400 font-normal">Tailored dietary screening protects your lifestyle and allergy preferences.</p>
           </div>
           <img 
             src="/assets/onboarding_burger.png" 
             alt="Promo Burger" 
             onError={(e) => handleImageError(e, '/assets/onboarding_burger.png')}
-            className="w-[280px] object-contain scale-[1.25] -rotate-12 transform translate-x-4 z-10 filter drop-shadow-[0_20px_20px_rgba(0,0,0,0.3)] transition-transform hover:scale-[1.3] duration-500" 
+            className="w-[260px] object-contain scale-110 -rotate-6 transform translate-x-2 z-10 filter drop-shadow-[0_20px_30px_rgba(0,0,0,0.5)] transition-transform hover:scale-125 duration-500" 
           />
-          <div className="absolute inset-0 opacity-15 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-transparent scale-[1.5]" />
+          <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-rose-500/30 via-transparent to-transparent pointer-events-none" />
         </div>
 
-        {/* Search Input Bar */}
-        <div className="mb-6">
+        {/* Minimalist Search Bar */}
+        <div className="mb-6 relative">
           <input 
             type="text"
             placeholder="Search premium dishes or restaurants..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full h-[60px] border border-gray-200 rounded-[20px] px-6 font-roboto text-[16px] outline-none focus:border-[#EF2A39] transition-colors shadow-sm"
+            className="w-full h-[56px] minimal-input px-6 font-medium text-[15px] text-slate-900 placeholder:text-slate-400 outline-none focus:border-[#EF2A39] transition-all shadow-xs"
           />
         </div>
 
-        {/* Desktop Filters section */}
-        <div className="mb-8 bg-white border border-gray-100/80 rounded-[24px] p-5 shadow-sm flex flex-wrap gap-6 items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-[10px] h-[10px] rounded-full bg-[#EF2A39] animate-pulse" />
-            <span className="font-poppins font-bold text-[16px] text-[#3C2F2F]">Gourmet Filters</span>
+        {/* Minimalist Desktop Filters section */}
+        <div className="mb-8 bg-white border border-slate-200/60 rounded-2xl p-4 shadow-xs flex flex-wrap gap-6 items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-2 h-2 rounded-full bg-[#EF2A39]" />
+            <span className="font-semibold text-[14px] text-slate-900">Filters</span>
           </div>
           
           <div className="flex flex-wrap gap-5 items-center">
             {/* Price filter */}
             <div className="flex items-center gap-2">
-              <span className="font-roboto font-bold text-[13px] text-[#A6A6A6] uppercase tracking-wider">Price</span>
-              <div className="flex gap-1.5 bg-gray-50 border border-gray-100 p-1 rounded-full">
+              <span className="font-semibold text-[11px] text-slate-400 uppercase tracking-wider">Price</span>
+              <div className="flex gap-1 bg-slate-100/70 p-1 rounded-xl">
                 {[
                   { id: 'all', label: 'All' },
                   { id: 'under3', label: '<$3' },
@@ -199,10 +199,10 @@ export default function HomeView({
                   <button
                     key={p.id}
                     onClick={() => setDesktopPriceFilter(p.id as any)}
-                    className={`px-3 py-1 text-[12px] font-bold font-roboto rounded-full transition-all cursor-pointer focus:outline-none ${
+                    className={`px-3 py-1 text-[12px] font-medium rounded-lg transition-all cursor-pointer focus:outline-none ${
                       desktopPriceFilter === p.id 
-                        ? 'bg-[#EF2A39] text-white shadow-sm' 
-                        : 'text-[#6A6A6A] hover:bg-gray-150/40'
+                        ? 'bg-slate-900 text-white shadow-xs' 
+                        : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
                     {p.label}
@@ -213,8 +213,8 @@ export default function HomeView({
 
             {/* Rating filter */}
             <div className="flex items-center gap-2">
-              <span className="font-roboto font-bold text-[13px] text-[#A6A6A6] uppercase tracking-wider">Rating</span>
-              <div className="flex gap-1.5 bg-gray-50 border border-gray-100 p-1 rounded-full">
+              <span className="font-semibold text-[11px] text-slate-400 uppercase tracking-wider">Rating</span>
+              <div className="flex gap-1 bg-slate-100/70 p-1 rounded-xl">
                 {[
                   { id: 'all', label: 'All' },
                   { id: 'high', label: '4.7+ ★' },
@@ -223,10 +223,10 @@ export default function HomeView({
                   <button
                     key={r.id}
                     onClick={() => setDesktopRatingFilter(r.id as any)}
-                    className={`px-3 py-1 text-[12px] font-bold font-roboto rounded-full transition-all cursor-pointer focus:outline-none ${
+                    className={`px-3 py-1 text-[12px] font-medium rounded-lg transition-all cursor-pointer focus:outline-none ${
                       desktopRatingFilter === r.id 
-                        ? 'bg-[#EF2A39] text-white shadow-sm' 
-                        : 'text-[#6A6A6A] hover:bg-gray-150/40'
+                        ? 'bg-slate-900 text-white shadow-xs' 
+                        : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
                     {r.label}
@@ -237,8 +237,8 @@ export default function HomeView({
 
             {/* Speed filter */}
             <div className="flex items-center gap-2">
-              <span className="font-roboto font-bold text-[13px] text-[#A6A6A6] uppercase tracking-wider">Speed</span>
-              <div className="flex gap-1.5 bg-gray-50 border border-gray-100 p-1 rounded-full">
+              <span className="font-semibold text-[11px] text-slate-400 uppercase tracking-wider">Speed</span>
+              <div className="flex gap-1 bg-slate-100/70 p-1 rounded-xl">
                 {[
                   { id: 'all', label: 'All' },
                   { id: 'fast', label: '<25m' },
@@ -247,10 +247,10 @@ export default function HomeView({
                   <button
                     key={s.id}
                     onClick={() => setDesktopTimeFilter(s.id as any)}
-                    className={`px-3 py-1 text-[12px] font-bold font-roboto rounded-full transition-all cursor-pointer focus:outline-none ${
+                    className={`px-3 py-1 text-[12px] font-medium rounded-lg transition-all cursor-pointer focus:outline-none ${
                       desktopTimeFilter === s.id 
-                        ? 'bg-[#EF2A39] text-white shadow-sm' 
-                        : 'text-[#6A6A6A] hover:bg-gray-150/40'
+                        ? 'bg-slate-900 text-white shadow-xs' 
+                        : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
                     {s.label}
@@ -324,10 +324,10 @@ export default function HomeView({
                 <button 
                   key={pill.id}
                   onClick={() => setRestaurantFilter(pill.id as any)}
-                  className={`px-4 py-1.5 font-roboto font-bold text-[13px] rounded-full border transition-all cursor-pointer focus:outline-none ${
+                  className={`px-4 py-1.5 font-medium text-[13px] rounded-full border transition-all cursor-pointer focus:outline-none ${
                     restaurantFilter === pill.id 
-                      ? 'bg-[#3C2F2F] border-[#3C2F2F] text-white shadow-sm' 
-                      : 'bg-white border-gray-200 text-[#6A6A6A] hover:bg-gray-50'
+                      ? 'bg-slate-900 border-slate-900 text-white shadow-xs' 
+                      : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:text-slate-900'
                   }`}
                 >
                   {pill.label}
@@ -355,51 +355,52 @@ export default function HomeView({
             
             return (
               <div key={catName} className="animate-fadeIn">
-                <h3 className="font-poppins font-bold text-[22px] text-[#3C2F2F] mb-5 border-b border-gray-50 pb-2 flex items-center justify-between">
+                <h3 className="font-bold text-[20px] text-slate-900 mb-4 border-b border-slate-200/50 pb-2.5 flex items-center justify-between">
                   <span>{catName === 'Specials' ? 'Chef Specials' : catName === 'Drinks' ? 'Beverages & Shakes' : catName}</span>
-                  <span className="text-[12px] font-roboto font-bold text-[#A6A6A6] bg-gray-50 px-2.5 py-1 rounded-full">
+                  <span className="text-[11px] font-medium text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full">
                     {categoryItems.length} {categoryItems.length === 1 ? 'item' : 'items'}
                   </span>
                 </h3>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
                   {categoryItems.map(item => (
                     <div 
                       key={item.id}
                       onClick={() => onSelectFoodItem(item)}
-                      className="bg-white rounded-[26px] border border-gray-100 p-4 shadow-[0_5px_15px_rgba(0,0,0,0.02)] hover:shadow-[0_12px_25px_rgba(0,0,0,0.06)] hover:-translate-y-0.5 transition-all duration-300 cursor-pointer flex gap-4 group active:scale-[0.99] relative"
+                      className="bg-white rounded-2xl border border-slate-200/60 p-4 shadow-xs hover:shadow-md hover:border-slate-300 hover:-translate-y-1 transition-all duration-300 cursor-pointer flex gap-4 group active:scale-[0.99] relative"
                     >
-                      <div className="w-[110px] h-[110px] bg-gray-50/70 rounded-[20px] overflow-hidden flex items-center justify-center shrink-0 relative p-1">
+                      <div className="w-[100px] h-[100px] bg-slate-50 rounded-xl overflow-hidden flex items-center justify-center shrink-0 relative p-1.5">
                         <img 
                           src={item.image} 
                           alt={item.name} 
                           onError={(e) => handleImageError(e, '/assets/hamburger_1.png')}
-                          className="max-h-[95px] max-w-[95px] object-contain group-hover:scale-105 transition-transform" 
+                          className="max-h-[90px] max-w-[90px] object-contain group-hover:scale-105 transition-transform duration-300" 
                         />
                       </div>
                       <div className="text-left flex-1 flex flex-col justify-between min-w-0">
                         <div>
                           <div className="flex justify-between items-start">
-                            <h4 className="font-poppins font-bold text-[15.5px] text-[#3C2F2F] group-hover:text-[#EF2A39] transition-colors truncate pr-1">{item.name}</h4>
+                            <h4 className="font-semibold text-[15px] text-slate-900 group-hover:text-[#EF2A39] transition-colors truncate pr-1">{item.name}</h4>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 addToCartDirect(item);
                               }}
-                              className="w-7 h-7 rounded-full bg-[#EF2A39] hover:bg-[#D61B29] hover:scale-110 active:scale-95 text-white flex items-center justify-center font-bold text-[16px] transition-all cursor-pointer shadow-sm shrink-0 focus:outline-none"
+                              className="w-7 h-7 rounded-full bg-slate-900 hover:bg-[#EF2A39] hover:scale-110 active:scale-95 text-white flex items-center justify-center font-semibold text-[15px] transition-all cursor-pointer shadow-xs shrink-0 focus:outline-none"
                             >
                               +
                             </button>
                           </div>
-                          <p className="font-roboto text-[11px] text-[#A6A6A6] mt-0.5">{item.brand}</p>
-                          <p className="font-roboto text-[12.5px] text-[#6A6A6A] mt-1.5 line-clamp-2 leading-relaxed">{item.description}</p>
+                          <p className="text-[11px] font-medium text-slate-400 mt-0.5">{item.brand}</p>
+                          <p className="text-[12px] text-slate-500 mt-1 line-clamp-2 leading-relaxed">{item.description}</p>
                         </div>
-                        <div className="flex items-center justify-between mt-2 pt-2.5 border-t border-gray-50">
-                          <span className="font-poppins font-black text-[16px] text-[#EF2A39]">${item.price.toFixed(2)}</span>
-                          <div className="flex items-center gap-2 text-[#A6A6A6] font-roboto font-bold text-[11px]">
-                            <span className="text-[#FFE100]">★</span>
-                            <span className="text-[#3C2F2F]">{item.rating}</span>
-                            <span>• {item.deliveryTime}</span>
+                        <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-100">
+                          <span className="font-bold text-[15px] text-slate-900">${item.price.toFixed(2)}</span>
+                          <div className="flex items-center gap-1.5 text-slate-500 text-[11px] font-medium">
+                            <span className="text-amber-500 font-semibold">★</span>
+                            <span className="text-slate-800 font-semibold">{item.rating}</span>
+                            <span className="text-slate-300">•</span>
+                            <span>{item.deliveryTime}</span>
                           </div>
                         </div>
                       </div>
@@ -411,10 +412,10 @@ export default function HomeView({
           })}
 
           {categoriesList.every(cat => getFilteredItemsForCategory(cat).length === 0) && (
-            <div className="text-center py-12 bg-white rounded-[24px] border border-gray-100/70 p-8">
-              <span className="text-[40px] block mb-2">🔍</span>
-              <h4 className="font-poppins font-bold text-[18px] text-[#3C2F2F]">No dishes match your filters</h4>
-              <p className="font-roboto text-[14px] text-[#A6A6A6] mt-1">Try adjusting your pricing, rating, speed filters or search query.</p>
+            <div className="text-center py-12 bg-white rounded-2xl border border-slate-200/60 p-8 shadow-xs">
+              <span className="text-[36px] block mb-2 opacity-75">🔍</span>
+              <h4 className="font-bold text-[17px] text-slate-900">No dishes match your filters</h4>
+              <p className="text-[13px] text-slate-500 mt-1">Try adjusting your pricing, rating, speed filters or search query.</p>
               <button
                 onClick={() => {
                   setDesktopPriceFilter('all');
@@ -422,7 +423,7 @@ export default function HomeView({
                   setDesktopTimeFilter('all');
                   setSearchQuery('');
                 }}
-                className="mt-4 px-6 py-2 bg-[#EF2A39] text-white text-[13.5px] font-bold font-roboto rounded-full active:scale-95 transition-transform cursor-pointer"
+                className="mt-4 px-5 py-2 bg-slate-900 hover:bg-[#EF2A39] text-white text-[13px] font-medium rounded-full active:scale-95 transition-all cursor-pointer"
               >
                 Clear Filters
               </button>
@@ -433,21 +434,21 @@ export default function HomeView({
 
       {/* Cart Drawer sidebar */}
       {cartItems.length > 0 && (
-        <div className="w-[380px] shrink-0">
-          <div className="sticky top-[110px] bg-white border border-gray-100 rounded-[28px] p-6 shadow-sm flex flex-col max-h-[calc(100vh-140px)]">
-            <h3 className="font-poppins font-bold text-[18px] text-[#3C2F2F] border-b border-gray-100 pb-3 mb-4 flex items-center justify-between">
+        <div className="w-[360px] shrink-0">
+          <div className="sticky top-[100px] bg-white border border-slate-200/60 rounded-2xl p-5 shadow-sm flex flex-col max-h-[calc(100vh-120px)]">
+            <h3 className="font-bold text-[17px] text-slate-900 border-b border-slate-100 pb-3 mb-4 flex items-center justify-between">
               <span>Active Basket</span>
-              <span className="bg-[#EF2A39]/10 text-[#EF2A39] text-[11px] font-bold px-2.5 py-1 rounded-full uppercase">
+              <span className="bg-slate-100 text-slate-800 text-[11px] font-semibold px-2.5 py-1 rounded-full uppercase">
                 {getTotalItems()} Items
               </span>
             </h3>
 
             <div className="flex-1 overflow-y-auto space-y-3.5 pr-1 scrollbar-hide max-h-[300px] mb-4">
               {cartItems.map(item => (
-                <div key={item.cartId} className="flex gap-3 items-center border-b border-gray-50 pb-3 last:border-0 last:pb-0">
-                  <img src={item.foodItem.image} alt={item.foodItem.name} className="w-12 h-12 object-contain" />
-                  <div className="flex-1 text-left">
-                    <h4 className="font-poppins font-bold text-[13px] text-[#3C2F2F] truncate">{item.foodItem.name}</h4>
+                <div key={item.cartId} className="flex gap-3 items-center border-b border-slate-100/60 pb-3 last:border-0 last:pb-0">
+                  <img src={item.foodItem.image} alt={item.foodItem.name} className="w-11 h-11 object-contain shrink-0" />
+                  <div className="flex-1 text-left min-w-0">
+                    <h4 className="font-semibold text-[13px] text-slate-900 truncate">{item.foodItem.name}</h4>
                     <p className="font-roboto text-[10.5px] text-[#A6A6A6] mt-0.5">Size: {item.size}</p>
                     <span className="font-poppins font-bold text-[12px] text-[#EF2A39]">${(item.pricePerUnit * item.quantity).toFixed(2)}</span>
                   </div>
