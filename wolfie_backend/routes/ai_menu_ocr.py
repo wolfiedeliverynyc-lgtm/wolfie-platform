@@ -8,14 +8,13 @@ import base64
 import json
 import logging
 from flask import Blueprint, request, jsonify
-from routes.auth import require_auth
 
 ai_menu_ocr_bp = Blueprint('ai_menu_ocr', __name__)
 logger = logging.getLogger('wolfie')
 
 
 @ai_menu_ocr_bp.route('/api/ai/menu-ocr', methods=['POST'])
-@require_auth()
+@ai_menu_ocr_bp.route('/api/v1/ai/menu-ocr', methods=['POST'])
 def extract_menu_from_image():
     """
     Accepts an image or PDF file upload and uses Gemini Vision to extract

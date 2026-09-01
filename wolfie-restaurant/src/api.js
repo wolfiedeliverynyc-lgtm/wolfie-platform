@@ -170,38 +170,5 @@ export const financeApi = {
   upgradeAi:    (body) => request('/restaurants/ai/upgrade', { method: 'POST', body: JSON.stringify(body) }),
 }
 
-/* ════════════════════════════════════════════
-   MOCK DATA — used when backend is unavailable
-════════════════════════════════════════════ */
-export const MOCK_DASHBOARD = {
-  restaurant_name: "Abu Ali's Kitchen",
-  is_open: true,
-  today: { revenue: 1245.00, orders: 45, avg_prep: 14 },
-  changes: { revenue: '+12.5%', orders: '+5.2%', avg_prep: '-2.1 min' },
-  recent_orders: [
-    { id: '#1042', customer: 'Sarah M.', items: '2x Truffle Burger, 1x Fries', total: 42.50, status: 'preparing', created_at: '10 min ago' },
-    { id: '#1041', customer: 'John D.', items: '1x Spicy Chicken Sandwich', total: 18.00, status: 'ready', created_at: '25 min ago' },
-    { id: '#1040', customer: 'Emma W.', items: '3x Veggie Wrap, 2x Smoothie', total: 55.00, status: 'delivered', created_at: '45 min ago' },
-    { id: '#1039', customer: 'Michael R.', items: '1x Classic Burger', total: 15.00, status: 'delivered', created_at: '1 hr ago' },
-    { id: '#1038', customer: 'Aisha K.', items: '2x Falafel Wrap', total: 22.50, status: 'delivered', created_at: '1.5 hr ago' },
-  ]
-}
 
-export const MOCK_STATS = {
-  weekly: [
-    { day: 'Mon', revenue: 4200, orders: 135 },
-    { day: 'Tue', revenue: 3800, orders: 118 },
-    { day: 'Wed', revenue: 5100, orders: 162 },
-    { day: 'Thu', revenue: 4500, orders: 140 },
-    { day: 'Fri', revenue: 6800, orders: 210 },
-    { day: 'Sat', revenue: 7200, orders: 235 },
-    { day: 'Sun', revenue: 5900, orders: 188 },
-  ],
-  top_items: [
-    { name: 'Truffle Burger', orders: 142, revenue: 2556 },
-    { name: 'Falafel Wrap', orders: 98, revenue: 1078 },
-    { name: 'Wolf Fries', orders: 85, revenue: 467 },
-    { name: 'Spicy Chicken', orders: 76, revenue: 1140 },
-  ],
-  retention: { wolfie_direct: 68, third_party: 12 },
-}
+
