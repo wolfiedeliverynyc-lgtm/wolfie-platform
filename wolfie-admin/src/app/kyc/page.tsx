@@ -105,11 +105,34 @@ export default function KYCReviewPage() {
 
     return configs.map(cfg => {
       const savedDoc = docs[cfg.id] || {};
-      // Backend may store URL as: a direct string (restaurants), or { file_url: "..." } (drivers)
-      const fileUrl = typeof savedDoc === "string" ? savedDoc : (savedDoc.file_url || "");
-      const fileName = typeof savedDoc === "string" ? cfg.fallbackName : (savedDoc.file_name || cfg.fallbackName);
-      const uploadedAt = typeof savedDoc === "string" ? new Date().toLocaleDateString() : (savedDoc.uploaded_at ? new Date(savedDoc.uploaded_at).toLocaleString() : new Date().toLocaleDateString());
-      const docStatus = typeof savedDoc === "string" ? "pending_review" : (savedDoc.status || (selectedItem.kyc_status === "approved" ? "approved" : selectedItem.kyc_status === "rejected" ? "rejected" : "pending_review"));
+      let rawUrl = "";
+      if (typeof savedDoc === "string") {
+        rawUrl = savedDoc;
+      } else if (typeof savedDoc === "object" && savedDoc !== null) {
+        rawUrl = savedDoc.file_url || savedDoc.url || savedDoc.path || savedDoc.uri || savedDoc.link || savedDoc.src || savedDoc.file || "";
+      }
+
+      // Convert relative URL (e.g. /uploads/...) to absolute backend URL
+      let fileUrl = rawUrl;
+      if (fileUrl && fileUrl.startsWith("/")) {
+        const backendOrigin = typeof window !== "undefined" && window.location.hostname === "localhost"
+          ? "http://localhost:5000"
+          : "https://wolfie-backend-pt9u.onrender.com";
+        fileUrl = `${backendOrigin}${fileUrl}`;
+      }
+
+      const fileName = typeof savedDoc === "string" 
+        ? cfg.fallbackName 
+        : (savedDoc.file_name || savedDoc.name || cfg.fallbackName);
+
+      const uploadedAt = typeof savedDoc === "string" 
+        ? new Date().toLocaleDateString() 
+        : (savedDoc.uploaded_at ? new Date(savedDoc.uploaded_at).toLocaleString() : new Date().toLocaleDateString());
+
+      const docStatus = typeof savedDoc === "string" 
+        ? "pending_review" 
+        : (savedDoc.status || (selectedItem.kyc_status === "approved" ? "approved" : selectedItem.kyc_status === "rejected" ? "rejected" : "pending_review"));
+
       return {
         id: cfg.id,
         label: cfg.label,
