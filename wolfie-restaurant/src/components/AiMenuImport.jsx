@@ -149,6 +149,11 @@ export default function AiMenuImport({ isOpen, onClose }) {
   const handleFinalImport = () => {
     extractedItems.forEach(item => {
       addCategory(item.category);
+      const descParts = [];
+      if (item.ingredients) descParts.push(`Ingredients: ${item.ingredients}`);
+      if (item.addons) descParts.push(`Add-ons: ${item.addons}`);
+      const descText = descParts.length > 0 ? descParts.join(' | ') : 'AI Extracted: Imported from menu scan.';
+
       addMenuProduct({
         name: item.name,
         category: item.category,
@@ -158,7 +163,7 @@ export default function AiMenuImport({ isOpen, onClose }) {
         available: true,
         allergens: [],
         image: item.image || (item.category === 'Burgers' ? '🍔' : item.category === 'Drinks' ? '🥤' : item.category === 'Pizza' ? '🍕' : '🍟'),
-        description: 'AI Extracted: Imported from menu scan.',
+        description: descText,
         seoSlug: item.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
         dietaryTags: [],
         pairings: [],
@@ -536,6 +541,17 @@ export default function AiMenuImport({ isOpen, onClose }) {
                                 className="w-full px-2.5 py-1 border rounded-2xl text-[11px] font-medium outline-none focus:border-amber-500"
                                 style={{ borderColor: 'var(--border)' }}
                                 placeholder="Comma-separated ingredients..."
+                              />
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider w-20 shrink-0">Add-ons:</span>
+                              <input
+                                type="text"
+                                value={item.addons || ''}
+                                onChange={(e) => handleItemEdit(item.id, 'addons', e.target.value)}
+                                className="w-full px-2.5 py-1 border rounded-2xl text-[11px] font-medium outline-none focus:border-amber-500"
+                                style={{ borderColor: 'var(--border)' }}
+                                placeholder="Add-ons / Modifiers e.g. Extra Cheese (+1.50), Bacon (+2.00)..."
                               />
                             </div>
                           </div>

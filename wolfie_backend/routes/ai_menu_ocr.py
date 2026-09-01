@@ -41,6 +41,7 @@ def extract_menu_from_image():
             'category': 'Burgers',
             'price': 14.99,
             'ingredients': 'Angus beef, cheddar, caramelized onions, secret wolf sauce',
+            'addons': 'Extra Cheddar (+1.50), Smoked Bacon (+2.00), Truffle Dip (+1.00)',
             'confidence': 95,
             'warning': None,
             'image': '🍔'
@@ -51,6 +52,7 @@ def extract_menu_from_image():
             'category': 'Pizza',
             'price': 18.50,
             'ingredients': 'Mozzarella, wild mushrooms, truffle oil, fresh basil',
+            'addons': 'Stuffed Crust (+3.00), Extra Truffle Drizzle (+2.50)',
             'confidence': 92,
             'warning': None,
             'image': '🍕'
@@ -61,6 +63,7 @@ def extract_menu_from_image():
             'category': 'Sides',
             'price': 6.99,
             'ingredients': 'Hand-cut potatoes, parmesan, garlic dip, parsley',
+            'addons': 'Melted Cheese Sauce (+2.00), Garlic Aioli (+1.00)',
             'confidence': 88,
             'warning': None,
             'image': '🍟'
@@ -71,6 +74,7 @@ def extract_menu_from_image():
             'category': 'Drinks',
             'price': 5.50,
             'ingredients': 'Fresh lemon juice, sparkling water, mint, vanilla scoop',
+            'addons': 'Extra Vanilla Scoop (+1.50)',
             'confidence': 90,
             'warning': None,
             'image': '🥤'
@@ -104,6 +108,7 @@ def extract_menu_from_image():
             "- category: string (e.g. Burgers, Pizza, Sides, Drinks, Desserts, Appetizers, Salads, Pasta)\n"
             "- price: number (numeric price value, 0 if not visible)\n"
             "- ingredients: string (comma-separated ingredients list, empty string if not visible)\n"
+            "- addons: string (comma-separated add-ons / extra options with prices e.g. 'Extra Cheese (+1.50), Bacon (+2.00)', empty string if none)\n"
             "- confidence: number (your confidence 1-100 that the item was read correctly)\n\n"
             "Return ONLY a raw JSON array. No markdown, no code fences, no explanation."
         )
@@ -140,6 +145,7 @@ def extract_menu_from_image():
                 'category': str(item.get('category', 'Other')).strip(),
                 'price': float(item.get('price', 0)),
                 'ingredients': str(item.get('ingredients', '')).strip(),
+                'addons': str(item.get('addons', '')).strip(),
                 'confidence': int(item.get('confidence', 80)),
                 'warning': 'Low confidence — please verify' if int(item.get('confidence', 80)) < 75 else None,
                 'image': None
