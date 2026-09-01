@@ -23,25 +23,26 @@ export default function AiMenuImport({ isOpen, onClose }) {
   const [previewTab, setPreviewTab] = useState('menu'); // 'menu' | 'scan'
 
   const processingSteps = [
-    { text: '[SYSTEM] Uploading file to AI extraction pipeline...', delay: 400 },
-    { text: '[OCR] Analyzing layout geometry & column matrices...', delay: 900 },
-    { text: '[AI] Running Gemini Vision on your menu document...', delay: 1200 },
-    { text: '[NLP] Category classification in progress...', delay: 800 },
-    { text: '[AI-GEN] Extracting item names, prices & ingredients...', delay: 1000 },
-    { text: '[DB] Normalizing and preparing structured output...', delay: 600 },
-    { text: '[SUCCESS] Extraction complete. Building review board...', delay: 400 },
+    { text: 'Uploading menu file to AI scanner...', delay: 400 },
+    { text: 'Analyzing document layout & columns...', delay: 900 },
+    { text: 'Running Gemini AI Vision OCR scan...', delay: 1200 },
+    { text: 'Categorizing menu sections & items...', delay: 800 },
+    { text: 'Extracting item names, prices & ingredients...', delay: 1000 },
+    { text: 'Formatting structured catalog data...', delay: 600 },
+    { text: 'Extraction complete! Loading review board...', delay: 400 },
   ];
 
   // Log print iteration for Step 2
   useEffect(() => {
     if (step !== 2) return;
+    if (ocrError) return; // Stop log stream if error occurred
     if (logIndex >= processingSteps.length) return;
     const timer = setTimeout(() => {
       setLogs(prev => [...prev, processingSteps[logIndex].text]);
       setLogIndex(prev => prev + 1);
     }, processingSteps[logIndex].delay);
     return () => clearTimeout(timer);
-  }, [step, logIndex]);
+  }, [step, logIndex, ocrError]);
 
   if (!isOpen) return null;
 
@@ -91,11 +92,19 @@ export default function AiMenuImport({ isOpen, onClose }) {
     setStep(2);
 
     try {
-      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token') || localStorage.getItem('access_token');
       const formData = new FormData();
       formData.append('file', rawFile);
 
-      const response = await fetch(`${API_BASE}/api/ai/menu-ocr`, {
+      let endpoint = `${API_BASE}/api/v1/ai/menu-ocr`;
+      if (API_BASE && !API_BASE.endsWith('/api/v1')) {
+        endpoint = `${API_BASE.replace(/\/+$/, '')}/api/v1/ai/menu-ocr`;
+      } else if (!API_BASE) {
+        const origin = window.location.hostname === 'localhost' ? 'http://localhost:5000' : 'https://wolfie-backend-pt9u.onrender.com';
+        endpoint = `${origin}/api/v1/ai/menu-ocr`;
+      }
+
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: formData,
@@ -115,10 +124,8 @@ export default function AiMenuImport({ isOpen, onClose }) {
       // wait for last log to finish printing before moving to step 3
       setTimeout(() => setStep(3), 1000);
     } catch (err) {
-      console.error(err);
-      setOcrError(err.message);
-      // Stay on step 2 showing the error in the log terminal
-      setLogs(prev => [...prev, `[ERROR] ${err.message}`]);
+      console.error('AI Menu OCR Error:', err);
+      setOcrError(err.message || 'Menu extraction failed. Please try again.');
     }
   };
 
