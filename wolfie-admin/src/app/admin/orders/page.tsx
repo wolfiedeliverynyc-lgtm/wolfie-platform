@@ -94,6 +94,12 @@ export default function DispatchEnginePage() {
   const [showRefundModal, setShowRefundModal] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
+  // Three-Dots (⋮) Action Modal States
+  const [threeDotsModalOrderId, setThreeDotsModalOrderId] = useState<string | null>(null);
+  const [driverSwitchSelect, setDriverSwitchSelect] = useState<string>("");
+  const [orderStatusSelect, setOrderStatusSelect] = useState<string>("");
+  const [cancelOrderReasonInput, setCancelOrderReasonInput] = useState<string>("");
+
   // Ticking State: triggers re-render every 1s to update countdowns
   const [tick, setTick] = useState(0);
 
@@ -712,12 +718,13 @@ export default function DispatchEnginePage() {
                     <th style={{ cursor: "pointer", textAlign: "right" }} onClick={() => handleSort('created_at')}>
                       Created {sortField === 'created_at' && (sortOrder === 'asc' ? '▲' : '▼')}
                     </th>
+                    <th style={{ textAlign: "center", width: "50px" }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {sortedOrders.length === 0 ? (
                     <tr>
-                      <td colSpan={14} style={{ textAlign: "center", padding: "48px 0", color: "var(--text-muted)", fontSize: "12px" }}>
+                      <td colSpan={15} style={{ textAlign: "center", padding: "48px 0", color: "var(--text-muted)", fontSize: "12px" }}>
                         No orders match the selected filters. Clear search or check filters.
                       </td>
                     </tr>
@@ -840,6 +847,22 @@ export default function DispatchEnginePage() {
                           </td>
                           <td suppressHydrationWarning className="mono" style={{ textAlign: "right", color: "var(--text-muted)" }}>
                             {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                          </td>
+                          <td style={{ textAlign: "center" }} onClick={(e) => e.stopPropagation()}>
+                            <button 
+                              className="btn btn-ghost btn-xs" 
+                              style={{ fontSize: "16px", padding: "2px 8px", cursor: "pointer", borderRadius: "4px", fontWeight: "bold" }}
+                              onClick={() => {
+                                setSelectedOrderId(order.id);
+                                setThreeDotsModalOrderId(order.id);
+                                setDriverSwitchSelect(order.driver_id || "");
+                                setOrderStatusSelect(order.status);
+                                setCancelOrderReasonInput("");
+                              }}
+                              title="Open Order Actions & Details (⋮)"
+                            >
+                              ⋮
+                            </button>
                           </td>
                         </tr>
                       );
@@ -1340,6 +1363,333 @@ export default function DispatchEnginePage() {
           </div>
         </div>
       )}
+
+      {/* ════════════════════════════════════════════════════════════════ */}
+      {/* THREE-DOTS (⋮) ACTION & DISPATCH CONTROL MODAL OVERLAY           */}
+      {/* ════════════════════════════════════════════════════════════════ */}
+      {threeDotsModalOrderId && (() => {
+        const modalOrder = orders.find(o => o.id === threeDotsModalOrderId);
+        if (!modalOrder) return null;
+
+        const modalSla = calculateSLATime(modalOrder.created_at);
+        const modalMerchant = merchants.find(m => m.id === modalOrder.merchant_id);
+        const modalDriver = drivers.find(d => d.id === modalOrder.driver_id);
+        const modalHasRefund = refunds.some(r => r.order_id === modalOrder.id && r.status === "pending");
+
+        return (
+          <div style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0,0,0,0.8)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 10000,
+            padding: "20px"
+          }}>
+            <div className="panel" style={{
+              width: "920px",
+              maxWidth: "95vw",
+              maxHeight: "90vh",
+              display: "flex",
+              flexDirection: "column",
+              overflow: "hidden",
+              background: "var(--bg-surface)",
+              borderRadius: "var(--radius-lg)",
+              border: "1px solid var(--border)",
+              boxShadow: "0 20px 50px rgba(0,0,0,0.5)"
+            }}>
+              
+              {/* Modal Header */}
+              <div style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                padding: "16px 20px",
+                borderBottom: "1px solid var(--border)",
+                background: "var(--bg-base)"
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  <span style={{ fontSize: "20px" }}>⚡</span>
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                      <h2 className="mono" style={{ fontSize: "18px", fontWeight: 800 }}>#{modalOrder.id}</h2>
+                      <StatusBadge status={modalOrder.status} />
+                      <span style={{ fontSize: "11px", background: "var(--accent-light)", color: "var(--accent)", padding: "2px 8px", borderRadius: "4px", fontWeight: 700 }}>
+                        📍 {modalOrder.zone || "Algiers"}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>
+                      Created: {new Date(modalOrder.created_at).toLocaleString()}
+                    </div>
+                  </div>
+                </div>
+
+                <button 
+                  className="btn btn-ghost btn-sm" 
+                  onClick={() => setThreeDotsModalOrderId(null)}
+                  style={{ fontSize: "16px", padding: "4px 10px" }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Modal Body - 2 Columns Grid */}
+              <div style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "20px",
+                padding: "20px",
+                overflowY: "auto",
+                flex: 1
+              }}>
+                
+                {/* LEFT COLUMN: Map, Dispatch Time & Route */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                  
+                  {/* Live Dispatch Mini-Map */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--accent)", textTransform: "uppercase" }}>
+                        🗺️ Live Dispatch Map & Route
+                      </span>
+                      <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>GPS Live Tracking</span>
+                    </div>
+                    <div style={{ height: "220px", width: "100%", borderRadius: "var(--radius-md)", border: "1px solid var(--border)", overflow: "hidden" }}>
+                      <MapComponent
+                        orders={[modalOrder]}
+                        drivers={drivers}
+                        selectedOrderId={modalOrder.id}
+                        selectedDriverId={modalOrder.driver_id}
+                        selectedMerchantId={modalOrder.merchant_id}
+                        viewMode="orders"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Time Dispatch & SLA Countdown */}
+                  <div style={{ background: "var(--bg-sunken)", padding: "14px", borderRadius: "var(--radius-md)", border: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: "10px" }}>
+                    <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase" }}>
+                      ⏱️ Time Dispatch & SLA Countdown
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                      <div style={{ background: "var(--bg-base)", padding: "8px 10px", borderRadius: "6px", border: "1px solid var(--border)" }}>
+                        <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>SLA Timer Remaining</div>
+                        <div style={{ fontSize: "16px", fontWeight: 800, color: modalSla.status === 'breached' ? "var(--status-red)" : "var(--status-green)", marginTop: "2px" }} className="mono">
+                          {modalSla.formatted}
+                        </div>
+                      </div>
+
+                      <div style={{ background: "var(--bg-base)", padding: "8px 10px", borderRadius: "6px", border: "1px solid var(--border)" }}>
+                        <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>Estimated ETA</div>
+                        <div style={{ fontSize: "16px", fontWeight: 800, color: "var(--text-primary)", marginTop: "2px" }} className="mono">
+                          {modalOrder.eta_minutes ? `${modalOrder.eta_minutes} min` : "Estimating..."}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ fontSize: "11px", color: "var(--text-muted)", display: "flex", flexDirection: "column", gap: "4px", borderTop: "1px dashed var(--border)", paddingTop: "8px" }}>
+                      <div>🏪 Pickup: <b>{modalOrder.pickup_address || modalOrder.merchant_address || "Restaurant Storefront"}</b></div>
+                      <div>📍 Delivery: <b>{modalOrder.delivery_address || "Customer Location"}</b></div>
+                    </div>
+                  </div>
+
+                  {/* Financial Details (Infos Financières / Facture) */}
+                  <div style={{ background: "var(--bg-sunken)", padding: "14px", borderRadius: "var(--radius-md)", border: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: "8px" }}>
+                    <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase" }}>
+                      💳 Financial Infos & Payment
+                    </div>
+
+                    <div style={{ display: "flex", flexDirection: "column", gap: "4px", fontSize: "12px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <span style={{ color: "var(--text-muted)" }}>Subtotal:</span>
+                        <span className="mono">{(modalOrder.subtotal || modalOrder.amount || 0).toFixed(2)} {modalOrder.currency || 'DA'}</span>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <span style={{ color: "var(--text-muted)" }}>Delivery Fee:</span>
+                        <span className="mono">{(modalOrder.delivery_fee || 0).toFixed(2)} {modalOrder.currency || 'DA'}</span>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <span style={{ color: "var(--text-muted)" }}>Service Fee:</span>
+                        <span className="mono">{(modalOrder.service_fee || 0).toFixed(2)} {modalOrder.currency || 'DA'}</span>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px dashed var(--border)", paddingTop: "6px", marginTop: "2px", fontWeight: 800, fontSize: "13px" }}>
+                        <span>Total Amount:</span>
+                        <span className="mono" style={{ color: "var(--accent)" }}>{(modalOrder.total || modalOrder.amount || 0).toFixed(2)} {modalOrder.currency || 'DA'}</span>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "var(--text-muted)", marginTop: "4px" }}>
+                        <span>Payment Method: <b>{modalOrder.payment_method || 'CASH ON DELIVERY'}</b></span>
+                        <span>Payment Status: <b style={{ color: modalHasRefund ? "var(--status-red)" : "var(--status-green)" }}>{modalHasRefund ? "Refund Pending" : "Paid"}</b></span>
+                      </div>
+                    </div>
+
+                    <div style={{ marginTop: "6px", display: "flex", gap: "8px" }}>
+                      <button
+                        className="btn btn-secondary btn-xs"
+                        onClick={() => {
+                          setShowRefundModal(true);
+                          setRefundAmount(modalOrder.amount);
+                        }}
+                      >
+                        💸 Request Refund
+                      </button>
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* RIGHT COLUMN: Order Status, Switch Driver, Cancel & Contacts */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                  
+                  {/* 1. Order Status Control */}
+                  <div style={{ background: "var(--bg-sunken)", padding: "14px", borderRadius: "var(--radius-md)", border: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: "8px" }}>
+                    <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase" }}>
+                      🔄 Order Status Control
+                    </div>
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <select
+                        value={orderStatusSelect}
+                        onChange={(e) => setOrderStatusSelect(e.target.value)}
+                        style={{ flex: 1, padding: "8px", fontSize: "12px", borderRadius: "6px", border: "1px solid var(--border)", background: "var(--bg-base)", color: "var(--text-primary)" }}
+                      >
+                        <option value="pending">Pending</option>
+                        <option value="preparing">Preparing (Kitchen)</option>
+                        <option value="delivering">Delivering (Transit)</option>
+                        <option value="completed">Completed (Delivered)</option>
+                        <option value="cancelled">Cancelled</option>
+                      </select>
+                      <button
+                        className="btn btn-primary btn-sm"
+                        onClick={() => {
+                          useDashboardStore.getState().updateOrder({ id: modalOrder.id, status: orderStatusSelect as any });
+                          triggerToast(`Updated status to ${orderStatusSelect}`, 'success');
+                        }}
+                      >
+                        Update Status
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 2. Switch Driver Button & Reassignment */}
+                  <div style={{ background: "var(--bg-sunken)", padding: "14px", borderRadius: "var(--radius-md)", border: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: "8px" }}>
+                    <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", display: "flex", justifyContent: "space-between" }}>
+                      <span>🏍️ Switch / Reassign Driver</span>
+                      <span style={{ color: "var(--text-muted)" }}>Current: {modalOrder.driver_name || "Unassigned"}</span>
+                    </div>
+
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <select
+                        value={driverSwitchSelect}
+                        onChange={(e) => setDriverSwitchSelect(e.target.value)}
+                        style={{ flex: 1, padding: "8px", fontSize: "12px", borderRadius: "6px", border: "1px solid var(--border)", background: "var(--bg-base)", color: "var(--text-primary)" }}
+                      >
+                        <option value="">Select New Driver</option>
+                        {drivers.map(d => (
+                          <option key={d.id} value={d.id}>
+                            {d.name} ({d.zone}) - {d.status}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        className="btn btn-primary btn-sm"
+                        disabled={!driverSwitchSelect}
+                        onClick={async () => {
+                          const success = await assignDriver(modalOrder.id, driverSwitchSelect);
+                          if (success) {
+                            const selD = drivers.find(d => d.id === driverSwitchSelect);
+                            triggerToast(`Switched driver to ${selD?.name || driverSwitchSelect}`, 'success');
+                          }
+                        }}
+                      >
+                        Switch Driver
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 3. Cancel Order Panel */}
+                  <div style={{ background: "rgba(239, 68, 68, 0.05)", padding: "14px", borderRadius: "var(--radius-md)", border: "1px solid rgba(239, 68, 68, 0.2)", display: "flex", flexDirection: "column", gap: "8px" }}>
+                    <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--status-red)", textTransform: "uppercase" }}>
+                      🛑 Cancel Order Details
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Enter cancellation reason (e.g. Item unavailable, customer requested)..."
+                      value={cancelOrderReasonInput}
+                      onChange={(e) => setCancelOrderReasonInput(e.target.value)}
+                      style={{ width: "100%", padding: "8px", fontSize: "12px", borderRadius: "6px", border: "1px solid var(--border)", background: "var(--bg-base)", color: "var(--text-primary)" }}
+                    />
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      style={{ color: "var(--status-red)", borderColor: "var(--status-red)", width: "100%", justifyContent: "center" }}
+                      onClick={async () => {
+                        const reason = cancelOrderReasonInput.trim() || "Admin operational cancel override";
+                        const success = await cancelOrder(modalOrder.id, reason);
+                        if (success) {
+                          triggerToast(`Order #${modalOrder.id} cancelled`, 'info');
+                          setThreeDotsModalOrderId(null);
+                        }
+                      }}
+                    >
+                      Confirm Cancel Order
+                    </button>
+                  </div>
+
+                  {/* 4. Contact Parties (Seller, Client, Driver) */}
+                  <div style={{ background: "var(--bg-sunken)", padding: "14px", borderRadius: "var(--radius-md)", border: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: "10px" }}>
+                    <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase" }}>
+                      📞 Contact Parties (Seller, Client & Driver)
+                    </div>
+
+                    {/* Seller / Merchant */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--bg-base)", padding: "8px 10px", borderRadius: "6px" }}>
+                      <div>
+                        <div style={{ fontSize: "11px", fontWeight: 700 }}>🏪 Seller: {modalOrder.merchant_name || "Merchant Store"}</div>
+                        <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>{modalMerchant?.zone || modalOrder.zone}</div>
+                      </div>
+                      <div style={{ display: "flex", gap: "4px" }}>
+                        <button className="btn btn-secondary btn-xs" onClick={() => triggerToast(`Dialing Merchant ${modalOrder.merchant_name}...`, "info")}>📞 Call</button>
+                        <button className="btn btn-secondary btn-xs" onClick={() => triggerToast(`Chatting with Merchant ${modalOrder.merchant_name}`, "info")}>💬 Msg</button>
+                      </div>
+                    </div>
+
+                    {/* Client / Customer */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--bg-base)", padding: "8px 10px", borderRadius: "6px" }}>
+                      <div>
+                        <div style={{ fontSize: "11px", fontWeight: 700 }}>👤 Client: {modalOrder.customer_name || "Customer"}</div>
+                        <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>ID: {modalOrder.customer_id}</div>
+                      </div>
+                      <div style={{ display: "flex", gap: "4px" }}>
+                        <button className="btn btn-secondary btn-xs" onClick={() => triggerToast(`Dialing Client ${modalOrder.customer_name}...`, "info")}>📞 Call</button>
+                        <button className="btn btn-secondary btn-xs" onClick={() => triggerToast(`Chatting with Client ${modalOrder.customer_name}`, "info")}>💬 Msg</button>
+                      </div>
+                    </div>
+
+                    {/* Driver */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--bg-base)", padding: "8px 10px", borderRadius: "6px" }}>
+                      <div>
+                        <div style={{ fontSize: "11px", fontWeight: 700 }}>🏍️ Driver: {modalOrder.driver_name || "Unassigned"}</div>
+                        <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>{modalDriver ? `${modalDriver.zone} (Rating ★${modalDriver.rating})` : "No driver assigned"}</div>
+                      </div>
+                      <div style={{ display: "flex", gap: "4px" }}>
+                        <button className="btn btn-secondary btn-xs" disabled={!modalOrder.driver_id} onClick={() => triggerToast(`Dialing Driver ${modalOrder.driver_name}...`, "info")}>📞 Call</button>
+                        <button className="btn btn-secondary btn-xs" disabled={!modalOrder.driver_id} onClick={() => triggerToast(`Chatting with Driver ${modalOrder.driver_name}`, "info")}>💬 Msg</button>
+                      </div>
+                    </div>
+
+                  </div>
+
+                </div>
+
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
