@@ -92,7 +92,17 @@ export default function AiMenuImport({ isOpen, onClose }) {
     setStep(2);
 
     try {
-      const token = localStorage.getItem('token') || sessionStorage.getItem('token') || localStorage.getItem('access_token');
+      // Read token from cookie (same as getToken() in api.js)
+      const getToken = () => {
+        const name = 'wolfie_auth_token=';
+        const decodedCookie = decodeURIComponent(document.cookie);
+        for (let cookie of decodedCookie.split(';')) {
+          cookie = cookie.trim();
+          if (cookie.startsWith(name)) return cookie.substring(name.length);
+        }
+        return null;
+      };
+      const token = getToken();
       const formData = new FormData();
       formData.append('file', rawFile);
 

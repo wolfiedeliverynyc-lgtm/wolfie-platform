@@ -15,72 +15,25 @@ logger = logging.getLogger('wolfie')
 
 
 @ai_menu_ocr_bp.route('/api/ai/menu-ocr', methods=['POST'])
-@ai_menu_ocr_bp.route('/ai/menu-ocr', methods=['POST'])
-@require_auth
+@require_auth()
 def extract_menu_from_image():
     """
     Accepts an image or PDF file upload and uses Gemini Vision to extract
     menu items. Returns a JSON array of extracted menu items.
     """
+    import google.generativeai as genai
+
+    gemini_api_key = os.getenv('GEMINI_API_KEY')
+    if not gemini_api_key:
+        logger.error('GEMINI_API_KEY not configured in environment')
+        return jsonify({'error': 'AI menu scanning is not configured on the server.'}), 503
+
     if 'file' not in request.files:
         return jsonify({'error': 'No file uploaded.'}), 400
 
     file = request.files['file']
     if not file or file.filename == '':
         return jsonify({'error': 'Empty file uploaded.'}), 400
-
-    gemini_api_key = os.getenv('GEMINI_API_KEY')
-    if not gemini_api_key:
-        logger.info('GEMINI_API_KEY not configured — using smart OCR parsing fallback')
-        # Return structured extracted menu items so importer functions seamlessly
-        filename = (file.filename or 'menu').lower()
-        mock_items = [
-          {
-            'id': 'ai_0',
-            'name': 'Gourmet Wolfie Burger',
-            'category': 'Burgers',
-            'price': 14.99,
-            'ingredients': 'Angus beef, cheddar, caramelized onions, secret wolf sauce',
-            'addons': 'Extra Cheddar (+1.50), Smoked Bacon (+2.00), Truffle Dip (+1.00)',
-            'confidence': 95,
-            'warning': None,
-            'image': '🍔'
-          },
-          {
-            'id': 'ai_1',
-            'name': 'Truffle & Mushroom Pizza',
-            'category': 'Pizza',
-            'price': 18.50,
-            'ingredients': 'Mozzarella, wild mushrooms, truffle oil, fresh basil',
-            'addons': 'Stuffed Crust (+3.00), Extra Truffle Drizzle (+2.50)',
-            'confidence': 92,
-            'warning': None,
-            'image': '🍕'
-          },
-          {
-            'id': 'ai_2',
-            'name': 'Crispy Parmesan Fries',
-            'category': 'Sides',
-            'price': 6.99,
-            'ingredients': 'Hand-cut potatoes, parmesan, garlic dip, parsley',
-            'addons': 'Melted Cheese Sauce (+2.00), Garlic Aioli (+1.00)',
-            'confidence': 88,
-            'warning': None,
-            'image': '🍟'
-          },
-          {
-            'id': 'ai_3',
-            'name': 'Craft Lemonade Float',
-            'category': 'Drinks',
-            'price': 5.50,
-            'ingredients': 'Fresh lemon juice, sparkling water, mint, vanilla scoop',
-            'addons': 'Extra Vanilla Scoop (+1.50)',
-            'confidence': 90,
-            'warning': None,
-            'image': '🥤'
-          }
-        ]
-        return jsonify({'items': mock_items, 'count': len(mock_items)})
 
     # Validate file type
     allowed_mimes = {
@@ -96,9 +49,9 @@ def extract_menu_from_image():
         if len(file_bytes) > 20 * 1024 * 1024:  # 20 MB max
             return jsonify({'error': 'File too large. Maximum size is 20 MB.'}), 413
 
-        # Configure Gemini
+        # Configure Gemini — use gemini-1.5-flash (widely available)
         genai.configure(api_key=gemini_api_key)
-        model = genai.GenerativeModel('gemini-3.5-flash')
+        model = genai.GenerativeModel('gemini-1.5-flash')
 
         prompt = (
             "You are a menu extraction AI. Analyze this menu image or document carefully.\n"
@@ -108,12 +61,10 @@ def extract_menu_from_image():
             "- category: string (e.g. Burgers, Pizza, Sides, Drinks, Desserts, Appetizers, Salads, Pasta)\n"
             "- price: number (numeric price value, 0 if not visible)\n"
             "- ingredients: string (comma-separated ingredients list, empty string if not visible)\n"
-            "- addons: string (comma-separated add-ons / extra options with prices e.g. 'Extra Cheese (+1.50), Bacon (+2.00)', empty string if none)\n"
             "- confidence: number (your confidence 1-100 that the item was read correctly)\n\n"
             "Return ONLY a raw JSON array. No markdown, no code fences, no explanation."
         )
 
-        # Build Gemini parts
         image_part = {
             'inline_data': {
                 'mime_type': mime_type,
@@ -136,7 +87,6 @@ def extract_menu_from_image():
         if not isinstance(items, list):
             return jsonify({'error': 'AI returned unexpected format. Try a clearer image.'}), 422
 
-        # Normalize and sanitize items
         sanitized = []
         for i, item in enumerate(items):
             sanitized.append({
@@ -145,7 +95,6 @@ def extract_menu_from_image():
                 'category': str(item.get('category', 'Other')).strip(),
                 'price': float(item.get('price', 0)),
                 'ingredients': str(item.get('ingredients', '')).strip(),
-                'addons': str(item.get('addons', '')).strip(),
                 'confidence': int(item.get('confidence', 80)),
                 'warning': 'Low confidence — please verify' if int(item.get('confidence', 80)) < 75 else None,
                 'image': None
