@@ -92,19 +92,27 @@ export default function KYCReviewPage() {
     const docs = selectedItem.kyc_documents || {};
 
     const configs = isDriver ? [
-      { id: "selfie", label: "Selfie Portrait", desc: "Clear close-up photo of the face", fallbackName: "selfie_photo.jpg" },
-      { id: "license", label: "Driver's License", desc: "Front side of driver license", fallbackName: "license_front.png" },
-      { id: "id_card", label: "National ID / Passport", desc: "Government issued identity card", fallbackName: "passport_scan.pdf" },
-      { id: "registration", label: "Vehicle Registration", desc: "Motorcycle/Car proof of ownership", fallbackName: "scooter_insurance_cert.pdf" }
+      { id: "selfie", keys: ["selfie", "selfie_photo", "avatar"], label: "Selfie Portrait", desc: "Clear close-up photo of the face", fallbackName: "selfie_photo.jpg" },
+      { id: "license", keys: ["license", "driver_license", "license_front"], label: "Driver's License", desc: "Front side of driver license", fallbackName: "license_front.png" },
+      { id: "id_card", keys: ["id_card", "national_id", "passport", "owner_id"], label: "National ID / Passport", desc: "Government issued identity card", fallbackName: "passport_scan.pdf" },
+      { id: "registration", keys: ["registration", "vehicle_registration", "insurance", "vehicle_photo"], label: "Vehicle Registration", desc: "Motorcycle/Car proof of ownership", fallbackName: "scooter_insurance_cert.pdf" }
     ] : [
-      { id: "license", label: "Business License", desc: "Government merchant register record", fallbackName: "business_registration_2026.pdf" },
-      { id: "tax_cert", label: "Tax Certification", desc: "Official corporate tax identification document", fallbackName: "tax_id_certificate.pdf" },
-      { id: "health_permit", label: "Health & Safety Permit", desc: "Local food handler compliance approval permit", fallbackName: "sanitary_inspection.pdf" },
-      { id: "bank_doc", label: "Payout Bank Document", desc: "Void check or bank account validation letter", fallbackName: "void_check.png" }
+      { id: "license", keys: ["business_license", "license", "register"], label: "Business License", desc: "Government merchant register record", fallbackName: "business_registration_2026.pdf" },
+      { id: "tax_cert", keys: ["owner_id", "tax_cert", "tax_id", "identity"], label: "Tax Certification / Owner ID", desc: "Official corporate tax identification document", fallbackName: "tax_id_certificate.pdf" },
+      { id: "health_permit", keys: ["health_permit", "food_permit", "permit"], label: "Health & Safety Permit", desc: "Local food handler compliance approval permit", fallbackName: "sanitary_inspection.pdf" },
+      { id: "bank_doc", keys: ["storefront_photo", "bank_doc", "storefront", "payout_doc"], label: "Payout & Facility Document", desc: "Storefront photo or void check validation letter", fallbackName: "void_check.png" }
     ];
 
     return configs.map(cfg => {
-      const savedDoc = docs[cfg.id] || {};
+      let savedDoc: any = null;
+      for (const k of cfg.keys) {
+        if (docs[k] !== undefined && docs[k] !== null && docs[k] !== "") {
+          savedDoc = docs[k];
+          break;
+        }
+      }
+      if (!savedDoc) savedDoc = {};
+
       let rawUrl = "";
       if (typeof savedDoc === "string") {
         rawUrl = savedDoc;
