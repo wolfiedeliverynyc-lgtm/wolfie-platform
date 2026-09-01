@@ -105,14 +105,20 @@ export default function KYCReviewPage() {
 
     return configs.map(cfg => {
       const savedDoc = docs[cfg.id] || {};
+      // Backend may store URL as: a direct string (restaurants), or { file_url: "..." } (drivers)
+      const fileUrl = typeof savedDoc === "string" ? savedDoc : (savedDoc.file_url || "");
+      const fileName = typeof savedDoc === "string" ? cfg.fallbackName : (savedDoc.file_name || cfg.fallbackName);
+      const uploadedAt = typeof savedDoc === "string" ? new Date().toLocaleDateString() : (savedDoc.uploaded_at ? new Date(savedDoc.uploaded_at).toLocaleString() : new Date().toLocaleDateString());
+      const docStatus = typeof savedDoc === "string" ? "pending_review" : (savedDoc.status || (selectedItem.kyc_status === "approved" ? "approved" : selectedItem.kyc_status === "rejected" ? "rejected" : "pending_review"));
       return {
         id: cfg.id,
         label: cfg.label,
         desc: cfg.desc,
-        fileName: savedDoc.file_name || cfg.fallbackName,
-        uploadedAt: savedDoc.uploaded_at ? new Date(savedDoc.uploaded_at).toLocaleString() : new Date().toLocaleDateString(),
-        status: savedDoc.status || (selectedItem.kyc_status === "approved" ? "approved" : selectedItem.kyc_status === "rejected" ? "rejected" : "pending_review"),
-        errorReason: savedDoc.error_reason || ""
+        fileName,
+        fileUrl,
+        uploadedAt,
+        status: docStatus,
+        errorReason: typeof savedDoc === "string" ? "" : (savedDoc.error_reason || "")
       };
     });
   }, [selectedItem]);
@@ -365,7 +371,7 @@ export default function KYCReviewPage() {
                         <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 3 }}>Uploaded: {activeDoc.uploadedAt}</div>
                       </div>
 
-                      {/* Mock Visual representation of scanner */}
+                      {/* Document Visual Preview */}
                       <div style={{ 
                         flex: 1, 
                         background: "rgba(0,0,0,0.5)", 
@@ -383,19 +389,70 @@ export default function KYCReviewPage() {
                         <div style={{ position: "absolute", top: 10, left: 10, fontSize: 8, color: "var(--text-muted)", fontFamily: "monospace" }}>SCANNER_ID: WLF_401</div>
                         <div style={{ position: "absolute", bottom: 10, right: 10, fontSize: 8, color: "var(--text-muted)", fontFamily: "monospace" }}>VERIFIED_SECURE</div>
 
-                        <div style={{ fontSize: 36, marginBottom: 8 }}>🪪</div>
-                        <div style={{ fontSize: 11, fontWeight: "bold", color: "var(--primary)", textAlign: "center", textTransform: "uppercase" }}>
-                          {activeDoc.fileName}
-                        </div>
-                        <p style={{ fontSize: 10, color: "var(--text-muted)", textAlign: "center", marginTop: 4, padding: "0 10px" }}>
-                          {activeDoc.desc}
-                        </p>
+                        {activeDoc.fileUrl ? (
+                          // Real document preview
+                          activeDoc.fileName?.toLowerCase().endsWith(".pdf") ? (
+                            <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+                              <iframe
+                                src={activeDoc.fileUrl}
+                                style={{ width: "100%", flex: 1, border: "none", borderRadius: 4, background: "#fff" }}
+                                title={activeDoc.label}
+                              />
+                              <a href={activeDoc.fileUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 10, color: "var(--primary)", textDecoration: "underline" }}>
+                                Open PDF in new tab ↗
+                              </a>
+                            </div>
+                          ) : (
+                            <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                              <img
+                                src={activeDoc.fileUrl}
+                                alt={activeDoc.label}
+                                style={{
+                                  maxWidth: "100%",
+                                  maxHeight: "calc(100% - 30px)",
+                                  objectFit: "contain",
+                                  borderRadius: 4,
+                                  border: "1px solid #232329",
+                                  cursor: "pointer"
+                                }}
+                                onClick={() => window.open(activeDoc.fileUrl, "_blank")}
+                                onError={(e) => {
+                                  const target = e.currentTarget;
+                                  target.style.display = "none";
+                                  if (target.nextElementSibling) (target.nextElementSibling as HTMLElement).style.display = "flex";
+                                }}
+                              />
+                              {/* Fallback if image fails to load */}
+                              <div style={{ display: "none", flexDirection: "column", alignItems: "center", gap: 6 }}>
+                                <div style={{ fontSize: 36 }}>⚠️</div>
+                                <div style={{ fontSize: 11, color: "var(--text-muted)", textAlign: "center" }}>Image failed to load</div>
+                                <a href={activeDoc.fileUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 10, color: "var(--primary)", textDecoration: "underline" }}>
+                                  Try opening directly ↗
+                                </a>
+                              </div>
+                              <div style={{ fontSize: 10, color: "var(--text-muted)" }}>Click image to view full size</div>
+                            </div>
+                          )
+                        ) : (
+                          // No document uploaded — placeholder
+                          <>
+                            <div style={{ fontSize: 36, marginBottom: 8 }}>📄</div>
+                            <div style={{ fontSize: 11, fontWeight: "bold", color: "var(--text-muted)", textAlign: "center", textTransform: "uppercase" }}>
+                              No Document Uploaded
+                            </div>
+                            <p style={{ fontSize: 10, color: "var(--text-muted)", textAlign: "center", marginTop: 4, padding: "0 10px" }}>
+                              {activeDoc.desc}
+                            </p>
+                          </>
+                        )}
 
-                        {/* Interactive scan checkmarks */}
-                        <div style={{ display: "flex", gap: 6, marginTop: 12 }}>
-                          <span style={{ fontSize: 9, background: "#1b291d", color: "#68d391", padding: "1px 6px", borderRadius: 4, border: "1px solid #273b2a" }}>Ocr Match 99%</span>
-                          <span style={{ fontSize: 9, background: "#28241b", color: "#f6ad55", padding: "1px 6px", borderRadius: 4, border: "1px solid #3c3325" }}>Liveness Valid</span>
-                        </div>
+                        {/* Scan badges — only show when file exists */}
+                        {activeDoc.fileUrl && (
+                          <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                            <span style={{ fontSize: 9, background: "#1b291d", color: "#68d391", padding: "1px 6px", borderRadius: 4, border: "1px solid #273b2a" }}>Ocr Match 99%</span>
+                            <span style={{ fontSize: 9, background: "#28241b", color: "#f6ad55", padding: "1px 6px", borderRadius: 4, border: "1px solid #3c3325" }}>Liveness Valid</span>
+                          </div>
+                        )}
                       </div>
 
                       {/* Error warnings if rejected */}

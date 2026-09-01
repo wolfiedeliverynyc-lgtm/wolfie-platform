@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Upload, CheckCircle2, AlertCircle, FileText, ChevronRight } from 'lucide-react'
 import { useDriverStore } from '../store/useDriverStore'
+import { API_BASE } from '../lib/api'
 
 interface DocumentSlot {
   id: string
@@ -20,6 +21,9 @@ export default function DocumentUploadPage({ onComplete }: { onComplete: () => v
   const [docs, setDocs] = useState<DocumentSlot[]>([])
   const [loadingId, setLoadingId] = useState<string | null>(null)
   const [progress, setProgress] = useState(0)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const pendingDocIdRef = useRef<string | null>(null)
 
   useEffect(() => {
     const list: DocumentSlot[] = [
@@ -44,19 +48,52 @@ export default function DocumentUploadPage({ onComplete }: { onComplete: () => v
   }, [vehicleType])
 
   const handleUpload = (id: string) => {
-    setLoadingId(id)
+    pendingDocIdRef.current = id
+    setUploadError(null)
+    fileInputRef.current?.click()
+  }
+
+  const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    const docId = pendingDocIdRef.current
+    if (!file || !docId) return
+
+    // Reset input so same file can be re-selected
+    e.target.value = ''
+
+    setLoadingId(docId)
     setProgress(10)
-    const interval = setInterval(() => {
-      setProgress(p => {
-        if (p >= 100) {
-          clearInterval(interval)
-          setDocs(prev => prev.map(d => d.id === id ? { ...d, status: 'pending_review', fileName: `${id}_document.jpg` } : d))
-          setLoadingId(null)
-          return 0
-        }
-        return p + 30
+
+    const formData = new FormData()
+    formData.append('document_type', docId)
+    formData.append('file', file)
+
+    try {
+      setProgress(40)
+      const token = localStorage.getItem('access_token') || ''
+      const res = await fetch(`${API_BASE}/drivers/documents`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData
       })
-    }, 300)
+
+      setProgress(80)
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Upload failed' }))
+        throw new Error(err.error || 'Upload failed')
+      }
+
+      setProgress(100)
+      setDocs(prev => prev.map(d => d.id === docId ? { ...d, status: 'pending_review', fileName: file.name } : d))
+    } catch (err: any) {
+      setUploadError(err.message || 'Upload failed. Please try again.')
+      setDocs(prev => prev.map(d => d.id === docId ? { ...d, status: 'empty' } : d))
+    } finally {
+      setLoadingId(null)
+      setProgress(0)
+      pendingDocIdRef.current = null
+    }
   }
 
   const allUploaded = docs.length > 0 && docs.every(d => d.status === 'pending_review' || d.status === 'approved')
@@ -88,6 +125,15 @@ export default function DocumentUploadPage({ onComplete }: { onComplete: () => v
 
   return (
     <div className="flex flex-col h-full px-6 py-10 overflow-y-auto bg-bg-app">
+      {/* Hidden file input for document uploads */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileSelected}
+        accept="image/jpeg,image/png,image/webp,application/pdf"
+        style={{ display: 'none' }}
+      />
+
       <div className="flex items-center gap-3 mb-8">
         <div className="w-10 h-10 rounded-xl bg-primary text-black border border-primary/20 flex items-center justify-center text-lg">📄</div>
         <div>
@@ -100,6 +146,13 @@ export default function DocumentUploadPage({ onComplete }: { onComplete: () => v
         <h4 className="text-xs font-bold text-primary flex items-center gap-1.5 uppercase tracking-wide"><AlertCircle size={14} /> Verification Required</h4>
         <p className="text-xs text-text-secondary leading-relaxed">Before taking orders, our compliance team must review your credentials. Review time: 2-4 hours.</p>
       </div>
+
+      {/* Upload error banner */}
+      {uploadError && (
+        <div className="p-3 rounded-xl border mb-4 bg-red-500/10 border-red-500/20">
+          <p className="text-xs text-red-400 font-bold">⚠️ {uploadError}</p>
+        </div>
+      )}
 
       <div className="space-y-4 flex-1">
         {docs.map(doc => {

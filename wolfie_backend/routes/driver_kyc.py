@@ -22,15 +22,34 @@ def get_kyc_status():
 @driver_kyc_bp.route("/documents", methods=["POST"])
 @require_auth(roles=["driver"])
 def upload_kyc_document():
-    data = request.get_json(silent=True) or {}
-    doc_type = data.get("document_type") # license, insurance, id_card, registration
-    file_name = data.get("file_name")
+    # Support both JSON-only (file_name) and multipart file upload
+    doc_type = request.form.get("document_type") or (request.get_json(silent=True) or {}).get("document_type")
+    file = request.files.get("file")
 
-    if not doc_type or not file_name:
-        return jsonify({"error": "document_type and file_name are required"}), 400
+    if not doc_type:
+        return jsonify({"error": "document_type is required"}), 400
 
-    if doc_type not in ["license", "insurance", "id_card", "registration"]:
+    if doc_type not in ["selfie", "license", "id_card", "registration", "insurance", "vehicle_photo"]:
         return jsonify({"error": "Invalid document type"}), 400
+
+    file_url = ""
+    file_name = ""
+
+    if file:
+        # Actual file upload via storage provider
+        try:
+            from services.storage import storage_provider
+            file_url = storage_provider.upload(file, context='kyc')
+            file_name = file.filename or f"{doc_type}_document"
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
+        except Exception as e:
+            return jsonify({"error": f"Upload failed: {str(e)}"}), 500
+    else:
+        # Fallback: accept JSON body with file_name only (legacy)
+        data = request.get_json(silent=True) or {}
+        file_name = data.get("file_name", f"{doc_type}_document")
+        file_url = data.get("file_url", "")
 
     with transaction() as session:
         user = session.query(User).filter(User.id == request.user_id).first()
@@ -40,14 +59,15 @@ def upload_kyc_document():
         docs = dict(user.kyc_documents or {})
         docs[doc_type] = {
             "file_name": file_name,
+            "file_url": file_url,
             "status": "pending_review",
             "uploaded_at": datetime.now(timezone.utc).isoformat()
         }
         
         user.kyc_documents = docs
         
-        # If all 4 documents are uploaded, auto transition status to 'pending'
-        required = ["license", "insurance", "id_card", "registration"]
+        # If all required documents are uploaded, auto transition status to 'pending'
+        required = ["selfie", "license", "id_card", "registration"]
         if all(k in docs for k in required):
             user.kyc_status = "pending"
 
