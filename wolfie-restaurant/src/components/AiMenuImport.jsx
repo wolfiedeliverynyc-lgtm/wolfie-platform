@@ -135,7 +135,9 @@ export default function AiMenuImport({ isOpen, onClose }) {
       setTimeout(() => setStep(3), 1000);
     } catch (err) {
       console.error('AI Menu OCR Error:', err);
-      setOcrError(err.message || 'Menu extraction failed. Please try again.');
+      const errMsg = err.message || 'Menu extraction failed. Please try again.';
+      setOcrError(errMsg);
+      setLogs(prev => [...prev, `[ERROR] ${errMsg}`]);
     }
   };
 

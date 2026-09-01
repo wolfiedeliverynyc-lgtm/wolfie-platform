@@ -48,9 +48,9 @@ def extract_menu_from_image():
         if len(file_bytes) > 20 * 1024 * 1024:  # 20 MB max
             return jsonify({'error': 'File too large. Maximum size is 20 MB.'}), 413
 
-        # Configure Gemini — use gemini-1.5-flash (widely available)
+        # Configure Gemini — use gemini-3.5-flash
         genai.configure(api_key=gemini_api_key)
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-3.5-flash')
 
         prompt = (
             "You are a menu extraction AI. Analyze this menu image or document carefully.\n"
@@ -99,7 +99,8 @@ def extract_menu_from_image():
                 'image': None
             })
 
-        logger.info(f'AI menu OCR extracted {len(sanitized)} items for user {request.user_id}')
+        user_id = getattr(request, 'user_id', 'anonymous')
+        logger.info(f'AI menu OCR extracted {len(sanitized)} items for user {user_id}')
         return jsonify({'items': sanitized, 'count': len(sanitized)})
 
     except json.JSONDecodeError as e:
