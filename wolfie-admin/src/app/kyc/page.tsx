@@ -37,7 +37,7 @@ export default function KYCReviewPage() {
         expected_daily_orders: null,
         kyc_status: d.kyc_status || "not_started",
         kyc_documents: d.kyc_documents || {},
-        extraInfo: `Trips: ${d.completed_trips} | Rating: \u2605${d.rating}`
+        extraInfo: `Trips: ${d.completed_trips} | Rating: ★${d.rating}`
       }));
     } else {
       return merchants.map(m => ({
@@ -111,7 +111,7 @@ export default function KYCReviewPage() {
       { id: "license", keys: ["business_license", "license", "register"], label: "Business License", desc: "Government merchant register record", fallbackName: "business_registration.pdf" },
       { id: "tax_cert", keys: ["owner_id", "tax_cert", "tax_id", "identity"], label: "Tax Certification / Owner ID", desc: "Official corporate tax ID", fallbackName: "tax_id_certificate.pdf" },
       { id: "health_permit", keys: ["health_permit", "food_permit", "permit"], label: "Health & Safety Permit", desc: "Local food handler compliance approval", fallbackName: "sanitary_inspection.pdf" },
-      { id: "bank_doc", keys: ["storefront_photo", "bank_doc", "storefront", "payout_doc", "bank_account"], label: "Payout & Facility Document", desc: "Storefront photo or void check", fallbackName: "void_check.png" }
+      { id: "bank_doc", keys: ["storefront_photo", "bank_doc", "storefront", "payout_doc"], label: "Storefront & Facility Photo", desc: "Storefront exterior or dining facility photo", fallbackName: "storefront_photo.jpg" }
     ];
     return configs.map(cfg => {
       let savedDoc: any = null;
@@ -121,12 +121,18 @@ export default function KYCReviewPage() {
       if (!savedDoc) savedDoc = {};
       let rawUrl = typeof savedDoc === "string" ? savedDoc : (savedDoc.file_url || savedDoc.url || savedDoc.path || savedDoc.uri || savedDoc.link || savedDoc.src || savedDoc.file || "");
       let fileUrl = rawUrl;
-      if (fileUrl && fileUrl.startsWith("/")) {
-        const base = typeof window !== "undefined" && window.location.hostname === "localhost" ? "http://localhost:5000" : "https://wolfie-backend-pt9u.onrender.com";
-        fileUrl = `${base}${fileUrl}`;
+      const isLocalhost = typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+      const prodBackend = "https://wolfie-backend-pt9u.onrender.com";
+
+      if (fileUrl) {
+        if (fileUrl.startsWith("/")) {
+          fileUrl = `${isLocalhost ? "http://localhost:5000" : prodBackend}${fileUrl}`;
+        } else if (!isLocalhost && (fileUrl.includes("localhost:5000") || fileUrl.includes("127.0.0.1:5000"))) {
+          fileUrl = fileUrl.replace(/http:\/\/(localhost|127\.0\.0\.1):5000/, prodBackend);
+        }
       }
       const fileName = typeof savedDoc === "string" ? cfg.fallbackName : (savedDoc.file_name || savedDoc.name || cfg.fallbackName);
-      const uploadedAt = typeof savedDoc === "string" ? new Date().toLocaleDateString() : (savedDoc.uploaded_at ? new Date(savedDoc.uploaded_at).toLocaleString() : "\u2014");
+      const uploadedAt = typeof savedDoc === "string" ? new Date().toLocaleDateString() : (savedDoc.uploaded_at ? new Date(savedDoc.uploaded_at).toLocaleString() : "—");
       const docStatus = typeof savedDoc === "string" ? "pending_review" : (savedDoc.status || (selectedItem.kyc_status === "approved" ? "approved" : selectedItem.kyc_status === "rejected" ? "rejected" : "pending_review"));
       return { id: cfg.id, label: cfg.label, desc: cfg.desc, fileName, fileUrl, uploadedAt, status: docStatus, errorReason: typeof savedDoc === "string" ? "" : (savedDoc.error_reason || "") };
     });
@@ -174,10 +180,10 @@ export default function KYCReviewPage() {
 
       <div style={{ display: "flex", gap: "var(--gap-sm)", marginBottom: "var(--gap-lg)" }}>
         <button className={`btn ${activeTab === "driver" ? "btn-primary" : "btn-secondary"}`} onClick={() => setActiveTab("driver")}>
-          \uD83C\uDFCD\uFE0F Drivers Fleet
+          🏍️ Drivers Fleet
         </button>
         <button className={`btn ${activeTab === "restaurant" ? "btn-primary" : "btn-secondary"}`} onClick={() => setActiveTab("restaurant")}>
-          \uD83C\uDFEA Merchants Registry
+          🏪 Merchants Registry
         </button>
       </div>
 
@@ -212,9 +218,9 @@ export default function KYCReviewPage() {
                       </span>
                     </div>
                     <div style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "monospace" }}>ID: #{item.id.slice(0, 16)}...</div>
-                    {item.email && <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>\u2709\uFE0F {item.email}</div>}
+                    {item.email && <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>✉️ {item.email}</div>}
                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>
-                      <span>{item.zone ? `\uD83D\uDCCD ${item.zone.length > 35 ? item.zone.slice(0, 35) + "\u2026" : item.zone}` : "\uD83D\uDCCD No address"}</span>
+                      <span>{item.zone ? `📍 ${item.zone.length > 35 ? item.zone.slice(0, 35) + "…" : item.zone}` : "📍 No address"}</span>
                       <span>{item.extraInfo}</span>
                     </div>
                   </div>
@@ -227,7 +233,7 @@ export default function KYCReviewPage() {
         <div className="panel" style={{ display: "flex", flexDirection: "column", overflow: "hidden", height: "100%" }}>
           {!selectedItem ? (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", color: "var(--text-muted)" }}>
-              <div style={{ fontSize: 48, marginBottom: 12 }}>\uD83D\uDEE1\uFE0F</div>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>🛡️</div>
               <p style={{ fontSize: 14, fontWeight: 500 }}>Select a candidate to examine files</p>
               <p style={{ fontSize: 11, marginTop: 4 }}>Review and activate driver/restaurant accounts</p>
             </div>
@@ -238,31 +244,31 @@ export default function KYCReviewPage() {
                 <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
                   {selectedItem.logo_image
                     ? <img src={selectedItem.logo_image} alt={selectedItem.name} style={{ width: 48, height: 48, borderRadius: 8, objectFit: "cover", border: "1px solid var(--border)", flexShrink: 0 }} onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
-                    : <div style={{ width: 48, height: 48, borderRadius: 8, background: "var(--bg-base)", border: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>{selectedItem.role === "restaurant" ? "\uD83C\uDFEA" : "\uD83C\uDFCD\uFE0F"}</div>
+                    : <div style={{ width: 48, height: 48, borderRadius: 8, background: "var(--bg-base)", border: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>{selectedItem.role === "restaurant" ? "🏪" : "🏍️"}</div>
                   }
                   <div>
                     <h3 style={{ fontSize: 17, fontWeight: 700, color: "var(--text-primary)", marginBottom: 4 }}>{selectedItem.name}</h3>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 14px", fontSize: 12, color: "var(--text-muted)" }}>
-                      {selectedItem.email && <span>\u2709\uFE0F {selectedItem.email}</span>}
-                      {selectedItem.phone && selectedItem.phone !== "N/A" && <span>\uD83D\uDCDE {selectedItem.phone}</span>}
-                      {selectedItem.address && <span>\uD83D\uDCCD {selectedItem.address.length > 40 ? selectedItem.address.slice(0, 40) + "\u2026" : selectedItem.address}</span>}
+                      {selectedItem.email && <span>✉️ {selectedItem.email}</span>}
+                      {selectedItem.phone && selectedItem.phone !== "N/A" && <span>📞 {selectedItem.phone}</span>}
+                      {selectedItem.address && <span>📍 {selectedItem.address.length > 40 ? selectedItem.address.slice(0, 40) + "…" : selectedItem.address}</span>}
                     </div>
                   </div>
                 </div>
                 <div style={{ textAlign: "right", flexShrink: 0 }}>
                   <div style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 700 }}>KYC Status</div>
                   <div style={{ fontSize: 14, fontWeight: 900, color: getKycBadgeColor(selectedItem.kyc_status), marginTop: 4, textTransform: "uppercase" }}>
-                    \u25CF {selectedItem.kyc_status.replace("_", " ")}
+                    ● {selectedItem.kyc_status.replace("_", " ")}
                   </div>
                 </div>
               </div>
 
               {/* Sub-tabs */}
               <div style={{ display: "flex", gap: 6, marginBottom: 14, borderBottom: "1px solid var(--border)", paddingBottom: 10 }}>
-                <button className={`btn btn-xs ${detailTab === "documents" ? "btn-primary" : "btn-secondary"}`} onClick={() => setDetailTab("documents")}>\uD83D\uDCC4 Documents</button>
-                <button className={`btn btn-xs ${detailTab === "profile" ? "btn-primary" : "btn-secondary"}`} onClick={() => setDetailTab("profile")}>\uD83D\uDC64 Profile &amp; Bio</button>
+                <button className={`btn btn-xs ${detailTab === "documents" ? "btn-primary" : "btn-secondary"}`} onClick={() => setDetailTab("documents")}>📄 Documents</button>
+                <button className={`btn btn-xs ${detailTab === "profile" ? "btn-primary" : "btn-secondary"}`} onClick={() => setDetailTab("profile")}>👤 Profile &amp; Bio</button>
                 {selectedItem.role === "restaurant" && (
-                  <button className={`btn btn-xs ${detailTab === "menu" ? "btn-primary" : "btn-secondary"}`} onClick={() => setDetailTab("menu")}>\uD83D\uDCCB Menu Preview</button>
+                  <button className={`btn btn-xs ${detailTab === "menu" ? "btn-primary" : "btn-secondary"}`} onClick={() => setDetailTab("menu")}>📋 Menu Preview</button>
                 )}
               </div>
 
@@ -279,10 +285,10 @@ export default function KYCReviewPage() {
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                             <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}>{doc.label}</span>
                             <span style={{ fontSize: 9, fontWeight: "bold", color: doc.fileUrl ? (doc.status === "approved" ? "var(--status-green)" : doc.status === "rejected" ? "var(--status-red)" : "var(--gold)") : "var(--text-muted)" }}>
-                              {doc.fileUrl ? (doc.status === "approved" ? "\u2713 Verified" : doc.status === "rejected" ? "\u2717 Rejected" : "\u25CF Reviewing") : "\u25CB Not uploaded"}
+                              {doc.fileUrl ? (doc.status === "approved" ? "✓ Verified" : doc.status === "rejected" ? "✗ Rejected" : "● Reviewing") : "○ Not uploaded"}
                             </span>
                           </div>
-                          <p style={{ fontSize: 10.5, color: "var(--text-muted)", marginTop: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>\uD83D\uDCC4 {doc.fileName}</p>
+                          <p style={{ fontSize: 10.5, color: "var(--text-muted)", marginTop: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>📄 {doc.fileName}</p>
                         </div>
                       );
                     })}
@@ -302,26 +308,40 @@ export default function KYCReviewPage() {
                             activeDoc.fileName?.toLowerCase().endsWith(".pdf") ? (
                               <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
                                 <iframe src={activeDoc.fileUrl} style={{ width: "100%", flex: 1, border: "none", borderRadius: 4, background: "#fff" }} title={activeDoc.label} />
-                                <a href={activeDoc.fileUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 10, color: "var(--primary)", textDecoration: "underline" }}>Open PDF in new tab \u2197</a>
+                                <a href={activeDoc.fileUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 10, color: "var(--primary)", textDecoration: "underline" }}>Open PDF in new tab ↗</a>
                               </div>
                             ) : (
-                              <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                              <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, padding: 8 }}>
                                 <img src={activeDoc.fileUrl} alt={activeDoc.label}
-                                  style={{ maxWidth: "100%", maxHeight: "calc(100% - 40px)", objectFit: "contain", borderRadius: 4, border: "1px solid #232329", cursor: "pointer" }}
+                                  style={{
+                                    maxWidth: "100%",
+                                    maxHeight: "calc(100% - 50px)",
+                                    minHeight: "120px",
+                                    objectFit: "contain",
+                                    borderRadius: 6,
+                                    border: "1px solid #27272a",
+                                    background: "#09090b",
+                                    cursor: "pointer",
+                                    padding: 4
+                                  }}
                                   onClick={() => window.open(activeDoc.fileUrl, "_blank")}
                                   onError={e => { const t = e.currentTarget; t.style.display = "none"; const fb = t.nextElementSibling as HTMLElement | null; if (fb) fb.style.display = "flex"; }}
                                 />
-                                <div style={{ display: "none", flexDirection: "column", alignItems: "center", gap: 6 }}>
-                                  <div style={{ fontSize: 36 }}>\u26A0\uFE0F</div>
-                                  <div style={{ fontSize: 11, color: "var(--text-muted)", textAlign: "center" }}>Image failed to load</div>
-                                  <a href={activeDoc.fileUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 10, color: "var(--primary)", textDecoration: "underline" }}>Try opening directly \u2197</a>
+                                <div style={{ display: "none", flexDirection: "column", alignItems: "center", gap: 8, padding: 16 }}>
+                                  <div style={{ fontSize: 32 }}>⚠️</div>
+                                  <div style={{ fontSize: 12, color: "var(--text-muted)", textAlign: "center" }}>Preview unable to render directly in browser</div>
+                                  <a href={activeDoc.fileUrl} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-xs" style={{ fontSize: 11, padding: "4px 10px" }}>
+                                    Open Document Link ↗
+                                  </a>
                                 </div>
-                                <div style={{ fontSize: 10, color: "var(--text-muted)" }}>Click to view full size</div>
+                                <a href={activeDoc.fileUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: "var(--primary)", display: "inline-flex", alignItems: "center", gap: 4, textDecoration: "underline" }}>
+                                  View Full Document ↗
+                                </a>
                               </div>
                             )
                           ) : (
                             <>
-                              <div style={{ fontSize: 36, marginBottom: 8 }}>\uD83D\uDCC4</div>
+                              <div style={{ fontSize: 36, marginBottom: 8 }}>📄</div>
                               <div style={{ fontSize: 11, fontWeight: "bold", color: "var(--text-muted)", textAlign: "center", textTransform: "uppercase" }}>No Document Uploaded</div>
                               <p style={{ fontSize: 10, color: "var(--text-muted)", textAlign: "center", marginTop: 4, padding: "0 10px" }}>{activeDoc.desc}</p>
                             </>
@@ -335,7 +355,7 @@ export default function KYCReviewPage() {
                         </div>
                         {activeDoc.status === "rejected" && activeDoc.errorReason && (
                           <div style={{ marginTop: 8, background: "rgba(229,62,62,0.1)", border: "1px solid rgba(229,62,62,0.2)", borderRadius: 6, padding: "6px 10px", fontSize: 11, color: "var(--status-red)" }}>
-                            \u26A0\uFE0F <strong>Rejection reason:</strong> "{activeDoc.errorReason}"
+                            ⚠️ <strong>Rejection reason:</strong> "{activeDoc.errorReason}"
                           </div>
                         )}
                       </div>
@@ -351,11 +371,11 @@ export default function KYCReviewPage() {
                     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                       <h4 style={{ fontSize: 12, textTransform: "uppercase", color: "var(--text-muted)", fontWeight: 700 }}>Contact &amp; Location</h4>
                       {[
-                        { label: "Email", value: selectedItem.email || "\u2014", icon: "\u2709\uFE0F" },
-                        { label: "Phone", value: selectedItem.phone !== "N/A" ? selectedItem.phone : "\u2014", icon: "\uD83D\uDCDE" },
-                        { label: "Address", value: selectedItem.address || "\u2014", icon: "\uD83D\uDCCD" },
-                        { label: "Cuisine / Category", value: selectedItem.cuisine || "\u2014", icon: "\uD83C\uDF7D\uFE0F" },
-                        { label: "Expected Daily Orders", value: selectedItem.expected_daily_orders ? `~${selectedItem.expected_daily_orders} orders/day` : "\u2014", icon: "\uD83D\uDCE6" },
+                        { label: "Email", value: selectedItem.email || "—", icon: "✉️" },
+                        { label: "Phone", value: selectedItem.phone !== "N/A" ? selectedItem.phone : "—", icon: "📞" },
+                        { label: "Address", value: selectedItem.address || "—", icon: "📍" },
+                        { label: "Cuisine / Category", value: selectedItem.cuisine || "—", icon: "🍽️" },
+                        { label: "Expected Daily Orders", value: selectedItem.expected_daily_orders ? `~${selectedItem.expected_daily_orders} orders/day` : "—", icon: "📦" },
                       ].map(row => (
                         <div key={row.label} style={{ background: "var(--bg-base)", border: "1px solid var(--border)", borderRadius: 8, padding: "10px 14px" }}>
                           <div style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 3 }}>{row.icon} {row.label}</div>
@@ -366,26 +386,26 @@ export default function KYCReviewPage() {
                     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                       <h4 style={{ fontSize: 12, textTransform: "uppercase", color: "var(--text-muted)", fontWeight: 700 }}>Bio &amp; Story</h4>
                       <div style={{ background: "var(--bg-base)", border: "1px solid var(--border)", borderRadius: 8, padding: "10px 14px" }}>
-                        <div style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 4 }}>\uD83D\uDCDD Bio</div>
+                        <div style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 4 }}>📝 Bio</div>
                         <p style={{ fontSize: 12, color: selectedItem.bio ? "var(--text-primary)" : "var(--text-muted)", lineHeight: 1.6, fontStyle: selectedItem.bio ? "normal" : "italic" }}>
                           {selectedItem.bio || "No bio provided"}
                         </p>
                       </div>
                       {selectedItem.story && (
                         <div style={{ background: "var(--bg-base)", border: "1px solid var(--border)", borderRadius: 8, padding: "10px 14px" }}>
-                          <div style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 4 }}>\uD83D\uDCD6 Story</div>
+                          <div style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 4 }}>📖 Story</div>
                           <p style={{ fontSize: 12, color: "var(--text-primary)", lineHeight: 1.6 }}>{selectedItem.story}</p>
                         </div>
                       )}
                       {selectedItem.role === "restaurant" && (
                         <>
-                          <h4 style={{ fontSize: 12, textTransform: "uppercase", color: "var(--text-muted)", fontWeight: 700, marginTop: 4 }}>\uD83C\uDFE6 Bank Account</h4>
+                          <h4 style={{ fontSize: 12, textTransform: "uppercase", color: "var(--text-muted)", fontWeight: 700, marginTop: 4 }}>🏦 Bank Account</h4>
                           {bankInfo ? (
                             <div style={{ background: "var(--bg-base)", border: "1px solid var(--border)", borderRadius: 8, padding: "10px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
                               {Object.entries(bankInfo).map(([key, val]: [string, any]) => (
                                 <div key={key}>
                                   <div style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase" }}>{key.replace(/_/g, " ")}</div>
-                                  <div style={{ fontSize: 12, color: "var(--text-primary)", fontFamily: (key.toLowerCase().includes("account") || key.toLowerCase().includes("iban")) ? "monospace" : "inherit" }}>{String(val) || "\u2014"}</div>
+                                  <div style={{ fontSize: 12, color: "var(--text-primary)", fontFamily: (key.toLowerCase().includes("account") || key.toLowerCase().includes("iban")) ? "monospace" : "inherit" }}>{String(val) || "—"}</div>
                                 </div>
                               ))}
                             </div>
@@ -405,10 +425,10 @@ export default function KYCReviewPage() {
               {detailTab === "menu" && selectedItem.role === "restaurant" && (
                 <div style={{ flex: 1, overflowY: "auto", marginBottom: 16 }}>
                   {menuLoading
-                    ? <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 200, color: "var(--text-muted)", fontSize: 13 }}>\u23F3 Loading menu items...</div>
+                    ? <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 200, color: "var(--text-muted)", fontSize: 13 }}>⏳ Loading menu items...</div>
                     : menuItems.length === 0
                       ? <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: 200, color: "var(--text-muted)" }}>
-                          <div style={{ fontSize: 40, marginBottom: 8 }}>\uD83D\uDCCB</div>
+                          <div style={{ fontSize: 40, marginBottom: 8 }}>📋</div>
                           <p style={{ fontSize: 13 }}>No menu items found for this restaurant</p>
                         </div>
                       : <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -416,12 +436,12 @@ export default function KYCReviewPage() {
                           {menuItems.map((item: any, idx: number) => (
                             <div key={item.id || idx} style={{ background: "var(--bg-base)", border: "1px solid var(--border)", borderRadius: 8, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                               <div style={{ flex: 1 }}>
-                                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>{item.name || item.item_name || "\u2014"}</div>
+                                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>{item.name || item.item_name || "—"}</div>
                                 {item.description && <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{item.description}</div>}
-                                {item.category && <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 3 }}>\uD83D\uDCC2 {item.category}</div>}
+                                {item.category && <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 3 }}>📂 {item.category}</div>}
                               </div>
                               <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 12 }}>
-                                <div style={{ fontSize: 14, fontWeight: 700, color: "var(--primary)" }}>{item.price !== undefined ? `$${Number(item.price).toFixed(2)}` : "\u2014"}</div>
+                                <div style={{ fontSize: 14, fontWeight: 700, color: "var(--primary)" }}>{item.price !== undefined ? `$${Number(item.price).toFixed(2)}` : "—"}</div>
                                 {item.is_available === false && <div style={{ fontSize: 9, color: "var(--status-red)", marginTop: 2 }}>Unavailable</div>}
                               </div>
                             </div>
@@ -435,12 +455,12 @@ export default function KYCReviewPage() {
               <div style={{ borderTop: "1px solid var(--border)", paddingTop: 16 }}>
                 {selectedItem.kyc_status === "approved" ? (
                   <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(72,187,120,0.1)", border: "1px solid rgba(72,187,120,0.2)", color: "var(--status-green)", padding: 12, borderRadius: "var(--radius-md)", fontSize: 13 }}>
-                    <span>\u2705</span>
+                    <span>✅</span>
                     <span><strong>KYC Verification Passed:</strong> This registry is approved and active on the platform.</span>
                   </div>
                 ) : selectedItem.kyc_status === "rejected" ? (
                   <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(229,62,62,0.08)", border: "1px solid rgba(229,62,62,0.2)", color: "var(--status-red)", padding: 12, borderRadius: "var(--radius-md)", fontSize: 13 }}>
-                    <span>\u274C</span>
+                    <span>❌</span>
                     <span><strong>KYC Rejected:</strong> This account has been declined and deactivated.</span>
                     <button className="btn btn-xs btn-secondary" style={{ marginLeft: "auto" }} onClick={() => handleDecision("approved")} disabled={submitting}>Re-approve</button>
                   </div>
