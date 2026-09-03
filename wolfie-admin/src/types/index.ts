@@ -20,6 +20,14 @@ export interface User {
 export interface Merchant {
   id: string;
   name: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  bio?: string;
+  story?: string;
+  logo_image?: string;
+  cuisine?: string;
+  expected_daily_orders?: number | null;
   category: string;
   rating: number;
   commissionPct: number;

@@ -596,18 +596,11 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
         });
       }
 
+      // Re-fetch from server so the decision persists on page refresh
       if (role === 'driver') {
-        set((state) => ({
-          drivers: state.drivers.map((d) => 
-            d.id === id ? { ...d, kyc_status: status } : d
-          )
-        }));
+        await get().fetchDrivers?.();
       } else {
-        set((state) => ({
-          merchants: state.merchants.map((m) => 
-            m.id === id ? { ...m, kyc_status: status } : m
-          )
-        }));
+        await get().fetchMerchants();
       }
 
       get().addActivity({
@@ -773,14 +766,22 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
       const mapped: Merchant[] = rawList.map((r: any) => ({
         id: r.id,
         name: r.restaurant_name || r.full_name || "Merchant",
+        email: r.email || "",
+        phone: r.phone || r.phone_number || "",
+        address: r.address || "",
+        bio: r.bio || r.chef_bio || "",
+        story: r.story || "",
+        logo_image: r.logo_image || r.chef_image || "",
         category: r.category || "General",
         rating: r.rating || 5.0,
         commissionPct: r.commission_rate ? Math.round(r.commission_rate * 100) : 18,
         status: r.is_active ? (r.is_open ? 'active' : 'paused') : 'suspended',
-        zone: (r.delivery_zones && r.delivery_zones[0]) || "Algiers Centre",
+        zone: r.address || (r.delivery_zones && r.delivery_zones[0]) || "",
         operational_status: r.busy_mode ? 'busy' : (r.is_open ? 'open' : 'paused'),
         kyc_status: r.kyc_status || 'not_started',
-        kyc_documents: r.kyc_documents || {}
+        kyc_documents: r.kyc_documents || {},
+        expected_daily_orders: r.expected_daily_orders || null,
+        cuisine: r.cuisine || r.category || "",
       }));
       set({ merchants: mapped, error: null });
     } catch (err: any) {

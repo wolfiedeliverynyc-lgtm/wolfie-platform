@@ -311,6 +311,8 @@ def kyc_decision():
             user.kyc_status = decision
             if decision == 'approved':
                 user.is_active = True
+            elif decision == 'rejected':
+                user.is_active = False
 
             log = RestaurantAuditLog(
                 id=str(uuid.uuid4()),
