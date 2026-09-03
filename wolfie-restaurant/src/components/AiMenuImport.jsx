@@ -506,27 +506,27 @@ export default function AiMenuImport({ isOpen, onClose }) {
                                   type="text"
                                   value={item.name}
                                   onChange={(e) => handleItemEdit(item.id, 'name', e.target.value)}
-                                  className="px-2.5 py-1.5 border rounded-2xl text-xs font-semibold outline-none focus:border-amber-500"
-                                  style={{ borderColor: 'var(--border)' }}
+                                  className="px-2.5 py-1.5 border rounded-2xl text-xs font-semibold outline-none focus:border-amber-500 bg-white text-neutral-900 placeholder:text-neutral-400"
+                                  style={{ borderColor: 'var(--border, #e5e7eb)', color: '#171717', backgroundColor: '#ffffff' }}
                                   placeholder="Item Name"
                                 />
                                 <input
                                   type="text"
                                   value={item.category}
                                   onChange={(e) => handleItemEdit(item.id, 'category', e.target.value)}
-                                  className="px-2.5 py-1.5 border rounded-2xl text-xs font-semibold outline-none focus:border-amber-500"
-                                  style={{ borderColor: 'var(--border)' }}
+                                  className="px-2.5 py-1.5 border rounded-2xl text-xs font-semibold outline-none focus:border-amber-500 bg-white text-neutral-900 placeholder:text-neutral-400"
+                                  style={{ borderColor: 'var(--border, #e5e7eb)', color: '#171717', backgroundColor: '#ffffff' }}
                                   placeholder="Category"
                                 />
                                 <div className="flex items-center gap-1.5">
-                                  <span className="text-xs font-bold text-neutral-400">$</span>
+                                  <span className="text-xs font-bold text-neutral-500">$</span>
                                   <input
                                     type="number"
                                     step="0.01"
                                     value={item.price}
                                     onChange={(e) => handleItemEdit(item.id, 'price', e.target.value)}
-                                    className="w-full px-2.5 py-1.5 border rounded-2xl text-xs font-bold outline-none focus:border-amber-500"
-                                    style={{ borderColor: 'var(--border)' }}
+                                    className="w-full px-2.5 py-1.5 border rounded-2xl text-xs font-bold outline-none focus:border-amber-500 bg-white text-neutral-900 placeholder:text-neutral-400"
+                                    style={{ borderColor: 'var(--border, #e5e7eb)', color: '#171717', backgroundColor: '#ffffff' }}
                                     placeholder="Price"
                                   />
                                 </div>
@@ -545,13 +545,13 @@ export default function AiMenuImport({ isOpen, onClose }) {
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
-                              <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider w-20 shrink-0">Ingredients:</span>
+                              <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider w-20 shrink-0">Ingredients:</span>
                               <input
                                 type="text"
                                 value={item.ingredients || ''}
                                 onChange={(e) => handleItemEdit(item.id, 'ingredients', e.target.value)}
-                                className="w-full px-2.5 py-1 border rounded-2xl text-[11px] font-medium outline-none focus:border-amber-500"
-                                style={{ borderColor: 'var(--border)' }}
+                                className="w-full px-2.5 py-1 border rounded-2xl text-[11px] font-medium outline-none focus:border-amber-500 bg-white text-neutral-900 placeholder:text-neutral-400"
+                                style={{ borderColor: 'var(--border, #e5e7eb)', color: '#171717', backgroundColor: '#ffffff' }}
                                 placeholder="Comma-separated ingredients..."
                               />
                             </div>
@@ -561,8 +561,8 @@ export default function AiMenuImport({ isOpen, onClose }) {
                                 type="text"
                                 value={item.addons || ''}
                                 onChange={(e) => handleItemEdit(item.id, 'addons', e.target.value)}
-                                className="w-full px-2.5 py-1 border rounded-2xl text-[11px] font-medium outline-none focus:border-amber-500"
-                                style={{ borderColor: 'var(--border)' }}
+                                className="w-full px-2.5 py-1 border rounded-2xl text-[11px] font-medium outline-none focus:border-amber-500 bg-white text-neutral-900 placeholder:text-neutral-400"
+                                style={{ borderColor: 'var(--border, #e5e7eb)', color: '#171717', backgroundColor: '#ffffff' }}
                                 placeholder="Add-ons / Modifiers e.g. Extra Cheese (+1.50), Bacon (+2.00)..."
                               />
                             </div>
