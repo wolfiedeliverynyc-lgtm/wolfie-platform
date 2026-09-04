@@ -168,7 +168,7 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
         ...o,
         zone: o.zone || null,
         amount: o.amount !== undefined ? o.amount : (o.total || 0),
-        currency: o.currency || "DA"
+        currency: o.currency || "USD"
       }));
 
       // Calculate zoneStats dynamically from real orders (only real matched/saved zones)

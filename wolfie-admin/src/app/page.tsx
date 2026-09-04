@@ -51,14 +51,28 @@ export default function DashboardPage() {
       .filter(o => o.status === 'completed' || o.status === 'delivered')
       .reduce((sum, o) => sum + ((o as any).total || o.amount || 0), 0);
     
-    if (total >= 1000) {
-      return `${(total / 1000).toFixed(0)}K DA`;
+    return `$${Number(total).toFixed(2)}`;
+  }, [orders]);
+
+  const avgDeliveryFormatted = useMemo(() => {
+    const completedOrders = orders.filter(o => (o.status === 'completed' || o.status === 'delivered') && (o as any).delivered_at && (o as any).created_at);
+    if (completedOrders.length > 0) {
+      const totalMinutes = completedOrders.reduce((sum, o) => {
+        const diff = (new Date((o as any).delivered_at).getTime() - new Date((o as any).created_at).getTime()) / 60000;
+        return sum + (diff > 0 ? diff : 0);
+      }, 0);
+      return `${Math.round(totalMinutes / completedOrders.length)} min`;
     }
-    return `${total} DA`;
+    const ordersWithEta = orders.filter(o => o.eta_minutes);
+    if (ordersWithEta.length > 0) {
+      const avgEta = Math.round(ordersWithEta.reduce((sum, o) => sum + (o.eta_minutes || 0), 0) / ordersWithEta.length);
+      return `~${avgEta} min`;
+    }
+    return "—";
   }, [orders]);
 
   const cancelledRateFormatted = useMemo(() => {
-    const completedCount = orders.filter(o => o.status === 'completed').length;
+    const completedCount = orders.filter(o => o.status === 'completed' || o.status === 'delivered').length;
     const cancelledCount = orders.filter(o => o.status === 'cancelled').length;
     const total = completedCount + cancelledCount;
     if (total === 0) return "0.0%";
@@ -108,11 +122,29 @@ export default function DashboardPage() {
         cell: (info) => {
           const row = info.row.original as any;
           const amount = row.total ?? row.amount ?? 0;
-          const currency = row.currency || "DA";
           return (
             <span className="mono" style={{ fontWeight: 600 }}>
-              {amount.toLocaleString()} {currency}
+              ${Number(amount).toFixed(2)}
             </span>
+          );
+        },
+      },
+      {
+        header: "Time / Date",
+        accessorKey: "created_at",
+        cell: (info) => {
+          const val = info.getValue() as string;
+          if (!val) return <span style={{ color: "var(--text-muted)" }}>—</span>;
+          const date = new Date(val);
+          return (
+            <div style={{ display: "flex", flexDirection: "column", fontSize: 11 }}>
+              <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>
+                {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </span>
+              <span style={{ color: "var(--text-muted)", fontSize: 10 }}>
+                {date.toLocaleDateString([], { month: 'short', day: 'numeric' })}
+              </span>
+            </div>
           );
         },
       },
@@ -162,7 +194,7 @@ export default function DashboardPage() {
         <div>
           <div className="page-title">Operations Overview</div>
           <div className="page-subtitle">
-            Thursday, 21 May 2026 &nbsp;·&nbsp; Algiers Region &nbsp;·&nbsp; All zones active
+            {new Date().toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long", year: "numeric" })} &nbsp;·&nbsp; Live System Overview
           </div>
         </div>
         <div className="page-actions">
@@ -192,12 +224,12 @@ export default function DashboardPage() {
 
       {/* ── KPI Strip ── */}
       <div className="kpi-grid">
-        <AnalyticsCard title="Active Orders" value={activeOrdersCount} trend="up" trendPercentage="+3 vs yesterday" />
-        <AnalyticsCard title="On-Delivery" value={deliveringOrdersCount} trend="up" trendPercentage="+2 vs avg" />
+        <AnalyticsCard title="Active Orders" value={activeOrdersCount} subText="Live active orders" />
+        <AnalyticsCard title="On-Delivery" value={deliveringOrdersCount} subText="Orders en route" />
         <AnalyticsCard title="Available Drivers" value={availableDriversCount} subText={`${offlineDriversCount} offline`} />
-        <AnalyticsCard title="Avg. Delivery" value="22 min" trend="up" trendPercentage="−4 min today" />
-        <AnalyticsCard title="Revenue Today" value={revenueTodayFormatted} trend="up" trendPercentage="+18% vs yesterday" />
-        <AnalyticsCard title="Cancelled Rate" value={cancelledRateFormatted} trend="down" trendPercentage="+0.4% today" />
+        <AnalyticsCard title="Avg. Delivery" value={avgDeliveryFormatted} subText="Average delivery ETA" />
+        <AnalyticsCard title="Revenue Today" value={revenueTodayFormatted} subText="Completed orders total" />
+        <AnalyticsCard title="Cancelled Rate" value={cancelledRateFormatted} subText="Of resolved orders" />
       </div>
 
       {/* ── Main Operational Grid ── */}
