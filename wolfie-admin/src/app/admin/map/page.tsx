@@ -26,14 +26,7 @@ const MapComponent = dynamic(() => import("@/components/MapComponent"), {
   )
 });
 
-const ZONES = [
-  "Algiers Centre",
-  "El Biar",
-  "Bab Ezzouar",
-  "Hussein Dey",
-  "Kouba",
-  "Ain Taya"
-];
+
 
 
 export default function LiveMapPage() {
@@ -67,6 +60,15 @@ export default function LiveMapPage() {
   
   // Dispatch notification toast
   const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
+
+  // Dynamic list of active zones from live database data
+  const availableZones = useMemo(() => {
+    const set = new Set<string>();
+    drivers.forEach(d => { if (d.zone) set.add(d.zone); });
+    merchants.forEach(m => { if (m.zone) set.add(m.zone); });
+    orders.forEach(o => { if (o.zone) set.add(o.zone); });
+    return Array.from(set).sort();
+  }, [drivers, merchants, orders]);
 
   useEffect(() => {
     fetchDashboardData();
@@ -567,9 +569,13 @@ export default function LiveMapPage() {
                               background: "#fff"
                             }}
                           >
-                            {ZONES.map(z => (
-                              <option key={z} value={z}>{z}</option>
-                            ))}
+                            {availableZones.length > 0 ? (
+                              availableZones.map(z => (
+                                <option key={z} value={z}>{z}</option>
+                              ))
+                            ) : (
+                              <option value={driver.zone || "General"}>{driver.zone || "General"}</option>
+                            )}
                           </select>
                         </div>
 

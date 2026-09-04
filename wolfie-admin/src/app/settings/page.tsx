@@ -9,8 +9,8 @@ export default function SettingsPage() {
     autoAssignment: true,
     dynamicSurge: true,
     platformCommission: 15,
-    defaultDeliveryFee: 4.49,
-    minOrderValue: 10.00,
+    defaultDeliveryFee: 250,
+    minOrderValue: 500,
   });
 
   const [saved, setSaved] = useState(false);

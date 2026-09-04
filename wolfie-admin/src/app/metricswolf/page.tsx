@@ -64,7 +64,7 @@ export default function MetricsWolfPage() {
   const latencyData = useMemo(() => {
     if (!metricsSummary?.latency) return [];
     const lat = metricsSummary.latency;
-    const dbLat = metricsSummary.database?.latency_avg_seconds || 0.004;
+    const dbLat = metricsSummary.database?.latency_avg_seconds || 0;
     return [
       { name: "Mapbox API", value: parseFloat((lat.mapbox_avg_seconds * 1000).toFixed(1)), fill: "var(--status-blue)" },
       { name: "Stripe Gateway", value: parseFloat((lat.stripe_avg_seconds * 1000).toFixed(1)), fill: "var(--accent)" },
@@ -301,7 +301,7 @@ export default function MetricsWolfPage() {
               </div>
               <div style={{ width: "60%", display: "flex", flexDirection: "column", gap: "6px" }}>
                 <div style={{ fontSize: 11 }}>Active: <strong>{db.pool_checked_out || 0}</strong></div>
-                <div style={{ fontSize: 11 }}>Pool Size: <strong>{db.pool_size || 5}</strong></div>
+                <div style={{ fontSize: 11 }}>Pool Size: <strong>{db.pool_size || "—"}</strong></div>
                 <div style={{ fontSize: 11 }}>Overflow: <strong>{db.pool_overflow || 0}</strong></div>
               </div>
             </div>
@@ -318,11 +318,11 @@ export default function MetricsWolfPage() {
             <div style={{ display: "flex", flexDirection: "column", gap: "8px", fontSize: 11 }}>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: "var(--text-secondary)" }}>Redis Ping Latency</span>
-                <span style={{ fontWeight: 600 }}>{rds.latency_seconds !== undefined ? `${(rds.latency_seconds * 1000).toFixed(1)} ms` : "0.5 ms"}</span>
+                <span style={{ fontWeight: 600 }}>{rds.latency_seconds !== undefined ? `${(rds.latency_seconds * 1000).toFixed(1)} ms` : "—"}</span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: "var(--text-secondary)" }}>Cache memory</span>
-                <span style={{ fontWeight: 600 }}>{rds.used_memory_bytes !== undefined ? `${(rds.used_memory_bytes / 1024 / 1024).toFixed(2)} MB` : "1.2 MB"}</span>
+                <span style={{ fontWeight: 600 }}>{rds.used_memory_bytes !== undefined ? `${(rds.used_memory_bytes / 1024 / 1024).toFixed(2)} MB` : "—"}</span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: "var(--text-secondary)" }}>Celery Backlog</span>

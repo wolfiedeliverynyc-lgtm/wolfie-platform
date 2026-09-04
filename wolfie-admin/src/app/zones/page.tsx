@@ -20,11 +20,6 @@ export default function ZonesDemandPage() {
     });
     zoneStats.forEach(z => { if (z.zone) uniqueZones.add(z.zone); });
 
-    // Fallback only if database has 0 registered records anywhere
-    if (uniqueZones.size === 0) {
-      uniqueZones.add("General Operations");
-    }
-
     const zoneNames = Array.from(uniqueZones);
 
     return zoneNames.map((zoneName) => {
@@ -73,7 +68,14 @@ export default function ZonesDemandPage() {
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--gap-lg)" }}>
         
         {/* Zones Grid */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "var(--gap-lg)" }}>
+        {zonesSummary.length === 0 ? (
+          <div className="panel" style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>
+            <div style={{ fontSize: 32, marginBottom: 8 }}>📍</div>
+            <div style={{ fontWeight: 600, color: "var(--text-primary)" }}>No Operational Zones Detected</div>
+            <div style={{ fontSize: 13, marginTop: 4 }}>Zones will appear automatically once drivers, restaurants, or orders are registered.</div>
+          </div>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "var(--gap-lg)" }}>
           {zonesSummary.map((zone) => {
             const statusColor = zone.status === 'critical' ? 'var(--status-red)' 
                               : zone.status === 'warning' ? 'var(--status-amber)' 
@@ -139,6 +141,7 @@ export default function ZonesDemandPage() {
             );
           })}
         </div>
+        )}
 
         {/* Dynamic Detail List */}
         <div className="panel">

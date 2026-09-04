@@ -58,7 +58,7 @@ export default function AnalyticsIntelligencePage() {
 
     return buckets.map(b => {
       const totalFulfill = b.completed + b.cancelled;
-      const slaRate = totalFulfill > 0 ? Math.round((b.completed / totalFulfill) * 100) : 95;
+      const slaRate = totalFulfill > 0 ? Math.round((b.completed / totalFulfill) * 100) : (b.orders > 0 ? 100 : 0);
       return {
         hour: b.hour,
         orders: b.orders,
@@ -152,6 +152,75 @@ export default function AnalyticsIntelligencePage() {
     const avgTransit = transitCount > 0 ? (transitTotal / transitCount / 60000).toFixed(1) : "—";
 
     return { avgMatch, avgPrep, avgTransit };
+  }, [orders]);
+
+  // Dynamically compute peak demand hour from actual orders
+  const peakHour = useMemo(() => {
+    if (orders.length === 0) return "—";
+    let maxOrders = 0;
+    let peak = "—";
+    hourlyOrderData.forEach(b => {
+      if (b.orders > maxOrders) {
+        maxOrders = b.orders;
+        const hNum = parseInt(b.hour.split(":")[0]);
+        peak = `${b.hour} - ${String(hNum + 2).padStart(2, '0')}:00`;
+      }
+    });
+    return peak;
+  }, [hourlyOrderData, orders]);
+
+  // Dynamically compute sector performance statistics from real orders
+  const sectorStats = useMemo(() => {
+    const zoneMap: Record<string, { total: number; completed: number; transitTotal: number; transitCount: number }> = {};
+    orders.forEach(o => {
+      const zone = o.zone || "General";
+      if (!zoneMap[zone]) {
+        zoneMap[zone] = { total: 0, completed: 0, transitTotal: 0, transitCount: 0 };
+      }
+      zoneMap[zone].total++;
+      if (o.status === "completed" || o.status === "delivered") {
+        zoneMap[zone].completed++;
+      }
+      const oAny = o as any;
+      if (oAny.delivered_at && oAny.picked_up_at) {
+        const transit = (new Date(oAny.delivered_at).getTime() - new Date(oAny.picked_up_at).getTime()) / 60000;
+        if (transit > 0) {
+          zoneMap[zone].transitTotal += transit;
+          zoneMap[zone].transitCount++;
+        }
+      }
+    });
+
+    const entries = Object.entries(zoneMap);
+    if (entries.length === 0) {
+      return { bestSector: "—", farthestSector: "—" };
+    }
+
+    let best = "—";
+    let highestRate = -1;
+    entries.forEach(([zone, data]) => {
+      if (data.total > 0) {
+        const rate = Math.round((data.completed / data.total) * 100);
+        if (rate > highestRate) {
+          highestRate = rate;
+          best = `${zone} (${rate}%)`;
+        }
+      }
+    });
+
+    let farthest = "—";
+    let longestTransit = -1;
+    entries.forEach(([zone, data]) => {
+      if (data.transitCount > 0) {
+        const avg = (data.transitTotal / data.transitCount);
+        if (avg > longestTransit) {
+          longestTransit = avg;
+          farthest = `${zone} (${avg.toFixed(1)} min avg)`;
+        }
+      }
+    });
+
+    return { bestSector: best, farthestSector: farthest };
   }, [orders]);
 
   if (!mounted) {
@@ -283,15 +352,15 @@ export default function AnalyticsIntelligencePage() {
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid var(--border)", paddingBottom: "8px" }}>
                 <span style={{ color: "var(--text-secondary)" }}>Peak Demand Load Hour</span>
-                <span style={{ fontWeight: 600 }}>20:00 - 21:00</span>
+                <span style={{ fontWeight: 600 }}>{peakHour}</span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid var(--border)", paddingBottom: "8px" }}>
                 <span style={{ color: "var(--text-secondary)" }}>Best Performing Sector</span>
-                <span style={{ fontWeight: 600, color: "var(--status-green)" }}>Algiers Centre (98.4%)</span>
+                <span style={{ fontWeight: 600, color: "var(--status-green)" }}>{sectorStats.bestSector}</span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", paddingBottom: "4px" }}>
                 <span style={{ color: "var(--text-secondary)" }}>Farthest Delivery Sector</span>
-                <span style={{ fontWeight: 600 }}>Ain Taya (24.5 min avg)</span>
+                <span style={{ fontWeight: 600 }}>{sectorStats.farthestSector}</span>
               </div>
             </div>
           </div>

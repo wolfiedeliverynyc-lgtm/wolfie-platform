@@ -225,9 +225,9 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
       // Map backend fields if needed
       const normalizedDrivers = driversList.map((d: RawDriverPayload) => ({
         id: d.id,
-        name: d.full_name || d.name || "Driver Name",
+        name: d.full_name || d.name || `Driver #${d.id.slice(0, 6)}`,
         phone: d.phone || "",
-        zone: d.zone || "General",
+        zone: d.zone || "",
         status: d.is_available ? (d.status || "available") : "offline",
         rating: d.rating || 5.0,
         completed_trips: d.total_deliveries || d.completed_trips || 0,
@@ -767,7 +767,7 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
       }
       const mapped: Merchant[] = rawList.map((r: any) => ({
         id: r.id,
-        name: r.restaurant_name || r.full_name || "Merchant",
+        name: r.restaurant_name || r.full_name || r.name || "Restaurant",
         email: r.email || "",
         phone: r.phone || r.phone_number || "",
         address: r.address || "",
@@ -776,7 +776,7 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
         logo_image: r.logo_image || r.chef_image || "",
         category: r.category || "General",
         rating: r.rating || 5.0,
-        commissionPct: r.commission_rate ? Math.round(r.commission_rate * 100) : 18,
+        commissionPct: r.commission_rate != null ? Math.round(r.commission_rate * 100) : (r.commissionPct || 0),
         status: r.is_active ? (r.is_open ? 'active' : 'paused') : 'suspended',
         zone: r.address || (r.delivery_zones && r.delivery_zones[0]) || "",
         operational_status: r.busy_mode ? 'busy' : (r.is_open ? 'open' : 'paused'),
@@ -793,22 +793,9 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
   },
 
   rerouteDriver: async (driverId, zone) => {
-    const coords: Record<string, [number, number]> = {
-      "Algiers Centre": [36.7525, 3.0588],
-      "El Biar":        [36.7692, 3.0333],
-      "Bab Ezzouar":    [36.7262, 3.1825],
-      "Hussein Dey":    [36.7447, 3.0931],
-      "Kouba":          [36.7275, 3.0861],
-      "Ain Taya":       [36.7936, 3.2422]
-    };
-    const base = coords[zone] || coords["Algiers Centre"];
-    const seed = driverId.charCodeAt(0) + driverId.charCodeAt(driverId.length - 1);
-    const lat = base[0] + (Math.sin(seed) * 0.01);
-    const lng = base[1] + (Math.cos(seed) * 0.01);
-
     set((state) => ({
       drivers: state.drivers.map((d) =>
-        d.id === driverId ? { ...d, zone, lat, lng } : d
+        d.id === driverId ? { ...d, zone } : d
       )
     }));
 

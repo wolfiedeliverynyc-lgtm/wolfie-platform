@@ -27,14 +27,7 @@ const MapComponent = dynamic(() => import("@/components/MapComponent"), {
   )
 });
 
-const ZONES = [
-  "Algiers Centre",
-  "El Biar",
-  "Bab Ezzouar",
-  "Hussein Dey",
-  "Kouba",
-  "Ain Taya"
-];
+
 
 export default function DispatchEnginePage() {
   const [isMounted, setIsMounted] = useState(false);
@@ -67,6 +60,15 @@ export default function DispatchEnginePage() {
 
   // Selected entities for right detail drawer
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+
+  // Dynamic list of active zones from real database data
+  const availableZones = useMemo(() => {
+    const set = new Set<string>();
+    orders.forEach(o => { if (o.zone) set.add(o.zone); });
+    merchants.forEach(m => { if (m.zone) set.add(m.zone); });
+    drivers.forEach(d => { if (d.zone) set.add(d.zone); });
+    return Array.from(set).sort();
+  }, [orders, merchants, drivers]);
 
   // Filter States
   const [searchQuery, setSearchQuery] = useState("");
@@ -597,7 +599,7 @@ export default function DispatchEnginePage() {
               }}
             >
               <option value="all">All Sectors</option>
-              {ZONES.map(z => (
+              {availableZones.map(z => (
                 <option key={z} value={z}>{z}</option>
               ))}
             </select>
@@ -736,11 +738,14 @@ export default function DispatchEnginePage() {
                       const risk = getDelayRisk(order);
                       const hasRefund = refunds.some(r => r.order_id === order.id && r.status === "pending");
 
-                      // WAP dynamic comparison: compare ETA with a base predictions (simulated prep delay + 10m delivery travel)
-                      const merchant = merchants.find(m => m.id === order.merchant_id);
-                      const predictedPrep = merchant ? (merchant.prep_delay_minutes || 0) : 10;
-                      const wapPredictedMinutes = predictedPrep + 12; // simulated WAP total delivery prediction
-                      const etaWarning = order.status !== 'completed' && order.eta_minutes && order.eta_minutes > wapPredictedMinutes;
+                      // Dynamic WAP comparison: compare ETA with model prediction or prep delay
+                      const restaurantId = (order as any).restaurant_id || order.merchant_id;
+                      const merchant = merchants.find(m => m.id === restaurantId);
+                      const restaurantModel = aiMetrics.find(m => m.restaurant_id === restaurantId);
+                      const prepOffset = restaurantModel ? Math.round(restaurantModel.mae) : 0;
+                      const predictedPrep = (merchant?.prep_delay_minutes || 15) + prepOffset;
+                      const wapPredictedMinutes = predictedPrep + 15;
+                      const etaWarning = order.status !== 'completed' && Boolean(order.eta_minutes && order.eta_minutes > wapPredictedMinutes);
 
                       // Styles for SLA status
                       let slaBadgeColor = "var(--status-green)";
@@ -812,7 +817,7 @@ export default function DispatchEnginePage() {
                               </span>
                             )}
                           </td>
-                          <td>{order.zone || merchants.find(m => m.id === (order as any).restaurant_id || m.id === order.merchant_id)?.zone || "Algiers Centre"}</td>
+                          <td>{order.zone || merchants.find(m => m.id === (order as any).restaurant_id || m.id === order.merchant_id)?.zone || "General"}</td>
                           <td style={{ textAlign: "center" }} onClick={(e) => e.stopPropagation()}>
                             <button 
                               className="btn btn-ghost btn-xs" 
@@ -920,7 +925,7 @@ export default function DispatchEnginePage() {
                       style={{ padding: "6px", fontSize: "11px", borderRadius: "4px", border: "1px solid var(--border)", width: "120px", background: "var(--bg-base)" }}
                     >
                       <option value="">Select Zone</option>
-                      {ZONES.map(z => (
+                      {availableZones.map(z => (
                         <option key={z} value={z}>{z}</option>
                       ))}
                     </select>
@@ -1031,7 +1036,7 @@ export default function DispatchEnginePage() {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <div>
                     <div style={{ fontWeight: 600, fontSize: "13px" }}>{selectedOrder.customer_name}</div>
-                    <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>ID: {selectedOrder.customer_id} · Algiers</div>
+                    <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>ID: {selectedOrder.customer_id}{selectedOrder.zone ? ` · ${selectedOrder.zone}` : ''}</div>
                   </div>
                   <div style={{ display: "flex", gap: "6px" }}>
                     <button className="btn btn-secondary btn-xs" onClick={() => triggerToast("Dialing customer...", "info")}>📞 Call</button>
