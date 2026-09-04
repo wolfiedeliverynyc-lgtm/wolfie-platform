@@ -144,6 +144,27 @@ def list_restaurants():
         }), 200
 
 
+@admin_bp.route("/restaurants/<restaurant_id>/menu", methods=["GET"])
+def get_restaurant_admin_menu(restaurant_id):
+    from database.schemas import MenuItem, User
+    with get_db_session() as session:
+        user = session.get(User, restaurant_id)
+        items = session.query(MenuItem).filter_by(restaurant_id=restaurant_id).order_by(MenuItem.category).all()
+        menu = [
+            {c.name: getattr(i, c.name) for c in i.__table__.columns}
+            for i in items
+        ]
+        docs = dict(getattr(user, "kyc_documents", None) or {}) if user else {}
+        menu_doc = docs.get("menu_file") or docs.get("menu_pdf") or docs.get("menu_doc") or None
+        return jsonify({
+            "menu": menu,
+            "items": menu,
+            "count": len(menu),
+            "menu_doc": menu_doc
+        }), 200
+
+
+
 @admin_bp.route("/restaurants/<restaurant_id>/commission", methods=["PATCH"])
 def set_commission(restaurant_id):
     data = request.get_json(silent=True) or {}

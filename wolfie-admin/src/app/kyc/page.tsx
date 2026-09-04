@@ -19,6 +19,7 @@ export default function KYCReviewPage() {
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [detailTab, setDetailTab] = useState<"documents" | "profile" | "menu">("documents");
   const [menuItems, setMenuItems] = useState<any[]>([]);
+  const [menuDoc, setMenuDoc] = useState<string | null>(null);
   const [menuLoading, setMenuLoading] = useState(false);
 
   useEffect(() => { fetchDashboardData(); }, [fetchDashboardData]);
@@ -78,18 +79,37 @@ export default function KYCReviewPage() {
   const fetchMenu = useCallback(async (restaurantId: string) => {
     setMenuLoading(true);
     setMenuItems([]);
+    setMenuDoc(null);
     try {
       const baseUrl = typeof window !== "undefined" && window.location.hostname === "localhost"
         ? "http://localhost:5000" : "https://wolfie-backend-pt9u.onrender.com";
       const token = localStorage.getItem("token") || sessionStorage.getItem("token") || "";
-      const res = await fetch(`${baseUrl}/api/v1/admin/restaurants/${restaurantId}/menu`, {
+
+      // Try admin endpoint first
+      let res = await fetch(`${baseUrl}/api/v1/admin/restaurants/${restaurantId}/menu`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+
+      // Fallback to public endpoint
+      if (!res.ok) {
+        res = await fetch(`${baseUrl}/api/v1/restaurants/${restaurantId}/menu`);
+      }
+
       if (res.ok) {
         const data = await res.json();
-        setMenuItems(Array.isArray(data) ? data : (data.items || data.menu_items || data.data || []));
-      } else { setMenuItems([]); }
-    } catch { setMenuItems([]); } finally { setMenuLoading(false); }
+        const items = data.menu || data.items || data.menu_items || (Array.isArray(data) ? data : []);
+        setMenuItems(items);
+        if (data.menu_doc) {
+          setMenuDoc(data.menu_doc);
+        }
+      } else {
+        setMenuItems([]);
+      }
+    } catch {
+      setMenuItems([]);
+    } finally {
+      setMenuLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -424,30 +444,68 @@ export default function KYCReviewPage() {
               {/* MENU PREVIEW TAB */}
               {detailTab === "menu" && selectedItem.role === "restaurant" && (
                 <div style={{ flex: 1, overflowY: "auto", marginBottom: 16 }}>
-                  {menuLoading
-                    ? <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 200, color: "var(--text-muted)", fontSize: 13 }}>⏳ Loading menu items...</div>
-                    : menuItems.length === 0
-                      ? <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: 200, color: "var(--text-muted)" }}>
-                          <div style={{ fontSize: 40, marginBottom: 8 }}>📋</div>
-                          <p style={{ fontSize: 13 }}>No menu items found for this restaurant</p>
+                  {/* Uploaded Menu Document if present */}
+                  {menuDoc && (
+                    <div style={{ marginBottom: 12, padding: "10px 14px", background: "rgba(255,225,0,0.06)", border: "1px solid rgba(255,225,0,0.2)", borderRadius: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div style={{ fontSize: 12, color: "var(--text-primary)", display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontSize: 16 }}>📄</span>
+                        <div>
+                          <div style={{ fontWeight: 700 }}>Scanned Menu Document / PDF</div>
+                          <div style={{ fontSize: 10, color: "var(--text-muted)" }}>Uploaded by restaurant during onboarding</div>
                         </div>
-                      : <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                          <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 4 }}>{menuItems.length} items found</div>
-                          {menuItems.map((item: any, idx: number) => (
-                            <div key={item.id || idx} style={{ background: "var(--bg-base)", border: "1px solid var(--border)", borderRadius: 8, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                              <div style={{ flex: 1 }}>
-                                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>{item.name || item.item_name || "—"}</div>
-                                {item.description && <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{item.description}</div>}
-                                {item.category && <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 3 }}>📂 {item.category}</div>}
-                              </div>
-                              <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 12 }}>
-                                <div style={{ fontSize: 14, fontWeight: 700, color: "var(--primary)" }}>{item.price !== undefined ? `$${Number(item.price).toFixed(2)}` : "—"}</div>
-                                {item.is_available === false && <div style={{ fontSize: 9, color: "var(--status-red)", marginTop: 2 }}>Unavailable</div>}
-                              </div>
-                            </div>
-                          ))}
+                      </div>
+                      <a href={menuDoc} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-xs" style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                        View Document ↗
+                      </a>
+                    </div>
+                  )}
+
+                  {menuLoading ? (
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 200, color: "var(--text-muted)", fontSize: 13 }}>
+                      ⏳ Loading menu items...
+                    </div>
+                  ) : menuItems.length === 0 ? (
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 220, padding: 24, textAlign: "center", background: "var(--bg-base)", borderRadius: 12, border: "1px dashed var(--border)" }}>
+                      <div style={{ fontSize: 40, marginBottom: 10 }}>📋</div>
+                      <h4 style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: 6 }}>No Catalog Items Created Yet</h4>
+                      <p style={{ fontSize: 12, color: "var(--text-muted)", maxWidth: 400, lineHeight: 1.6 }}>
+                        This restaurant has not added individual digital menu items to the catalog database yet.
+                        Restaurants can import items via AI scanner or manually build their menu from the <strong>Wolfie Restaurant Dashboard</strong> after KYC approval.
+                      </p>
+                      {selectedItem.category && (
+                        <div style={{ marginTop: 14, display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
+                          <span style={{ fontSize: 11, background: "rgba(255,225,0,0.08)", border: "1px solid rgba(255,225,0,0.2)", color: "var(--gold)", padding: "4px 12px", borderRadius: 20 }}>
+                            Category: <strong>{selectedItem.category}</strong>
+                          </span>
+                          {selectedItem.cuisine && selectedItem.cuisine !== selectedItem.category && (
+                            <span style={{ fontSize: 11, background: "rgba(255,255,255,0.05)", border: "1px solid var(--border)", color: "var(--text-muted)", padding: "4px 12px", borderRadius: 20 }}>
+                              Cuisine: <strong>{selectedItem.cuisine}</strong>
+                            </span>
+                          )}
                         </div>
-                  }
+                      )}
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, color: "var(--text-muted)", marginBottom: 4 }}>
+                        <span>{menuItems.length} menu items in catalog</span>
+                        <span style={{ fontSize: 10 }}>Live sync</span>
+                      </div>
+                      {menuItems.map((item: any, idx: number) => (
+                        <div key={item.id || idx} style={{ background: "var(--bg-base)", border: "1px solid var(--border)", borderRadius: 8, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>{item.name || item.item_name || "—"}</div>
+                            {item.description && <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{item.description}</div>}
+                            {item.category && <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 3 }}>📂 {item.category}</div>}
+                          </div>
+                          <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 12 }}>
+                            <div style={{ fontSize: 14, fontWeight: 700, color: "var(--primary)" }}>{item.price !== undefined ? `$${Number(item.price).toFixed(2)}` : "—"}</div>
+                            {item.is_available === false && <div style={{ fontSize: 9, color: "var(--status-red)", marginTop: 2 }}>Unavailable</div>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
