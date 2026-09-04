@@ -69,14 +69,9 @@ export default function AnalyticsIntelligencePage() {
 
   // Dynamically compute zone distribution and idle driver counts
   const zoneDistributionData = useMemo(() => {
-    const zones = ["Algiers Centre", "El Biar", "Bab Ezzouar", "Hussein Dey", "Kouba", "Ain Taya"];
     const dataMap: Record<string, { active: number; idle: number }> = {};
-    zones.forEach(z => {
-      dataMap[z] = { active: 0, idle: 0 };
-    });
-
     drivers.forEach(d => {
-      const z = d.zone || "Algiers Centre";
+      const z = d.zone || "General";
       if (!dataMap[z]) {
         dataMap[z] = { active: 0, idle: 0 };
       }
@@ -86,6 +81,10 @@ export default function AnalyticsIntelligencePage() {
         dataMap[z].idle += 1;
       }
     });
+
+    if (Object.keys(dataMap).length === 0) {
+      dataMap["General"] = { active: 0, idle: 0 };
+    }
 
     return Object.entries(dataMap).map(([name, counts]) => ({
       name,
@@ -99,8 +98,17 @@ export default function AnalyticsIntelligencePage() {
     const cancelledCount = orders.filter(o => o.status === 'cancelled').length;
     const completedCount = orders.filter(o => o.status === 'completed' || o.status === 'delivered').length;
     const total = completedCount + cancelledCount;
-    if (total === 0) return 92;
+    if (total === 0) return 100;
     return Math.round((completedCount / total) * 100);
+  }, [orders]);
+
+  const fulfillmentEfficiency = useMemo(() => {
+    if (orders.length === 0) return "100%";
+    const completed = orders.filter(o => o.status === 'completed' || o.status === 'delivered').length;
+    const cancelled = orders.filter(o => o.status === 'cancelled').length;
+    const totalResolved = completed + cancelled;
+    if (totalResolved === 0) return "100%";
+    return `${((completed / totalResolved) * 100).toFixed(1)}%`;
   }, [orders]);
 
   // Dynamically calculate transition performance metrics (Observation 4)
@@ -139,9 +147,9 @@ export default function AnalyticsIntelligencePage() {
       }
     });
 
-    const avgMatch = matchCount > 0 ? (matchTotal / matchCount / 60000).toFixed(1) : "2.4";
-    const avgPrep = prepCount > 0 ? (prepTotal / prepCount / 60000).toFixed(1) : "14.8";
-    const avgTransit = transitCount > 0 ? (transitTotal / transitCount / 60000).toFixed(1) : "18.2";
+    const avgMatch = matchCount > 0 ? (matchTotal / matchCount / 60000).toFixed(1) : "—";
+    const avgPrep = prepCount > 0 ? (prepTotal / prepCount / 60000).toFixed(1) : "—";
+    const avgTransit = transitCount > 0 ? (transitTotal / transitCount / 60000).toFixed(1) : "—";
 
     return { avgMatch, avgPrep, avgTransit };
   }, [orders]);
@@ -158,7 +166,7 @@ export default function AnalyticsIntelligencePage() {
     <>
       <div className="page-header">
         <div>
-          <div className="page-title">Operations Intelligence & Performance</div>
+          <div className="page-title">Operations Intelligence &amp; Performance</div>
           <div className="page-subtitle">Real-time charts, historical fulfillment statistics, and SLA tracking dashboards</div>
         </div>
       </div>
@@ -169,8 +177,8 @@ export default function AnalyticsIntelligencePage() {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "var(--gap-md)" }}>
           <div className="panel" style={{ padding: 16 }}>
             <div style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 500, textTransform: "uppercase" }}>Average Dispatch Time</div>
-            <div style={{ fontSize: 24, fontWeight: 700, marginTop: 4 }}>{metrics.avgMatch} min</div>
-            <div style={{ fontSize: 11, color: "var(--status-green)", marginTop: 6, fontWeight: 600 }}>● Within target (3m limit)</div>
+            <div style={{ fontSize: 24, fontWeight: 700, marginTop: 4 }}>{metrics.avgMatch !== "—" ? `${metrics.avgMatch} min` : "—"}</div>
+            <div style={{ fontSize: 11, color: "var(--status-green)", marginTop: 6, fontWeight: 600 }}>● Live dispatch telemetry</div>
           </div>
           <div className="panel" style={{ padding: 16 }}>
             <div style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 500, textTransform: "uppercase" }}>SLA Fulfillment Rate</div>
@@ -179,13 +187,13 @@ export default function AnalyticsIntelligencePage() {
           </div>
           <div className="panel" style={{ padding: 16 }}>
             <div style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 500, textTransform: "uppercase" }}>Fulfillment Efficiency</div>
-            <div style={{ fontSize: 24, fontWeight: 700, marginTop: 4 }}>98.2%</div>
-            <div style={{ fontSize: 11, color: "var(--status-green)", marginTop: 6, fontWeight: 600 }}>+1.4% improvement</div>
+            <div style={{ fontSize: 24, fontWeight: 700, marginTop: 4 }}>{fulfillmentEfficiency}</div>
+            <div style={{ fontSize: 11, color: "var(--status-green)", marginTop: 6, fontWeight: 600 }}>Based on completed vs cancelled</div>
           </div>
           <div className="panel" style={{ padding: 16 }}>
             <div style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 500, textTransform: "uppercase" }}>Gross Order Volumes</div>
             <div style={{ fontSize: 24, fontWeight: 700, marginTop: 4 }}>{orders.length} orders</div>
-            <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 6 }}>Tracked across Algiers</div>
+            <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 6 }}>Tracked across all active zones</div>
           </div>
         </div>
 

@@ -1,30 +1,24 @@
 "use client";
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useDashboardStore } from "@/stores/dashboardStore";
 
-interface MerchantItem {
-  id: string;
-  name: string;
-  category: string;
-  rating: number;
-  commissionPct: number;
-  status: "active" | "paused" | "suspended";
-  zone: string;
-}
-
-const INITIAL_MERCHANTS: MerchantItem[] = [
-  { id: "m1", name: "Pizza Bleu", category: "Italian", rating: 4.8, commissionPct: 18, status: "active", zone: "Algiers Centre" },
-  { id: "m2", name: "Burgers Co", category: "Fast Food", rating: 4.5, commissionPct: 15, status: "active", zone: "El Biar" },
-  { id: "m3", name: "Sushi House", category: "Japanese", rating: 4.9, commissionPct: 20, status: "active", zone: "Hussein Dey" },
-  { id: "m4", name: "Tacos Grill", category: "Mexican", rating: 4.2, commissionPct: 12, status: "active", zone: "Bab Ezzouar" },
-  { id: "m5", name: "Crepe Box", category: "Dessert", rating: 4.6, commissionPct: 15, status: "paused", zone: "Kouba" },
-  { id: "m6", name: "Salad Bar", category: "Healthy", rating: 4.4, commissionPct: 15, status: "suspended", zone: "Ain Taya" },
-];
-
 export default function MerchantsOperationsPage() {
-  const { orders, addActivity } = useDashboardStore();
-  const [merchants, setMerchants] = useState<MerchantItem[]>(INITIAL_MERCHANTS);
+  const { 
+    merchants, 
+    orders, 
+    fetchMerchants, 
+    fetchOrders, 
+    updateMerchantCommission, 
+    toggleMerchantSuspension,
+    addActivity 
+  } = useDashboardStore();
+
   const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    fetchMerchants();
+    fetchOrders();
+  }, [fetchMerchants, fetchOrders]);
 
   const [reviewsModalOpen, setReviewsModalOpen] = useState(false);
   const [currentMerchantId, setCurrentMerchantId] = useState("");
@@ -59,16 +53,16 @@ export default function MerchantsOperationsPage() {
   // Calculate order volume per merchant dynamically
   const merchantStats = useMemo(() => {
     return merchants.map((m) => {
-      const merchantOrders = orders.filter(o => o.merchant_name === m.name);
+      const merchantOrders = orders.filter(o => o.merchant_name === m.name || o.merchant_id === m.id);
       return {
         ...m,
         ordersCount: merchantOrders.length,
-        revenue: merchantOrders.filter(o => o.status === 'completed').reduce((sum, o) => sum + o.amount, 0)
+        revenue: merchantOrders.filter(o => o.status === 'completed' || o.status === 'delivered').reduce((sum, o) => sum + ((o as any).total || o.amount || 0), 0)
       };
     });
   }, [merchants, orders]);
 
-  const handleAdjustCommission = (merchantId: string, name: string, current: number) => {
+  const handleAdjustCommission = async (merchantId: string, name: string, current: number) => {
     const rateStr = prompt(`Adjust commission percentage for ${name}:`, current.toString());
     if (rateStr !== null) {
       const rate = parseFloat(rateStr);
@@ -76,34 +70,26 @@ export default function MerchantsOperationsPage() {
         alert("Please enter a valid percentage between 0 and 100.");
         return;
       }
-      setMerchants(prev => prev.map(m => m.id === merchantId ? { ...m, commissionPct: rate } : m));
-      addActivity({
-        text: `Adjusted commission for ${name} to ${rate}%`,
-        color: "var(--accent)"
-      });
+      await updateMerchantCommission(merchantId, rate);
     }
   };
 
-  const handleToggleSuspend = (merchantId: string, name: string, currentStatus: string) => {
-    const newStatus = currentStatus === "suspended" ? "active" : "suspended";
-    const confirmMsg = currentStatus === "suspended" 
+  const handleToggleSuspend = async (merchantId: string, name: string, currentStatus: string) => {
+    const isSuspended = currentStatus === "suspended";
+    const confirmMsg = isSuspended 
       ? `Activate merchant ${name}?` 
       : `Suspend merchant ${name}? This will temporarily pause their incoming orders.`;
     
     if (confirm(confirmMsg)) {
-      setMerchants(prev => prev.map(m => m.id === merchantId ? { ...m, status: newStatus } : m));
-      addActivity({
-        text: `${newStatus === "suspended" ? "Suspended" : "Re-activated"} Merchant ${name}`,
-        color: newStatus === "suspended" ? "var(--status-red)" : "var(--status-green)"
-      });
+      await toggleMerchantSuspension(merchantId, currentStatus);
     }
   };
 
   const filteredMerchants = useMemo(() => {
     return merchantStats.filter(m => 
-      m.name.toLowerCase().includes(search.toLowerCase()) ||
-      m.category.toLowerCase().includes(search.toLowerCase()) ||
-      m.zone.toLowerCase().includes(search.toLowerCase())
+      (m.name || "").toLowerCase().includes(search.toLowerCase()) ||
+      (m.category || "").toLowerCase().includes(search.toLowerCase()) ||
+      (m.zone || m.address || "").toLowerCase().includes(search.toLowerCase())
     );
   }, [merchantStats, search]);
 
@@ -167,9 +153,9 @@ export default function MerchantsOperationsPage() {
                 filteredMerchants.map((m) => (
                   <tr key={m.id}>
                     <td style={{ fontWeight: 600, color: "var(--text-primary)" }}>{m.name}</td>
-                    <td>{m.category}</td>
-                    <td>{m.zone}</td>
-                    <td style={{ fontWeight: 600 }}>★ {m.rating}</td>
+                    <td>{m.category || "General"}</td>
+                    <td>{m.zone || m.address || "—"}</td>
+                    <td style={{ fontWeight: 600 }}>★ {m.rating || 5.0}</td>
                     <td className="mono" style={{ fontWeight: 600 }}>
                       {m.commissionPct}%
                       <button 

@@ -1,7 +1,9 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useDashboardStore } from "@/stores/dashboardStore";
 
 export default function SettingsPage() {
+  const { addActivity } = useDashboardStore();
   const [settings, setSettings] = useState({
     maintenanceMode: false,
     autoAssignment: true,
@@ -13,6 +15,17 @@ export default function SettingsPage() {
 
   const [saved, setSaved] = useState(false);
 
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("wolfie_admin_settings");
+      if (stored) {
+        setSettings(prev => ({ ...prev, ...JSON.parse(stored) }));
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
+
   const handleToggle = (key: keyof typeof settings) => {
     setSettings(prev => ({ ...prev, [key]: !prev[key] }));
   };
@@ -22,8 +35,16 @@ export default function SettingsPage() {
   };
 
   const handleSave = () => {
-    // Mock save logic
+    try {
+      localStorage.setItem("wolfie_admin_settings", JSON.stringify(settings));
+    } catch (e) {
+      console.error(e);
+    }
     setSaved(true);
+    addActivity({
+      text: `Saved platform operational configuration (Commission: ${settings.platformCommission}%, Min Order: ${settings.minOrderValue} DA)`,
+      color: "var(--status-green)"
+    });
     setTimeout(() => setSaved(false), 3000);
   };
 

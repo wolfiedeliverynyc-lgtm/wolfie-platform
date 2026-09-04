@@ -3,28 +3,35 @@ import React, { useMemo, useEffect } from "react";
 import { useDashboardStore } from "@/stores/dashboardStore";
 
 export default function ZonesDemandPage() {
-  const { orders, drivers, fetchDashboardData } = useDashboardStore();
+  const { orders, drivers, merchants, zoneStats, fetchDashboardData } = useDashboardStore();
 
   useEffect(() => {
     fetchDashboardData();
   }, [fetchDashboardData]);
 
-  // Aggregate statistics per zone dynamically
+  // Aggregate statistics per zone dynamically from all real data sources
   const zonesSummary = useMemo(() => {
-    const list = [
-      { name: "Algiers Centre", coords: [36.7525, 3.0588] },
-      { name: "El Biar",        coords: [36.7692, 3.0333] },
-      { name: "Bab Ezzouar",    coords: [36.7262, 3.1825] },
-      { name: "Hussein Dey",    coords: [36.7447, 3.0931] },
-      { name: "Kouba",          coords: [36.7275, 3.0861] },
-      { name: "Ain Taya",       coords: [36.7936, 3.2422] }
-    ];
+    const uniqueZones = new Set<string>();
+    orders.forEach(o => { if (o.zone) uniqueZones.add(o.zone); });
+    drivers.forEach(d => { if (d.zone) uniqueZones.add(d.zone); });
+    merchants.forEach(m => {
+      if (m.zone) uniqueZones.add(m.zone);
+      else if (m.address) uniqueZones.add(m.address);
+    });
+    zoneStats.forEach(z => { if (z.zone) uniqueZones.add(z.zone); });
 
-    return list.map((zone) => {
-      const zoneOrders = orders.filter(o => o.zone === zone.name);
+    // Fallback only if database has 0 registered records anywhere
+    if (uniqueZones.size === 0) {
+      uniqueZones.add("General Operations");
+    }
+
+    const zoneNames = Array.from(uniqueZones);
+
+    return zoneNames.map((zoneName) => {
+      const zoneOrders = orders.filter(o => o.zone === zoneName);
       const activeCount = zoneOrders.filter(o => o.status !== 'completed' && o.status !== 'cancelled').length;
       
-      const zoneDrivers = drivers.filter(d => d.zone === zone.name);
+      const zoneDrivers = drivers.filter(d => d.zone === zoneName);
       const onlineDrivers = zoneDrivers.filter(d => d.status !== 'offline').length;
       const availableDrivers = zoneDrivers.filter(d => d.status === 'available').length;
       
@@ -42,9 +49,9 @@ export default function ZonesDemandPage() {
       }
 
       return {
-        name: zone.name,
+        name: zoneName,
         activeOrders: activeCount,
-        completedOrders: zoneOrders.filter(o => o.status === 'completed').length,
+        completedOrders: zoneOrders.filter(o => o.status === 'completed' || o.status === 'delivered').length,
         totalDrivers: zoneDrivers.length,
         onlineDrivers,
         availableDrivers,
@@ -52,7 +59,7 @@ export default function ZonesDemandPage() {
         status
       };
     });
-  }, [orders, drivers]);
+  }, [orders, drivers, merchants, zoneStats]);
 
   return (
     <>

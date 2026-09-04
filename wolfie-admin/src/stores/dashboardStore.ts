@@ -87,6 +87,8 @@ interface DashboardState {
   rerouteDriver: (driverId: string, zone: string) => Promise<boolean>;
   suspendDriver: (driverId: string) => Promise<boolean>;
   setMerchantStatus: (merchantId: string, status: 'open' | 'paused' | 'busy' | 'delayed') => Promise<boolean>;
+  updateMerchantCommission: (merchantId: string, commissionPct: number) => Promise<boolean>;
+  toggleMerchantSuspension: (merchantId: string, currentStatus: string) => Promise<boolean>;
   toggleOrderPriority: (orderId: string) => Promise<boolean>;
   sendOperationalAlert: (targetId: string, message: string) => Promise<boolean>;
   triggerEmergencyEscalation: (orderId: string) => Promise<boolean>;
@@ -225,7 +227,7 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
         id: d.id,
         name: d.full_name || d.name || "Driver Name",
         phone: d.phone || "",
-        zone: d.zone || "Algiers Centre",
+        zone: d.zone || "General",
         status: d.is_available ? (d.status || "available") : "offline",
         rating: d.rating || 5.0,
         completed_trips: d.total_deliveries || d.completed_trips || 0,
@@ -881,6 +883,53 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
         color: "var(--accent)"
       });
       return true;
+    }
+  },
+
+  updateMerchantCommission: async (merchantId, commissionPct) => {
+    set((state) => ({
+      merchants: state.merchants.map((m) =>
+        m.id === merchantId ? { ...m, commissionPct } : m
+      )
+    }));
+
+    try {
+      await api.patch(`/admin/restaurants/${merchantId}/commission`, { commission_rate: commissionPct });
+      get().addActivity({
+        text: `Updated Merchant #${merchantId} commission rate to ${commissionPct}%`,
+        color: "var(--accent)"
+      });
+      return true;
+    } catch (err) {
+      console.warn("API update commission error:", err);
+      return false;
+    }
+  },
+
+  toggleMerchantSuspension: async (merchantId, currentStatus) => {
+    const newStatus = currentStatus === "suspended" ? "active" : "suspended";
+    const currentlyActive = currentStatus !== "suspended";
+
+    set((state) => ({
+      merchants: state.merchants.map((m) =>
+        m.id === merchantId ? { ...m, status: newStatus } : m
+      )
+    }));
+
+    try {
+      if (currentlyActive) {
+        await api.patch(`/admin/restaurants/${merchantId}/suspend`, { reason: "Admin suspension override" });
+      } else {
+        await api.patch(`/admin/users/${merchantId}/activate`, { is_active: true });
+      }
+      get().addActivity({
+        text: `${newStatus === "suspended" ? "Suspended" : "Re-activated"} Merchant #${merchantId}`,
+        color: newStatus === "suspended" ? "var(--status-red)" : "var(--status-green)"
+      });
+      return true;
+    } catch (err) {
+      console.warn("API toggle merchant suspension error:", err);
+      return false;
     }
   },
 

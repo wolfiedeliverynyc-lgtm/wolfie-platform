@@ -45,8 +45,9 @@ export default function Sidebar() {
     {
       label: "Commerce",
       items: [
-        { label: "Merchants",  href: "/merchants",  icon: "merchants" },
-        { label: "Finance",    href: "/finance",    icon: "finance" },
+        { label: "Merchants",    href: "/merchants",  icon: "merchants" },
+        { label: "Menu Catalog", href: "/menu",       icon: "orders" },
+        { label: "Finance",      href: "/finance",    icon: "finance" },
       ],
     },
     {

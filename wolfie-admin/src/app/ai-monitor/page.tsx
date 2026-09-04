@@ -33,6 +33,24 @@ export default function AiWapMonitorPage() {
     }
   };
 
+  const overallMAE = useMemo(() => {
+    if (!aiMetrics || aiMetrics.length === 0) return "—";
+    const sum = aiMetrics.reduce((acc, m) => acc + (m.mae || 0), 0);
+    return `${(sum / aiMetrics.length).toFixed(1)} min`;
+  }, [aiMetrics]);
+
+  const avgR2 = useMemo(() => {
+    if (!aiMetrics || aiMetrics.length === 0) return "—";
+    const sum = aiMetrics.reduce((acc, m) => acc + (m.r2_score || 0), 0);
+    return (sum / aiMetrics.length).toFixed(2);
+  }, [aiMetrics]);
+
+  const totalTrainingSamples = useMemo(() => {
+    if (!aiMetrics || aiMetrics.length === 0) return "0";
+    const sum = aiMetrics.reduce((acc, m) => acc + (m.training_samples || 0), 0);
+    return sum.toLocaleString();
+  }, [aiMetrics]);
+
   return (
     <>
       <div className="page-header">
@@ -75,18 +93,18 @@ export default function AiWapMonitorPage() {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "var(--gap-md)" }}>
           <div className="panel" style={{ padding: 16 }}>
             <div style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 500, textTransform: "uppercase" }}>Overall MAE</div>
-            <div style={{ fontSize: 24, fontWeight: 700, marginTop: 4 }}>2.8 min</div>
-            <div style={{ fontSize: 11, color: "var(--status-green)", marginTop: 6, fontWeight: 600 }}>● Within target (3.0m MAE)</div>
+            <div style={{ fontSize: 24, fontWeight: 700, marginTop: 4 }}>{overallMAE}</div>
+            <div style={{ fontSize: 11, color: "var(--status-green)", marginTop: 6, fontWeight: 600 }}>● Live model evaluation</div>
           </div>
           <div className="panel" style={{ padding: 16 }}>
             <div style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 500, textTransform: "uppercase" }}>R² Accuracy Score</div>
-            <div style={{ fontSize: 24, fontWeight: 700, marginTop: 4, color: "var(--accent)" }}>0.84</div>
+            <div style={{ fontSize: 24, fontWeight: 700, marginTop: 4, color: "var(--accent)" }}>{avgR2}</div>
             <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 6 }}>Model version: wap-v2.1</div>
           </div>
           <div className="panel" style={{ padding: 16 }}>
             <div style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 500, textTransform: "uppercase" }}>Training Samples</div>
-            <div style={{ fontSize: 24, fontWeight: 700, marginTop: 4 }}>2,050</div>
-            <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 6 }}>Last retrained: 2 hrs ago</div>
+            <div style={{ fontSize: 24, fontWeight: 700, marginTop: 4 }}>{totalTrainingSamples}</div>
+            <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 6 }}>Telemetry observations</div>
           </div>
           <div className="panel" style={{ padding: 16 }}>
             <div style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 500, textTransform: "uppercase" }}>Drift Status</div>
