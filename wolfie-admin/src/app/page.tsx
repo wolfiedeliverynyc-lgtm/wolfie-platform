@@ -1,6 +1,8 @@
 // src/app/page.tsx
 "use client";
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useDashboardStore } from "@/stores/dashboardStore";
 import { ColumnDef } from "@tanstack/react-table";
 import { Order } from "@/types";
@@ -8,9 +10,11 @@ import AnalyticsCard from "@/shared/components/AnalyticsCard";
 import StatusBadge from "@/shared/components/StatusBadge";
 import DataTable from "@/shared/components/DataTable";
 import BlurText from "@/components/react-bits/BlurText";
-import { Download, Plus, Star, Radio, Users, Layers, ShieldCheck } from "lucide-react";
+import DateRangeFilter, { DateRangeState, isOrderInDateRange } from "@/components/DateRangeFilter";
+import { Download, Plus, Star, Users, Layers, ShieldCheck, ArrowUpRight, TrendingUp, Clock, AlertCircle } from "lucide-react";
 
 export default function DashboardPage() {
+  const router = useRouter();
   const {
     orders,
     drivers,
@@ -22,20 +26,32 @@ export default function DashboardPage() {
     addActivity,
   } = useDashboardStore();
 
+  // Date Filter State
+  const [dateRange, setDateRange] = useState<DateRangeState>({
+    preset: "today",
+    startDate: "",
+    endDate: "",
+  });
+
   // Fetch dashboard data on mount
   useEffect(() => {
     fetchDashboardData();
   }, [fetchDashboardData]);
 
-  // Derive dynamic metrics from the live store
+  // Filtered orders by date
+  const filteredOrders = useMemo(() => {
+    return orders.filter((o) => isOrderInDateRange(o.created_at, dateRange));
+  }, [orders, dateRange]);
+
+  // Dynamic metrics derived from filtered orders
   const activeOrdersCount = useMemo(() => 
-    orders.filter(o => o.status !== 'completed' && o.status !== 'cancelled').length,
-    [orders]
+    filteredOrders.filter(o => o.status !== 'completed' && o.status !== 'cancelled').length,
+    [filteredOrders]
   );
 
   const deliveringOrdersCount = useMemo(() => 
-    orders.filter(o => o.status === 'delivering').length,
-    [orders]
+    filteredOrders.filter(o => o.status === 'delivering').length,
+    [filteredOrders]
   );
 
   const availableDriversCount = useMemo(() => 
@@ -48,16 +64,21 @@ export default function DashboardPage() {
     [drivers]
   );
 
-  const revenueTodayFormatted = useMemo(() => {
-    const total = orders
+  const unassignedCount = useMemo(() => 
+    filteredOrders.filter(o => !o.driver_id && o.status !== 'completed' && o.status !== 'cancelled').length,
+    [filteredOrders]
+  );
+
+  const revenueFormatted = useMemo(() => {
+    const total = filteredOrders
       .filter(o => o.status === 'completed' || o.status === 'delivered')
       .reduce((sum, o) => sum + ((o as any).total || o.amount || 0), 0);
     
     return `$${Number(total).toFixed(2)}`;
-  }, [orders]);
+  }, [filteredOrders]);
 
   const avgDeliveryFormatted = useMemo(() => {
-    const completedOrders = orders.filter(o => (o.status === 'completed' || o.status === 'delivered') && (o as any).delivered_at && (o as any).created_at);
+    const completedOrders = filteredOrders.filter(o => (o.status === 'completed' || o.status === 'delivered') && (o as any).delivered_at && (o as any).created_at);
     if (completedOrders.length > 0) {
       const totalMinutes = completedOrders.reduce((sum, o) => {
         const diff = (new Date((o as any).delivered_at).getTime() - new Date((o as any).created_at).getTime()) / 60000;
@@ -65,21 +86,21 @@ export default function DashboardPage() {
       }, 0);
       return `${Math.round(totalMinutes / completedOrders.length)} min`;
     }
-    const ordersWithEta = orders.filter(o => o.eta_minutes);
+    const ordersWithEta = filteredOrders.filter(o => o.eta_minutes);
     if (ordersWithEta.length > 0) {
       const avgEta = Math.round(ordersWithEta.reduce((sum, o) => sum + (o.eta_minutes || 0), 0) / ordersWithEta.length);
       return `~${avgEta} min`;
     }
     return "—";
-  }, [orders]);
+  }, [filteredOrders]);
 
   const cancelledRateFormatted = useMemo(() => {
-    const completedCount = orders.filter(o => o.status === 'completed' || o.status === 'delivered').length;
-    const cancelledCount = orders.filter(o => o.status === 'cancelled').length;
+    const completedCount = filteredOrders.filter(o => o.status === 'completed' || o.status === 'delivered').length;
+    const cancelledCount = filteredOrders.filter(o => o.status === 'cancelled').length;
     const total = completedCount + cancelledCount;
     if (total === 0) return "0.0%";
     return `${((cancelledCount / total) * 100).toFixed(1)}%`;
-  }, [orders]);
+  }, [filteredOrders]);
 
   // Columns definition for TanStack Table
   const columns = useMemo<ColumnDef<Order>[]>(
@@ -88,9 +109,12 @@ export default function DashboardPage() {
         header: "Order ID",
         accessorKey: "id",
         cell: (info) => (
-          <span className="mono" style={{ fontWeight: 600, color: "var(--text-primary)", fontSize: 12 }}>
+          <Link
+            href="/admin/orders"
+            className="mono font-bold text-white hover:text-rose-400 text-xs transition-colors"
+          >
             #{info.getValue() as string}
-          </span>
+          </Link>
         ),
       },
       {
@@ -112,20 +136,20 @@ export default function DashboardPage() {
         cell: (info) => {
           const val = (info.getValue() as string) || "Unassigned";
           return (
-            <span style={{ color: val === "Unassigned" ? "var(--status-red)" : "var(--text-secondary)", fontWeight: val === "Unassigned" ? 500 : 400 }}>
+            <span style={{ color: val === "Unassigned" ? "var(--status-red)" : "var(--text-secondary)", fontWeight: val === "Unassigned" ? 600 : 400 }}>
               {val}
             </span>
           );
         },
       },
       {
-        header: "Amount",
+        header: "Total",
         accessorKey: "amount",
         cell: (info) => {
           const row = info.row.original as any;
           const amount = row.total ?? row.amount ?? 0;
           return (
-            <span className="mono" style={{ fontWeight: 600 }}>
+            <span className="mono font-bold text-white">
               ${Number(amount).toFixed(2)}
             </span>
           );
@@ -173,69 +197,93 @@ export default function DashboardPage() {
         cell: (info) => (
           <button
             className="btn btn-ghost btn-xs"
-            id={`btn-order-${info.row.original.id}`}
-            onClick={() => {
-              addActivity({
-                text: `Admin inspected details for order #${info.row.original.id}`,
-                color: "var(--text-secondary)",
-              });
-            }}
+            onClick={() => router.push("/admin/orders")}
+            title="Inspect in Live Orders"
           >
-            ···
+            <ArrowUpRight size={14} />
           </button>
         ),
       },
     ],
-    [addActivity]
+    [router]
   );
 
   return (
     <>
-      {/* ── Page Header ── */}
-      <div className="page-header">
+      {/* ── Page Header (DoorDash & Uber Eats Operations Hub) ── */}
+      <div className="page-header flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800/80 pb-4 mb-6">
         <div>
           <div className="page-title">
             <BlurText
-              text="OPERATIONS COMMAND CENTER"
-              delay={70}
+              text="DELIVERY OPERATIONS HUB"
+              delay={60}
               animateBy="words"
               direction="top"
-              className="text-lg font-extrabold tracking-wider text-[#f8fafc]"
+              className="text-xl font-black tracking-tight text-white"
             />
           </div>
-          <div className="page-subtitle">
-            {new Date().toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long", year: "numeric" })} &nbsp;·&nbsp; Live System Overview
+          <div className="page-subtitle text-xs text-slate-400 mt-1">
+            Real-time fleet telemetry, delivery SLAs, and dispatch queue.
           </div>
         </div>
-        <div className="page-actions">
-          <button className="btn btn-secondary btn-sm" id="btn-export">
-            <Download size={13} style={{ marginRight: 4 }} />
-            Export
-          </button>
-          <button
-            className="btn btn-primary btn-sm"
-            id="btn-new-order"
+
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Date Filter */}
+          <DateRangeFilter value={dateRange} onChange={setDateRange} />
+
+          <button 
+            className="btn btn-secondary btn-sm" 
             onClick={() => {
               addActivity({
-                text: "Manual override: triggered new order dialog stub",
+                text: "Exported operational orders report CSV",
                 color: "var(--accent)",
               });
+              alert("Export initiated for current date range.");
             }}
           >
-            <Plus size={14} style={{ marginRight: 4 }} />
-            New Order
+            <Download size={13} style={{ marginRight: 4 }} />
+            Export CSV
           </button>
+
+          <Link href="/admin/orders" className="btn btn-primary btn-sm">
+            <Plus size={14} style={{ marginRight: 4 }} />
+            Manage Orders
+          </Link>
         </div>
       </div>
 
-      {/* ── KPI Strip ── */}
+      {/* ── KPI Strip (High Contrast Modern Metrics) ── */}
       <div className="kpi-grid">
-        <AnalyticsCard title="Active Orders" value={activeOrdersCount} subText="Live active orders" />
-        <AnalyticsCard title="On-Delivery" value={deliveringOrdersCount} subText="Orders en route" />
-        <AnalyticsCard title="Available Drivers" value={availableDriversCount} subText={`${offlineDriversCount} offline`} />
-        <AnalyticsCard title="Avg. Delivery" value={avgDeliveryFormatted} subText="Average delivery ETA" />
-        <AnalyticsCard title="Revenue Today" value={revenueTodayFormatted} subText="Completed orders total" />
-        <AnalyticsCard title="Cancelled Rate" value={cancelledRateFormatted} subText="Of resolved orders" />
+        <AnalyticsCard 
+          title="Gross Order Revenue" 
+          value={revenueFormatted} 
+          subText={`Revenue for ${dateRange.preset}`} 
+        />
+        <AnalyticsCard 
+          title="Active Deliveries" 
+          value={activeOrdersCount} 
+          subText={`${deliveringOrdersCount} couriers en route`} 
+        />
+        <AnalyticsCard 
+          title="Courier Fleet" 
+          value={availableDriversCount} 
+          subText={`${offlineDriversCount} offline couriers`} 
+        />
+        <AnalyticsCard 
+          title="Avg. Fulfillment" 
+          value={avgDeliveryFormatted} 
+          subText="DoorDash target < 35m" 
+        />
+        <AnalyticsCard 
+          title="Cancellation Rate" 
+          value={cancelledRateFormatted} 
+          subText="Of resolved orders" 
+        />
+        <AnalyticsCard 
+          title="Needs Courier" 
+          value={unassignedCount} 
+          subText={unassignedCount > 0 ? "Dispatch action required" : "Optimal coverage"} 
+        />
       </div>
 
       {/* ── Main Operational Grid ── */}
@@ -246,35 +294,40 @@ export default function DashboardPage() {
           <div className="panel-header">
             <div className="panel-title">
               <span className="panel-title-dot" />
-              Live Orders
+              Live Order Stream
             </div>
             <div className="panel-actions">
               <span style={{ fontSize: 11.5, color: "var(--text-muted)" }}>
-                {orders.length} orders
+                {filteredOrders.length} orders
               </span>
-              <button className="btn btn-ghost btn-xs" id="btn-view-all-orders">View all</button>
+              <button 
+                className="btn btn-ghost btn-xs text-rose-400 font-semibold" 
+                onClick={() => router.push("/admin/orders")}
+              >
+                View Dispatch Board &rarr;
+              </button>
             </div>
           </div>
           <div className="panel-body">
-            <DataTable columns={columns} data={orders} />
+            <DataTable columns={columns} data={filteredOrders} />
           </div>
         </div>
 
-        {/* ── Right Column ── */}
+        {/* ── Right Column: Fleet & Demand ── */}
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--gap-lg)" }}>
 
-          {/* Driver Status */}
+          {/* Driver Fleet Status */}
           <div className="panel">
             <div className="panel-header">
-              <div className="panel-title">Driver Fleet</div>
+              <div className="panel-title">Courier Fleet</div>
               <div className="panel-actions">
                 <span style={{ fontSize: 11, color: "var(--status-green)" }}>
-                  ● {drivers.filter(d => d.status !== 'offline').length} active
+                  ● {drivers.filter(d => d.status !== 'offline').length} online
                 </span>
               </div>
             </div>
             <div className="panel-body">
-              {drivers.map((d) => (
+              {drivers.slice(0, 6).map((d) => (
                 <div key={d.id} className="stat-row" style={{ alignItems: "flex-start", padding: "10px 14px" }}>
                   <div
                     style={{
@@ -305,8 +358,8 @@ export default function DashboardPage() {
           {/* Zone Activity */}
           <div className="panel">
             <div className="panel-header">
-              <div className="panel-title">Zone Demand</div>
-              <button className="btn btn-ghost btn-xs" id="btn-zone-detail">Details</button>
+              <div className="panel-title">Sector Demand</div>
+              <Link href="/zones" className="btn btn-ghost btn-xs">All Zones</Link>
             </div>
             <div className="panel-body">
               {zoneStats.map((z) => (
@@ -324,7 +377,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ── Bottom Strip: Activity + System Status ── */}
+      {/* ── Bottom Strip: Activity & Systems ── */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--gap-lg)" }}>
 
         {/* Activity Feed */}
@@ -332,14 +385,14 @@ export default function DashboardPage() {
           <div className="panel-header">
             <div className="panel-title">
               <span className="panel-title-dot" />
-              Activity Feed
+              Live Operational Log
             </div>
             <button className="btn btn-ghost btn-xs" id="btn-clear-feed" onClick={clearActivityFeed}>
               Clear
             </button>
           </div>
           <div className="panel-body">
-            {activityFeed.map((a) => (
+            {activityFeed.slice(0, 5).map((a) => (
               <div key={a.id} className="feed-item">
                 <span className="feed-dot" style={{ background: a.color }} />
                 <div className="feed-content">
@@ -351,11 +404,11 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* System Status */}
+        {/* System Health */}
         <div className="panel">
           <div className="panel-header">
-            <div className="panel-title">System Status</div>
-            <span className="badge badge-green">All Systems Go</span>
+            <div className="panel-title">Platform Infrastructure</div>
+            <span className="badge badge-green">Healthy</span>
           </div>
           <div className="panel-body">
             {systemStatus.map((s) => (

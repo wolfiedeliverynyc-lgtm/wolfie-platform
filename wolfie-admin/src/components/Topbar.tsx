@@ -3,18 +3,22 @@ import React, { useMemo, useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useRealtime } from "@/hooks/useRealtime";
 import { useDashboardStore } from "@/stores/dashboardStore";
-import { Search, Bell, Settings, Radio } from "lucide-react";
+import { Search, Bell, Settings, Radio, Menu } from "lucide-react";
 
 interface TopbarProps {
   breadcrumbs?: { label: string; href?: string }[];
   title?: string;
   isLive?: boolean;
+  onToggleSidebar?: () => void;
+  isSidebarOpen?: boolean;
 }
 
 export default function Topbar({
   breadcrumbs,
   title,
   isLive: isLiveProp,
+  onToggleSidebar,
+  isSidebarOpen,
 }: TopbarProps) {
   const router = useRouter();
   const { status } = useRealtime();
@@ -29,7 +33,7 @@ export default function Topbar({
 
   const computedBreadcrumbs = useMemo(() => {
     if (breadcrumbs && breadcrumbs.length > 0) return breadcrumbs;
-    if (pathname === "/") return [{ label: "Overview" }];
+    if (pathname === "/") return [{ label: "Operations Hub" }];
     const parts = pathname.split("/").filter(Boolean);
     return parts.map((part) => {
       const label = part
@@ -94,7 +98,6 @@ export default function Topbar({
   }, [orders, drivers, alerts]);
 
   const handleSearchClick = () => {
-    // Dispatch custom keyboard event to trigger command palette open
     const event = new KeyboardEvent("keydown", {
       key: "k",
       metaKey: true,
@@ -105,34 +108,48 @@ export default function Topbar({
 
   return (
     <header className="topbar">
-      {/* Breadcrumb */}
-      <nav className="topbar-breadcrumb">
-        <span className="topbar-breadcrumb-item">Wolfie</span>
-        {computedBreadcrumbs.map((crumb, i) => (
-          <React.Fragment key={i}>
-            <span className="topbar-breadcrumb-sep">/</span>
-            {i === computedBreadcrumbs.length - 1 ? (
-              <span className="topbar-breadcrumb-current">{crumb.label}</span>
-            ) : (
-              <span className="topbar-breadcrumb-item">{crumb.label}</span>
-            )}
-          </React.Fragment>
-        ))}
-        {!computedBreadcrumbs.length && title && (
-          <>
-            <span className="topbar-breadcrumb-sep">/</span>
-            <span className="topbar-breadcrumb-current">{title}</span>
-          </>
-        )}
-      </nav>
+      {/* Left side: Menu Toggle Button + Breadcrumbs */}
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={onToggleSidebar}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#161c28] hover:bg-[#1e2638] text-white border border-slate-700/60 transition-all shadow-sm text-xs font-semibold cursor-pointer"
+          title="Toggle Navigation Menu (Press [)"
+          aria-label="Toggle Navigation Menu"
+        >
+          <Menu size={16} className="text-white" />
+          <span className="font-semibold text-slate-100">Menu</span>
+        </button>
 
-      {/* Search */}
+        {/* Breadcrumb */}
+        <nav className="topbar-breadcrumb">
+          <span className="topbar-breadcrumb-item">Wolfie Ops</span>
+          {computedBreadcrumbs.map((crumb, i) => (
+            <React.Fragment key={i}>
+              <span className="topbar-breadcrumb-sep">/</span>
+              {i === computedBreadcrumbs.length - 1 ? (
+                <span className="topbar-breadcrumb-current">{crumb.label}</span>
+              ) : (
+                <span className="topbar-breadcrumb-item">{crumb.label}</span>
+              )}
+            </React.Fragment>
+          ))}
+          {!computedBreadcrumbs.length && title && (
+            <>
+              <span className="topbar-breadcrumb-sep">/</span>
+              <span className="topbar-breadcrumb-current">{title}</span>
+            </>
+          )}
+        </nav>
+      </div>
+
+      {/* Center: Search */}
       <div className="topbar-search">
         <Search className="topbar-search-icon" size={14} />
         <input
           type="text"
           className="topbar-search-input"
-          placeholder="Search orders, drivers, zones… (⌘K)"
+          placeholder="Search orders, drivers, stores… (⌘K)"
           id="topbar-search"
           onClick={handleSearchClick}
           readOnly
@@ -140,8 +157,8 @@ export default function Topbar({
         />
       </div>
 
-      {/* Timezone & Ops Operations Bar */}
-      <div className="topbar-ops-bar">
+      {/* Ops Clocks & Live Indicators */}
+      <div className="topbar-ops-bar hidden md:flex">
         <div className="ops-clock-item">
           <span className="ops-clock-label">NYC (EST)</span>
           <span className="ops-clock-val">{nyTime}</span>
@@ -155,22 +172,14 @@ export default function Topbar({
 
         {/* Load ratio */}
         <div className="ops-metric-item">
-          <span className="ops-clock-label">Load Ratio</span>
+          <span className="ops-clock-label">Load</span>
           <span className={`ops-metric-val ${isPeakLoad ? 'peak' : ''}`}>{loadRatio}x</span>
         </div>
-
-        {/* Peak indicator */}
-        {isPeakLoad && (
-          <div className="ops-health-badge warning animate-pulse">
-            <span className="panel-title-dot" style={{ backgroundColor: "var(--status-amber)", animationDuration: "1.5s" }} />
-            PEAK LOAD
-          </div>
-        )}
 
         {/* System Uptime Health */}
         <div className={`ops-health-badge ${isSystemHealthy ? 'healthy' : 'critical'}`}>
           <span className="rt-dot live" style={{ backgroundColor: isSystemHealthy ? "var(--status-green)" : "var(--status-red)" }} />
-          {isSystemHealthy ? "99.9% Uptime" : `${offlineCount} INCIDENT`}
+          {isSystemHealthy ? "99.9% Live" : `${offlineCount} Alert`}
         </div>
       </div>
 
@@ -179,9 +188,8 @@ export default function Topbar({
         {/* Realtime pill */}
         <div className="rt-pill">
           <span className={`rt-dot ${isLive ? "live" : "offline"}`} />
-          {isLive ? "Live" : status === "connecting" ? "Connecting" : "Offline"}
+          {isLive ? "Live Sync" : status === "connecting" ? "Connecting" : "Offline"}
         </div>
-
 
         <div className="topbar-divider" />
 
@@ -214,7 +222,7 @@ export default function Topbar({
         <div
           className="sidebar-avatar"
           style={{ width: 30, height: 30, fontSize: 11, cursor: "pointer" }}
-          title="Admin User"
+          title="Super Admin Dispatcher"
         >
           AD
         </div>

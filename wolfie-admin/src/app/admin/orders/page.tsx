@@ -1,988 +1,975 @@
 "use client";
-import React, { useState, useMemo, useEffect } from "react";
-import { useDashboardStore } from "@/stores/dashboardStore";
-import StatusBadge from "@/shared/components/StatusBadge";
-import { Order, Driver, Merchant } from "@/types";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import dynamic from "next/dynamic";
-import { Star, Phone, MessageSquare, Store, MapPin, CreditCard, User, Bike, AlertTriangle, X, Zap } from "lucide-react";
+import { useDashboardStore } from "@/stores/dashboardStore";
+import { Order, Driver, Merchant } from "@/types";
+import DateRangeFilter, { DateRangeState, isOrderInDateRange } from "@/components/DateRangeFilter";
+import {
+  Search,
+  Calendar,
+  X,
+  Phone,
+  MessageSquare,
+  AlertTriangle,
+  Zap,
+  CheckCircle2,
+  Clock,
+  MapPin,
+  Store,
+  Bike,
+  User,
+  ShoppingBag,
+  CreditCard,
+  RotateCcw,
+  Star,
+  Layers,
+  ChevronRight,
+  ExternalLink,
+  ShieldAlert,
+  ArrowUpDown,
+  Filter,
+  RefreshCw,
+  Printer
+} from "lucide-react";
 
-// Dynamically import MapComponent to prevent SSR Leaflet errors
+// Dynamic Leaflet mini-map
 const MapComponent = dynamic(() => import("@/components/MapComponent"), {
   ssr: false,
   loading: () => (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        height: "100%",
-        width: "100%",
-        background: "var(--bg-sunken)",
-        borderRadius: "var(--radius-md)",
-        color: "var(--text-muted)",
-        fontSize: "12px"
-      }}
-    >
-      <span className="rt-dot live" style={{ marginRight: 6 }} /> Loading Mini-Map...
+    <div className="h-[200px] w-full flex items-center justify-center bg-[#0d121d] rounded-lg border border-slate-800 text-slate-400 text-xs">
+      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping mr-2" /> Loading Track Map...
     </div>
   )
 });
 
+type TabType = "all" | "active" | "unassigned" | "preparing" | "delivering" | "completed" | "cancelled";
 
-
-export default function DispatchEnginePage() {
+export default function OrdersManagementPage() {
   const [isMounted, setIsMounted] = useState(false);
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
-  const { 
-    orders, 
-    drivers, 
+  const {
+    orders,
+    drivers,
     merchants,
     aiMetrics,
     refunds,
-    fetchDashboardData, 
-    assignDriver, 
-    cancelOrder, 
+    fetchDashboardData,
+    assignDriver,
+    cancelOrder,
     forceCompleteOrder,
     requestRefund,
     bulkAssignDrivers,
     bulkRerouteOrders,
     bulkCancelOrders,
     bulkEscalateOrders,
-    rerouteDriver,
-    suspendDriver,
-    setMerchantStatus,
     toggleOrderPriority,
     triggerEmergencyEscalation,
-    retrainWapModel
   } = useDashboardStore();
 
-  // Selected entities for right detail drawer
+  // Selected Order for Slide-out Detail Drawer
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
 
-  // Dynamic list of active zones from real database data
-  const availableZones = useMemo(() => {
-    const set = new Set<string>();
-    orders.forEach(o => { if (o.zone) set.add(o.zone); });
-    merchants.forEach(m => { if (m.zone) set.add(m.zone); });
-    drivers.forEach(d => { if (d.zone) set.add(d.zone); });
-    return Array.from(set).sort();
-  }, [orders, merchants, drivers]);
+  // Active Tab
+  const [activeTab, setActiveTab] = useState<TabType>("all");
 
-  // Filter States
+  // Filters State
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterStatuses, setFilterStatuses] = useState<string[]>(["pending", "accepted", "preparing", "ready", "on_the_way", "delivered", "delivering"]);
-  const [filterSlas, setFilterSlas] = useState<string[]>([]);
-  const [filterDelayRisks, setFilterDelayRisks] = useState<string[]>([]);
-  const [filterZone, setFilterZone] = useState<string>("all");
-  const [filterPriorityOnly, setFilterPriorityOnly] = useState(false);
-  const [filterUnassignedOnly, setFilterUnassignedOnly] = useState(false);
-  const [filterRefundRequestedOnly, setFilterRefundRequestedOnly] = useState(false);
+  const [dateRange, setDateRange] = useState<DateRangeState>({
+    preset: "all",
+    startDate: "",
+    endDate: "",
+  });
+  const [selectedZone, setSelectedZone] = useState<string>("all");
+  const [priorityOnly, setPriorityOnly] = useState(false);
+  const [unassignedOnly, setUnassignedOnly] = useState(false);
+  const [slaRiskOnly, setSlaRiskOnly] = useState(false);
+  const [refundOnly, setRefundOnly] = useState(false);
 
-  // Sorting State
-  const [sortField, setSortField] = useState<'id' | 'created_at' | 'sla' | 'eta_minutes' | 'amount'>('created_at');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  // Sorting
+  const [sortField, setSortField] = useState<"id" | "created_at" | "amount" | "eta_minutes" | "sla">("created_at");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
-  // Multi-Selection State for Bulk Actions
+  // Multi-select for bulk actions
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
+  const [bulkDriverId, setBulkDriverId] = useState("");
+  const [bulkZone, setBulkZone] = useState("");
 
-  // Local interaction states
-  const [bulkDriverSelect, setBulkDriverSelect] = useState("");
-  const [bulkZoneSelect, setBulkZoneSelect] = useState("");
-  const [bulkCancelReason, setBulkCancelReason] = useState("");
-  const [refundReason, setRefundReason] = useState("");
-  const [refundAmount, setRefundAmount] = useState(0);
+  // Modals & Action States
   const [showRefundModal, setShowRefundModal] = useState(false);
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
-
-  // Three-Dots (⋮) Action Modal States
-  const [threeDotsModalOrderId, setThreeDotsModalOrderId] = useState<string | null>(null);
-  const [driverSwitchSelect, setDriverSwitchSelect] = useState<string>("");
-  const [orderStatusSelect, setOrderStatusSelect] = useState<string>("");
-  const [cancelOrderReasonInput, setCancelOrderReasonInput] = useState<string>("");
-
-  // Ticking State: triggers re-render every 1s to update countdowns
+  const [refundAmount, setRefundAmount] = useState(0);
+  const [refundReason, setRefundReason] = useState("");
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [tick, setTick] = useState(0);
 
-  // Initial Load & Polling
+  // Polling & 1s countdown clock
   useEffect(() => {
     fetchDashboardData();
-    const interval = setInterval(() => {
+    const poller = setInterval(() => {
       fetchDashboardData();
-    }, 10000); // Poll dashboard data every 10s
-
-    const clock = setInterval(() => {
-      setTick(t => t + 1);
-    }, 1000); // Ticker updates countdowns every 1s
-
+    }, 12000);
+    const ticker = setInterval(() => {
+      setTick((t) => t + 1);
+    }, 1000);
     return () => {
-      clearInterval(interval);
-      clearInterval(clock);
+      clearInterval(poller);
+      clearInterval(ticker);
     };
   }, [fetchDashboardData]);
 
-  // Toast Helper
-  const triggerToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+  const triggerToast = (message: string, type: "success" | "error" | "info" = "success") => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
   };
 
-  // Selected Order Object
+  // Selected Order details
   const selectedOrder = useMemo(() => {
-    return orders.find(o => o.id === selectedOrderId) || null;
+    return orders.find((o) => o.id === selectedOrderId) || null;
   }, [orders, selectedOrderId]);
 
-  // SLA Calculation Helper
-  // Delivery SLA target = 40 minutes (2400 seconds) from created_at
-  const calculateSLATime = (createdAtStr: string) => {
+  // Dynamic Zones
+  const availableZones = useMemo(() => {
+    const set = new Set<string>();
+    orders.forEach((o) => { if (o.zone) set.add(o.zone); });
+    merchants.forEach((m) => { if (m.zone) set.add(m.zone); });
+    drivers.forEach((d) => { if (d.zone) set.add(d.zone); });
+    return Array.from(set).sort();
+  }, [orders, merchants, drivers]);
+
+  // SLA Calculation Helper (Target = 40 mins)
+  const calculateSLATime = useCallback((createdAtStr: string) => {
     const createdTime = new Date(createdAtStr).getTime();
-    const now = Date.now();
-    const elapsedSeconds = Math.floor((now - createdTime) / 1000);
-    const targetSeconds = 40 * 60; 
+    const elapsedSeconds = Math.floor((Date.now() - createdTime) / 1000);
+    const targetSeconds = 40 * 60;
     const remainingSeconds = targetSeconds - elapsedSeconds;
-    
-    let status: 'safe' | 'warning' | 'high_risk' | 'breached' = 'safe';
+
+    let status: "safe" | "warning" | "high_risk" | "breached" = "safe";
     if (remainingSeconds <= 0) {
-      status = 'breached';
+      status = "breached";
     } else if (remainingSeconds <= 10 * 60) {
-      status = 'high_risk';
+      status = "high_risk";
     } else if (remainingSeconds <= 20 * 60) {
-      status = 'warning';
+      status = "warning";
     }
 
-    const isNegative = remainingSeconds < 0;
+    const isNeg = remainingSeconds < 0;
     const absSec = Math.abs(remainingSeconds);
     const m = Math.floor(absSec / 60);
     const s = absSec % 60;
-    const formatted = `${isNegative ? '-' : ''}${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    const formatted = `${isNeg ? "-" : ""}${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 
-    return {
-      remainingSeconds,
-      status,
-      formatted
-    };
-  };
+    return { remainingSeconds, status, formatted };
+  }, []);
 
-  // Delay Risk Calculation logic
-  const getDelayRisk = (order: Order) => {
-    if (order.status === 'completed' || order.status === 'cancelled') {
-      return 'low';
-    }
+  // Delay Risk logic
+  const getDelayRisk = useCallback((order: Order) => {
+    if (order.status === "completed" || order.status === "cancelled") return "low";
     const sla = calculateSLATime(order.created_at);
-    const merchant = merchants.find(m => m.id === order.merchant_id);
-    
-    if (sla.status === 'breached' || order.priority) {
-      return 'high';
-    }
-    if (merchant?.kitchen_delay || merchant?.operational_status === 'delayed' || sla.status === 'high_risk') {
-      return 'high';
-    }
-    if (sla.status === 'warning' || merchant?.operational_status === 'busy') {
-      return 'medium';
-    }
-    return 'low';
-  };
+    const merchant = merchants.find((m) => m.id === order.merchant_id);
+    if (sla.status === "breached" || order.priority) return "high";
+    if (merchant?.kitchen_delay || merchant?.operational_status === "delayed" || sla.status === "high_risk") return "high";
+    if (sla.status === "warning" || merchant?.operational_status === "busy") return "medium";
+    return "low";
+  }, [merchants, calculateSLATime]);
 
-  // Filtered Orders
+  // Derived Tab Counts
+  const tabCounts = useMemo(() => {
+    return {
+      all: orders.length,
+      active: orders.filter((o) => o.status !== "completed" && o.status !== "cancelled").length,
+      unassigned: orders.filter((o) => !o.driver_id && o.status !== "completed" && o.status !== "cancelled").length,
+      preparing: orders.filter((o) => o.status === "preparing").length,
+      delivering: orders.filter((o) => o.status === "delivering").length,
+      completed: orders.filter((o) => o.status === "completed" || o.status === "delivered").length,
+      cancelled: orders.filter((o) => o.status === "cancelled").length,
+    };
+  }, [orders]);
+
+  // Filtering
   const filteredOrders = useMemo(() => {
-    return orders.filter(o => {
-      // 1. Text Search
-      const matchesSearch = searchQuery === "" ? true : 
-        o.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        o.customer_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        o.merchant_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        o.zone.toLowerCase().includes(searchQuery.toLowerCase());
-      if (!matchesSearch) return false;
+    return orders.filter((o) => {
+      // 1. Tab filter
+      if (activeTab === "active" && (o.status === "completed" || o.status === "cancelled")) return false;
+      if (activeTab === "unassigned" && (o.driver_id || o.status === "completed" || o.status === "cancelled")) return false;
+      if (activeTab === "preparing" && o.status !== "preparing") return false;
+      if (activeTab === "delivering" && o.status !== "delivering") return false;
+      if (activeTab === "completed" && o.status !== "completed" && o.status !== "delivered") return false;
+      if (activeTab === "cancelled" && o.status !== "cancelled") return false;
 
-      // 2. Status check
-      if (filterStatuses.length > 0 && !filterStatuses.includes(o.status)) {
-        return false;
+      // 2. Date Range filter
+      if (!isOrderInDateRange(o.created_at, dateRange)) return false;
+
+      // 3. Search query
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matches =
+          o.id.toLowerCase().includes(q) ||
+          o.customer_name?.toLowerCase().includes(q) ||
+          o.merchant_name?.toLowerCase().includes(q) ||
+          o.driver_name?.toLowerCase().includes(q) ||
+          o.zone?.toLowerCase().includes(q);
+        if (!matches) return false;
       }
 
-      // 3. SLA check
-      const sla = calculateSLATime(o.created_at);
-      if (filterSlas.length > 0 && !filterSlas.includes(sla.status)) {
-        return false;
-      }
+      // 4. Zone filter
+      if (selectedZone !== "all" && o.zone !== selectedZone) return false;
 
-      // 4. Delay Risk check
-      const delayRisk = getDelayRisk(o);
-      if (filterDelayRisks.length > 0 && !filterDelayRisks.includes(delayRisk)) {
-        return false;
+      // 5. Quick toggles
+      if (priorityOnly && !o.priority) return false;
+      if (unassignedOnly && o.driver_id) return false;
+      if (slaRiskOnly) {
+        const sla = calculateSLATime(o.created_at);
+        if (sla.status !== "high_risk" && sla.status !== "breached") return false;
       }
-
-      // 5. Zone check
-      if (filterZone !== "all" && o.zone !== filterZone) {
-        return false;
-      }
-
-      // 6. Priority Only
-      if (filterPriorityOnly && !o.priority) {
-        return false;
-      }
-
-      // 7. Unassigned Only
-      if (filterUnassignedOnly && o.driver_id) {
-        return false;
-      }
-
-      // 8. Refund Requested Only
-      const hasRefund = refunds.some(r => r.order_id === o.id && r.status === "pending");
-      if (filterRefundRequestedOnly && !hasRefund) {
-        return false;
+      if (refundOnly) {
+        const hasRefund = refunds.some((r) => r.order_id === o.id && r.status === "pending");
+        if (!hasRefund) return false;
       }
 
       return true;
     });
-  }, [orders, searchQuery, filterStatuses, filterSlas, filterDelayRisks, filterZone, filterPriorityOnly, filterUnassignedOnly, filterRefundRequestedOnly, refunds, merchants, tick]);
+  }, [
+    orders,
+    activeTab,
+    dateRange,
+    searchQuery,
+    selectedZone,
+    priorityOnly,
+    unassignedOnly,
+    slaRiskOnly,
+    refundOnly,
+    refunds,
+    calculateSLATime,
+    tick
+  ]);
 
-  // Sorted Orders
+  // Sorting
   const sortedOrders = useMemo(() => {
     return [...filteredOrders].sort((a, b) => {
       let valA: any = a[sortField as keyof Order];
       let valB: any = b[sortField as keyof Order];
 
-      if (sortField === 'sla') {
-        const slaA = calculateSLATime(a.created_at).remainingSeconds;
-        const slaB = calculateSLATime(b.created_at).remainingSeconds;
-        valA = slaA;
-        valB = slaB;
+      if (sortField === "sla") {
+        valA = calculateSLATime(a.created_at).remainingSeconds;
+        valB = calculateSLATime(b.created_at).remainingSeconds;
       }
 
       if (valA === undefined) return 1;
       if (valB === undefined) return -1;
 
-      if (typeof valA === 'string') {
-        return sortOrder === 'asc' 
-          ? valA.localeCompare(valB) 
-          : valB.localeCompare(valA);
+      if (typeof valA === "string") {
+        return sortOrder === "asc" ? valA.localeCompare(valB) : valB.localeCompare(valA);
       } else {
-        return sortOrder === 'asc' 
-          ? (valA > valB ? 1 : -1) 
-          : (valB > valA ? 1 : -1);
+        return sortOrder === "asc" ? (valA > valB ? 1 : -1) : (valB > valA ? 1 : -1);
       }
     });
-  }, [filteredOrders, sortField, sortOrder, tick]);
+  }, [filteredOrders, sortField, sortOrder, calculateSLATime, tick]);
 
-  // Derived Operational Metrics (Active Queue totals)
-  const activeOrders = useMemo(() => orders.filter(o => o.status !== 'completed' && o.status !== 'cancelled'), [orders]);
-  const delayedOrdersCount = useMemo(() => activeOrders.filter(o => getDelayRisk(o) === 'high').length, [activeOrders, merchants, tick]);
-  const unassignedOrdersCount = useMemo(() => activeOrders.filter(o => !o.driver_id).length, [activeOrders]);
-  const breachedOrdersCount = useMemo(() => activeOrders.filter(o => calculateSLATime(o.created_at).status === 'breached').length, [activeOrders, tick]);
-
-  // List of online and available drivers
-  const onlineDrivers = useMemo(() => drivers.filter(d => d.status !== 'offline'), [drivers]);
-  const availableDrivers = useMemo(() => drivers.filter(d => d.status === 'available'), [drivers]);
-
-  // Sort available drivers for selected order (boost same zone)
-  const recommendedDrivers = useMemo(() => {
-    if (!selectedOrder) return [];
-    return [...availableDrivers].sort((a, b) => {
-      const aSameZone = a.zone === selectedOrder.zone ? 1 : 0;
-      const bSameZone = b.zone === selectedOrder.zone ? 1 : 0;
-      return bSameZone - aSameZone;
-    });
-  }, [availableDrivers, selectedOrder]);
-
-  // Sorting Header Click Handler
   const handleSort = (field: typeof sortField) => {
     if (sortField === field) {
-      setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
     } else {
       setSortField(field);
-      setSortOrder('desc');
+      setSortOrder("desc");
     }
   };
 
-  // Status Filter Multi-Select Handler
-  const handleStatusFilterToggle = (status: string) => {
-    setFilterStatuses(prev => 
-      prev.includes(status) ? prev.filter(s => s !== status) : [...prev, status]
-    );
-  };
-
-  // SLA Filter Toggle
-  const handleSlaFilterToggle = (sla: string) => {
-    setFilterSlas(prev => 
-      prev.includes(sla) ? prev.filter(s => s !== sla) : [...prev, sla]
-    );
-  };
-
-  // Delay Risk Filter Toggle
-  const handleDelayRiskFilterToggle = (risk: string) => {
-    setFilterDelayRisks(prev => 
-      prev.includes(risk) ? prev.filter(r => r !== risk) : [...prev, risk]
-    );
-  };
-
-  // Bulk Selection Header Toggle
   const handleToggleSelectAll = () => {
-    if (selectedOrderIds.length === filteredOrders.length) {
+    if (selectedOrderIds.length === sortedOrders.length) {
       setSelectedOrderIds([]);
     } else {
-      setSelectedOrderIds(filteredOrders.map(o => o.id));
+      setSelectedOrderIds(sortedOrders.map((o) => o.id));
     }
   };
 
-  const handleRowCheckboxToggle = (orderId: string) => {
-    setSelectedOrderIds(prev => 
-      prev.includes(orderId) ? prev.filter(id => id !== orderId) : [...prev, orderId]
-    );
+  const handleRowCheckbox = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    setSelectedOrderIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   };
 
-  // Bulk Action Execution
-  const executeBulkAssign = async () => {
-    if (!bulkDriverSelect) return;
-    const success = await bulkAssignDrivers(selectedOrderIds, bulkDriverSelect);
-    if (success) {
-      triggerToast(`Bulk assigned driver to ${selectedOrderIds.length} orders`, 'success');
-      setSelectedOrderIds([]);
-      setBulkDriverSelect("");
-    } else {
-      triggerToast("Bulk assignment failed", "error");
+  const hasActiveFilters = searchQuery !== "" || dateRange.preset !== "all" || selectedZone !== "all" || priorityOnly || unassignedOnly || slaRiskOnly || refundOnly;
+
+  const resetAllFilters = () => {
+    setSearchQuery("");
+    setDateRange({ preset: "all", startDate: "", endDate: "" });
+    setSelectedZone("all");
+    setPriorityOnly(false);
+    setUnassignedOnly(false);
+    setSlaRiskOnly(false);
+    setRefundOnly(false);
+  };
+
+  // Status Badge Component (DoorDash / UberEats style)
+  const renderStatusBadge = (status: string) => {
+    switch (status) {
+      case "completed":
+      case "delivered":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+            Delivered
+          </span>
+        );
+      case "delivering":
+      case "on_the_way":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-sky-500/10 text-sky-400 border border-sky-500/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse" />
+            In Transit
+          </span>
+        );
+      case "preparing":
+      case "accepted":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+            In Kitchen
+          </span>
+        );
+      case "pending":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-ping" />
+            Action Needed
+          </span>
+        );
+      case "cancelled":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-800 text-slate-400 border border-slate-700">
+            <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
+            Cancelled
+          </span>
+        );
+      default:
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-800 text-slate-300">
+            {status}
+          </span>
+        );
     }
   };
 
-  const executeBulkReroute = async () => {
-    if (!bulkZoneSelect) return;
-    const success = await bulkRerouteOrders(selectedOrderIds, bulkZoneSelect);
-    if (success) {
-      triggerToast(`Bulk rerouted ${selectedOrderIds.length} orders to ${bulkZoneSelect}`, 'info');
-      setSelectedOrderIds([]);
-      setBulkZoneSelect("");
-    } else {
-      triggerToast("Bulk rerouting failed", "error");
-    }
-  };
-
-  const executeBulkCancel = async () => {
-    const reason = bulkCancelReason || "Bulk operational incident cancellation";
-    const success = await bulkCancelOrders(selectedOrderIds, reason);
-    if (success) {
-      triggerToast(`Bulk cancelled ${selectedOrderIds.length} orders`, 'info');
-      setSelectedOrderIds([]);
-      setBulkCancelReason("");
-    } else {
-      triggerToast("Bulk cancellation failed", "error");
-    }
-  };
-
-  const executeBulkEscalate = async () => {
-    const success = await bulkEscalateOrders(selectedOrderIds);
-    if (success) {
-      triggerToast(`Escalated alerts for ${selectedOrderIds.length} orders`, 'success');
-      setSelectedOrderIds([]);
-    } else {
-      triggerToast("Bulk escalation failed", "error");
-    }
-  };
-
-  // Single Order Action Handlers
+  // Single Order Actions
   const handleAssignSingle = async (driverId: string) => {
     if (!selectedOrderId) return;
+    setIsSubmitting(true);
     const success = await assignDriver(selectedOrderId, driverId);
-    if (success) {
-      triggerToast(`Assigned courier to order #${selectedOrderId}`, 'success');
-    } else {
-      triggerToast("Driver assignment failed", "error");
-    }
+    setIsSubmitting(false);
+    if (success) triggerToast(`Courier successfully assigned!`, "success");
+    else triggerToast("Failed to assign courier", "error");
   };
 
   const handleCancelSingle = async () => {
     if (!selectedOrderId) return;
-    const reason = prompt("Enter cancellation reason:", "Operational cancel override");
-    if (reason) {
-      const success = await cancelOrder(selectedOrderId, reason);
-      if (success) {
-        triggerToast(`Cancelled order #${selectedOrderId}`, 'info');
-      } else {
-        triggerToast("Failed to cancel order", "error");
-      }
-    }
+    const reason = prompt("Reason for cancelling order:", "Customer requested or operational incident");
+    if (!reason) return;
+    setIsSubmitting(true);
+    const success = await cancelOrder(selectedOrderId, reason);
+    setIsSubmitting(false);
+    if (success) triggerToast(`Order #${selectedOrderId} cancelled`, "info");
+    else triggerToast("Failed to cancel order", "error");
   };
 
   const handleForceCompleteSingle = async () => {
     if (!selectedOrderId) return;
-    if (confirm("Are you sure you want to force complete this order?")) {
-      const success = await forceCompleteOrder(selectedOrderId);
-      if (success) {
-        triggerToast(`Completed order #${selectedOrderId}`, 'success');
-      } else {
-        triggerToast("Failed to complete order", "error");
-      }
-    }
-  };
-
-  const handleRefundRequestSingle = async () => {
-    if (!selectedOrderId || !refundAmount || !refundReason) return;
-    const success = await requestRefund(selectedOrderId, refundAmount, refundReason);
-    if (success) {
-      triggerToast(`Refund requested for order #${selectedOrderId}`, 'success');
-      setShowRefundModal(false);
-      setRefundReason("");
-      setRefundAmount(0);
-    } else {
-      triggerToast("Failed to initiate refund", "error");
-    }
+    if (!confirm(`Force complete Order #${selectedOrderId}? This marks the delivery as successful.`)) return;
+    setIsSubmitting(true);
+    const success = await forceCompleteOrder(selectedOrderId);
+    setIsSubmitting(false);
+    if (success) triggerToast(`Order #${selectedOrderId} marked delivered`, "success");
+    else triggerToast("Failed to complete order", "error");
   };
 
   const handleEscalateSingle = async () => {
     if (!selectedOrderId) return;
+    setIsSubmitting(true);
     const success = await triggerEmergencyEscalation(selectedOrderId);
-    if (success) {
-      triggerToast(`CRITICAL: Order #${selectedOrderId} SLA escalated!`, 'error');
-    } else {
-      triggerToast("Escalation request failed", "error");
-    }
+    setIsSubmitting(false);
+    if (success) triggerToast(`CRITICAL SLA: Emergency alert dispatched!`, "error");
+    else triggerToast("Escalation failed", "error");
   };
 
   const handlePriorityToggle = async () => {
     if (!selectedOrderId) return;
-    const success = await toggleOrderPriority(selectedOrderId);
-    if (success) {
-      triggerToast(`Toggled priority status`, 'info');
-    }
+    await toggleOrderPriority(selectedOrderId);
+    triggerToast("Priority status updated", "info");
   };
 
   if (!isMounted) {
-    return <div style={{ padding: "24px", color: "var(--text-muted)", fontSize: "14px", fontWeight: 500 }}>Loading Dashboard Data...</div>;
+    return <div className="p-8 text-slate-400 text-sm">Loading Live Orders Dispatch Center...</div>;
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 80px)" }}>
-      {/* Toast Alert overlay */}
+    <div className="flex flex-col gap-5 w-full max-w-full pb-12">
+      {/* Toast Notification */}
       {toast && (
-        <div style={{
-          position: "fixed",
-          bottom: 24,
-          right: 24,
-          zIndex: 9999,
-          background: toast.type === 'success' ? 'var(--status-green)' : toast.type === 'error' ? 'var(--status-red)' : 'var(--accent)',
-          color: '#fff',
-          padding: '12px 18px',
-          borderRadius: 'var(--radius-md)',
-          boxShadow: 'var(--shadow-md)',
-          fontSize: '13px',
-          fontWeight: 600,
-          display: "flex",
-          alignItems: "center",
-          gap: "8px"
-        }}>
-          <span>{toast.type === 'success' ? 'SUCCESS' : toast.type === 'error' ? 'ALERT' : 'INFO'}</span>
-          {toast.message}
+        <div
+          className={`fixed top-4 right-4 z-50 px-4 py-2.5 rounded-lg shadow-xl text-xs font-semibold flex items-center gap-2 transition-all ${
+            toast.type === "success"
+              ? "bg-emerald-600 text-white"
+              : toast.type === "error"
+              ? "bg-rose-600 text-white"
+              : "bg-slate-800 text-slate-100 border border-slate-700"
+          }`}
+        >
+          {toast.type === "success" ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />}
+          <span>{toast.message}</span>
         </div>
       )}
 
-      {/* Header */}
-      <div className="page-header" style={{ marginBottom: "16px", flexShrink: 0 }}>
+      {/* ── 1. Page Header with DoorDash / UberEats Ops Ribbon ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800/80 pb-4">
         <div>
-          <div className="page-title">Logistics Control Command Center</div>
-          <div className="page-subtitle">Real-time driver dispatch, predictive SLA timers, and bulk operational controls</div>
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-xl font-black tracking-tight text-white">Live Orders Dispatch</h1>
+            <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              Live Sync
+            </span>
+          </div>
+          <p className="text-xs text-slate-400 mt-1">
+            DoorDash &amp; Uber Eats standard dispatch hub. Monitor active kitchen prep, assign couriers, and track deliveries.
+          </p>
+        </div>
+
+        {/* Quick KPI Counters */}
+        <div className="flex items-center gap-2 overflow-x-auto py-1">
+          <div className="px-3 py-1.5 rounded-lg bg-[#111622] border border-slate-800 flex items-center gap-2 shadow-sm">
+            <span className="text-[11px] text-slate-400 font-medium">Active</span>
+            <span className="text-sm font-bold text-white">{tabCounts.active}</span>
+          </div>
+          <div
+            className={`px-3 py-1.5 rounded-lg border flex items-center gap-2 shadow-sm ${
+              tabCounts.unassigned > 0
+                ? "bg-rose-500/10 border-rose-500/30 text-rose-400"
+                : "bg-[#111622] border-slate-800 text-slate-400"
+            }`}
+          >
+            <span className="text-[11px] font-medium">Unassigned</span>
+            <span className="text-sm font-bold">{tabCounts.unassigned}</span>
+          </div>
+          <div className="px-3 py-1.5 rounded-lg bg-[#111622] border border-slate-800 flex items-center gap-2 shadow-sm">
+            <span className="text-[11px] text-slate-400 font-medium">In Kitchen</span>
+            <span className="text-sm font-bold text-amber-400">{tabCounts.preparing}</span>
+          </div>
+          <div className="px-3 py-1.5 rounded-lg bg-[#111622] border border-slate-800 flex items-center gap-2 shadow-sm">
+            <span className="text-[11px] text-slate-400 font-medium">In Transit</span>
+            <span className="text-sm font-bold text-sky-400">{tabCounts.delivering}</span>
+          </div>
+          <div className="px-3 py-1.5 rounded-lg bg-[#111622] border border-slate-800 flex items-center gap-2 shadow-sm">
+            <span className="text-[11px] text-slate-400 font-medium">Delivered</span>
+            <span className="text-sm font-bold text-emerald-400">{tabCounts.completed}</span>
+          </div>
         </div>
       </div>
 
-      {/* Main 3-Pane Layout */}
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "280px 1fr 360px",
-        gap: "var(--gap-md)",
-        flex: 1,
-        minHeight: 0,
-        paddingBottom: "16px"
-      }}>
-        
-        {/* ========================================== */}
-        {/* LEFT PANEL: OPERATIONAL FILTERS            */}
-        {/* ========================================== */}
-        <div className="panel" style={{ display: "flex", flexDirection: "column", minHeight: 0, overflowY: "auto", padding: "16px", gap: "16px" }}>
-          <div style={{ fontWeight: 700, fontSize: "13px", color: "var(--text-primary)", borderBottom: "1px solid var(--border)", paddingBottom: "8px" }}>
-            Operational Filters
-          </div>
+      {/* ── 2. Horizontal Status Tabs (DoorDash & Uber Eats Style) ── */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 border-b border-slate-800/60">
+        {[
+          { id: "all", label: "All Orders", count: tabCounts.all },
+          { id: "active", label: "Active Deliveries", count: tabCounts.active },
+          { id: "unassigned", label: "Needs Courier", count: tabCounts.unassigned, urgent: tabCounts.unassigned > 0 },
+          { id: "preparing", label: "In Kitchen", count: tabCounts.preparing },
+          { id: "delivering", label: "Out for Delivery", count: tabCounts.delivering },
+          { id: "completed", label: "Delivered", count: tabCounts.completed },
+          { id: "cancelled", label: "Cancelled", count: tabCounts.cancelled },
+        ].map((tab) => {
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id as TabType)}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
+                isActive
+                  ? "bg-[#1e2638] text-white border border-rose-500 shadow-sm"
+                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 border border-transparent"
+              }`}
+            >
+              <span>{tab.label}</span>
+              <span
+                className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold ${
+                  isActive
+                    ? "bg-rose-600 text-white"
+                    : tab.urgent
+                    ? "bg-rose-500/20 text-rose-400 border border-rose-500/30"
+                    : "bg-slate-800 text-slate-400"
+                }`}
+              >
+                {tab.count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
 
-          {/* Search */}
-          <div>
-            <label style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: "6px" }}>SEARCH PIPELINE</label>
-            <input 
-              type="text" 
-              placeholder="Search ID, customer, merchant..." 
+      {/* ── 3. Filters & Search Toolbar (Organized, High-Density) ── */}
+      <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl bg-[#111622] border border-slate-800/90 shadow-sm">
+        <div className="flex flex-wrap items-center gap-2.5 flex-1 min-w-[280px]">
+          {/* Fast Search input */}
+          <div className="relative flex-1 min-w-[200px] max-w-[340px]">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search by Order #, Customer, Store, Courier..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              style={{
-                width: "100%",
-                border: "1px solid var(--border)",
-                borderRadius: "var(--radius-md)",
-                padding: "8px 12px",
-                fontSize: "12px",
-                background: "var(--bg-base)",
-                color: "var(--text-primary)"
-              }}
+              className="w-full pl-9 pr-8 py-1.5 text-xs rounded-lg bg-[#161c2c] border border-slate-700/80 text-white placeholder-slate-500 outline-none focus:border-rose-500 transition-colors"
             />
-          </div>
-
-          {/* Status Checkboxes */}
-          <div>
-            <label style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: "6px" }}>ORDER STATUS</label>
-            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-              {["pending", "preparing", "delivering", "completed", "cancelled"].map(status => (
-                <label key={status} style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", textTransform: "capitalize", cursor: "pointer" }}>
-                  <input 
-                    type="checkbox" 
-                    checked={filterStatuses.includes(status)} 
-                    onChange={() => handleStatusFilterToggle(status)}
-                    style={{ accentColor: "var(--accent)" }}
-                  />
-                  <span>{status}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          {/* SLA Threat Level Checkboxes */}
-          <div>
-            <label style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: "6px" }}>SLA RISK LEVEL</label>
-            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-              {[
-                { key: "breached", label: "Breached (Overdue)", color: "var(--status-red)" },
-                { key: "high_risk", label: "High Risk (<10m)", color: "var(--status-amber)" },
-                { key: "warning", label: "Warning (<20m)", color: "#eab308" },
-                { key: "safe", label: "Safe", color: "var(--status-green)" }
-              ].map(sla => (
-                <label key={sla.key} style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", cursor: "pointer" }}>
-                  <input 
-                    type="checkbox" 
-                    checked={filterSlas.includes(sla.key)} 
-                    onChange={() => handleSlaFilterToggle(sla.key)}
-                    style={{ accentColor: "var(--accent)" }}
-                  />
-                  <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: sla.color }} />
-                    {sla.label}
-                  </span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          {/* Delay Risk Checkboxes */}
-          <div>
-            <label style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: "6px" }}>DELAY RISK</label>
-            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-              {["high", "medium", "low"].map(risk => (
-                <label key={risk} style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", textTransform: "capitalize", cursor: "pointer" }}>
-                  <input 
-                    type="checkbox" 
-                    checked={filterDelayRisks.includes(risk)} 
-                    onChange={() => handleDelayRiskFilterToggle(risk)}
-                    style={{ accentColor: "var(--accent)" }}
-                  />
-                  <span>{risk}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          {/* Zone Selector */}
-          <div>
-            <label style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: "6px" }}>DISPATCH ZONE</label>
-            <select
-              value={filterZone}
-              onChange={(e) => setFilterZone(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "8px",
-                fontSize: "12px",
-                borderRadius: "var(--radius-md)",
-                border: "1px solid var(--border)",
-                background: "var(--bg-base)",
-                color: "var(--text-primary)"
-              }}
-            >
-              <option value="all">All Sectors</option>
-              {availableZones.map(z => (
-                <option key={z} value={z}>{z}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Quick Filter Toggles */}
-          <div style={{ borderTop: "1px solid var(--border)", paddingTop: "12px", display: "flex", flexDirection: "column", gap: "10px" }}>
-            <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", fontSize: "12px", cursor: "pointer" }}>
-              <input 
-                type="checkbox" 
-                checked={filterPriorityOnly} 
-                onChange={(e) => setFilterPriorityOnly(e.target.checked)}
-                style={{ accentColor: "var(--accent)" }}
-              />
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-                <Star size={13} className="fill-amber-400 text-amber-400" />
-                Priority Overrides Only
-              </span>
-            </label>
-            <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", cursor: "pointer" }}>
-              <input 
-                type="checkbox" 
-                checked={filterUnassignedOnly} 
-                onChange={(e) => setFilterUnassignedOnly(e.target.checked)}
-                style={{ accentColor: "var(--accent)" }}
-              />
-              <span>Unassigned Queue Only</span>
-            </label>
-            <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", cursor: "pointer" }}>
-              <input 
-                type="checkbox" 
-                checked={filterRefundRequestedOnly} 
-                onChange={(e) => setFilterRefundRequestedOnly(e.target.checked)}
-                style={{ accentColor: "var(--accent)" }}
-              />
-              <span>Refund Requested Only</span>
-            </label>
-          </div>
-        </div>
-
-        {/* ========================================== */}
-        {/* CENTER PANEL: COMMAND GRID                 */}
-        {/* ========================================== */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--gap-md)", minHeight: 0 }}>
-          
-          {/* Real-time Metrics Ribbon */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "var(--gap-md)", flexShrink: 0 }}>
-            <div className="panel" style={{ padding: "12px 16px" }}>
-              <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 700 }}>Active Delivery Queue</div>
-              <div style={{ fontSize: "20px", fontWeight: 700, marginTop: "4px" }}>
-                {activeOrders.length} <span style={{ fontSize: "12px", fontWeight: 400, color: "var(--text-muted)" }}>orders</span>
-              </div>
-            </div>
-            <div className="panel" style={{ padding: "12px 16px" }}>
-              <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 700 }}>Unassigned Dispatch</div>
-              <div style={{ fontSize: "20px", fontWeight: 700, marginTop: "4px", color: unassignedOrdersCount > 0 ? "var(--status-red)" : "var(--text-primary)" }}>
-                {unassignedOrdersCount} <span style={{ fontSize: "12px", fontWeight: 400, color: "var(--text-muted)" }}>unassigned</span>
-              </div>
-            </div>
-            <div className="panel" style={{ padding: "12px 16px" }}>
-              <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 700 }}>High Delay Risk</div>
-              <div style={{ fontSize: "20px", fontWeight: 700, marginTop: "4px", color: delayedOrdersCount > 0 ? "var(--status-amber)" : "var(--text-primary)" }}>
-                {delayedOrdersCount} <span style={{ fontSize: "12px", fontWeight: 400, color: "var(--text-muted)" }}>flagged</span>
-              </div>
-            </div>
-            <div className="panel" style={{ padding: "12px 16px" }}>
-              <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 700 }}>SLA Breached</div>
-              <div style={{ fontSize: "20px", fontWeight: 700, marginTop: "4px", color: breachedOrdersCount > 0 ? "var(--status-red)" : "var(--text-primary)" }}>
-                {breachedOrdersCount} <span style={{ fontSize: "12px", fontWeight: 400, color: "var(--text-muted)" }}>overdue</span>
-              </div>
-            </div>
-          </div>
-
-          {/* High Density Table Container */}
-          <div className="panel" style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden", position: "relative" }}>
-            
-            {/* Table Header Bar */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", borderBottom: "1px solid var(--border)", flexShrink: 0 }}>
-              <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-secondary)" }}>
-                Displaying {sortedOrders.length} of {orders.length} platform orders
-              </div>
-              {selectedOrderIds.length > 0 && (
-                <div style={{ fontSize: "11px", background: "var(--accent-light)", color: "var(--accent)", padding: "2px 8px", borderRadius: "4px", fontWeight: 700 }}>
-                  {selectedOrderIds.length} Selected
-                </div>
-              )}
-            </div>
-
-            {/* Table Scroll wrapper */}
-            <div style={{ flex: 1, overflowY: "auto", overflowX: "auto" }}>
-              <table className="ops-table" style={{ width: "100%", borderCollapse: "collapse", minWidth: "900px" }}>
-                <thead>
-                  <tr>
-                    <th style={{ width: "40px", textAlign: "center" }}>
-                      <input 
-                        type="checkbox" 
-                        checked={sortedOrders.length > 0 && selectedOrderIds.length === sortedOrders.length}
-                        onChange={handleToggleSelectAll}
-                      />
-                    </th>
-                    <th style={{ cursor: "pointer" }} onClick={() => handleSort('id')}>
-                      Order ID {sortField === 'id' && (sortOrder === 'asc' ? '▲' : '▼')}
-                    </th>
-                    <th>Customer</th>
-                    <th>Merchant</th>
-                    <th>Driver</th>
-                    <th>Status</th>
-                    <th style={{ cursor: "pointer" }} onClick={() => handleSort('eta_minutes')}>
-                      ETA {sortField === 'eta_minutes' && (sortOrder === 'asc' ? '▲' : '▼')}
-                    </th>
-                    <th>WAP Pred.</th>
-                    <th style={{ cursor: "pointer" }} onClick={() => handleSort('sla')}>
-                      SLA Countdown {sortField === 'sla' && (sortOrder === 'asc' ? '▲' : '▼')}
-                    </th>
-                    <th>Zone</th>
-                    <th>Priority</th>
-                    <th>Risk</th>
-                    <th style={{ cursor: "pointer", textAlign: "right" }} onClick={() => handleSort('amount')}>
-                      Price {sortField === 'amount' && (sortOrder === 'asc' ? '▲' : '▼')}
-                    </th>
-                    <th style={{ cursor: "pointer", textAlign: "right" }} onClick={() => handleSort('created_at')}>
-                      Created {sortField === 'created_at' && (sortOrder === 'asc' ? '▲' : '▼')}
-                    </th>
-                    <th style={{ textAlign: "center", width: "50px" }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedOrders.length === 0 ? (
-                    <tr>
-                      <td colSpan={15} style={{ textAlign: "center", padding: "48px 0", color: "var(--text-muted)", fontSize: "12px" }}>
-                        No orders match the selected filters. Clear search or check filters.
-                      </td>
-                    </tr>
-                  ) : (
-                    sortedOrders.map((order) => {
-                      const isSelected = selectedOrderId === order.id;
-                      const isChecked = selectedOrderIds.includes(order.id);
-                      const sla = calculateSLATime(order.created_at);
-                      const risk = getDelayRisk(order);
-                      const hasRefund = refunds.some(r => r.order_id === order.id && r.status === "pending");
-
-                      // Dynamic WAP comparison: compare ETA with model prediction or prep delay
-                      const restaurantId = (order as any).restaurant_id || order.merchant_id;
-                      const merchant = merchants.find(m => m.id === restaurantId);
-                      const restaurantModel = aiMetrics.find(m => m.restaurant_id === restaurantId);
-                      const prepOffset = restaurantModel ? Math.round(restaurantModel.mae) : 0;
-                      const predictedPrep = (merchant?.prep_delay_minutes || 15) + prepOffset;
-                      const wapPredictedMinutes = predictedPrep + 15;
-                      const etaWarning = order.status !== 'completed' && Boolean(order.eta_minutes && order.eta_minutes > wapPredictedMinutes);
-
-                      // Styles for SLA status
-                      let slaBadgeColor = "var(--status-green)";
-                      let slaBgColor = "rgba(34, 197, 94, 0.1)";
-                      if (sla.status === 'breached') {
-                        slaBadgeColor = "var(--status-red)";
-                        slaBgColor = "rgba(239, 68, 68, 0.15)";
-                      } else if (sla.status === 'high_risk') {
-                        slaBadgeColor = "var(--status-amber)";
-                        slaBgColor = "rgba(245, 158, 11, 0.15)";
-                      } else if (sla.status === 'warning') {
-                        slaBadgeColor = "#eab308";
-                        slaBgColor = "rgba(234, 179, 8, 0.15)";
-                      }
-
-                      // Payment Status format
-                      const paymentText = hasRefund ? "Refund Pending" : "Paid";
-
-                      return (
-                        <tr 
-                          key={order.id}
-                          style={{
-                            cursor: "pointer",
-                            background: isSelected ? "var(--bg-hover)" : (isChecked ? "var(--bg-sunken)" : "transparent"),
-                            fontSize: "11.5px"
-                          }}
-                          onClick={() => setSelectedOrderId(isSelected ? null : order.id)}
-                        >
-                          <td style={{ textAlign: "center" }} onClick={(e) => e.stopPropagation()}>
-                            <input 
-                              type="checkbox" 
-                              checked={isChecked}
-                              onChange={() => handleRowCheckboxToggle(order.id)}
-                            />
-                          </td>
-                          <td className="mono" style={{ fontWeight: 700 }}>#{order.id}</td>
-                          <td style={{ fontWeight: 500 }}>{order.customer_name || `Customer (${order.customer_id?.substring(0, 8)})`}</td>
-                          <td>{order.merchant_name || merchants.find(m => m.id === (order as any).restaurant_id || m.id === order.merchant_id)?.name || `Restaurant (${((order as any).restaurant_id || order.merchant_id)?.substring(0, 8)})`}</td>
-                          <td>
-                            {order.driver_id ? (
-                              <span style={{ color: "var(--text-secondary)" }}>{order.driver_name || drivers.find(d => d.id === order.driver_id)?.name || `Driver (${order.driver_id.substring(0,8)})`}</span>
-                            ) : (
-                              <span style={{ color: "var(--status-red)", fontWeight: 700 }}>Unassigned</span>
-                            )}
-                          </td>
-                          <td>
-                            <StatusBadge status={order.status} />
-                          </td>
-                          <td className="mono" style={{ color: etaWarning ? "var(--status-red)" : "inherit", fontWeight: etaWarning ? 700 : 400 }}>
-                            {order.status === 'completed' ? '—' : (order.eta_minutes ? `${order.eta_minutes} min` : 'estimating')}
-                            {etaWarning && <span title="ETA drifts past WAP prediction!"><AlertTriangle size={12} className="inline text-amber-400 ml-1" /></span>}
-                          </td>
-                          <td className="mono" style={{ color: "var(--text-muted)" }}>
-                            {order.status === 'completed' ? '—' : `${wapPredictedMinutes} min`}
-                          </td>
-                          <td className="mono">
-                            {order.status === 'completed' || order.status === 'cancelled' ? (
-                              <span style={{ color: "var(--text-muted)" }}>—</span>
-                            ) : (
-                              <span suppressHydrationWarning style={{ 
-                                display: "inline-block",
-                                padding: "2px 6px",
-                                borderRadius: "4px",
-                                color: slaBadgeColor,
-                                background: slaBgColor,
-                                fontWeight: 700
-                              }}>
-                                {sla.formatted}
-                              </span>
-                            )}
-                          </td>
-                          <td>{order.zone || merchants.find(m => m.id === (order as any).restaurant_id || m.id === order.merchant_id)?.zone || "General"}</td>
-                          <td style={{ textAlign: "center" }} onClick={(e) => e.stopPropagation()}>
-                            <button 
-                              className="btn btn-ghost btn-xs" 
-                              style={{ padding: 0, fontSize: "14px" }}
-                              onClick={() => {
-                                toggleOrderPriority(order.id);
-                                triggerToast(`Toggled order priority`, 'info');
-                              }}
-                            >
-                              <Star size={14} className={order.priority ? "fill-amber-400 text-amber-400" : "text-gray-500"} />
-                            </button>
-                          </td>
-                          <td>
-                            <span style={{
-                              display: "inline-block",
-                              padding: "1px 6px",
-                              borderRadius: "4px",
-                              fontSize: "9px",
-                              textTransform: "uppercase",
-                              fontWeight: 700,
-                              background: risk === 'high' ? "var(--status-red-bg)" : risk === 'medium' ? "rgba(245, 158, 11, 0.1)" : "rgba(34, 197, 94, 0.1)",
-                              color: risk === 'high' ? "var(--status-red)" : risk === 'medium' ? "var(--status-amber)" : "var(--status-green)"
-                            }}>
-                              {risk}
-                            </span>
-                          </td>
-                          <td className="mono" style={{ textAlign: "right", fontWeight: 500 }}>
-                            {order.amount} {order.currency}
-                            <div style={{ fontSize: "9px", color: hasRefund ? "var(--status-red)" : "var(--status-green)", fontWeight: 600 }}>
-                              {paymentText}
-                            </div>
-                          </td>
-                          <td suppressHydrationWarning className="mono" style={{ textAlign: "right", color: "var(--text-muted)" }}>
-                            {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                          </td>
-                          <td style={{ textAlign: "center" }} onClick={(e) => e.stopPropagation()}>
-                            <button 
-                              className="btn btn-ghost btn-xs" 
-                              style={{ fontSize: "16px", padding: "2px 8px", cursor: "pointer", borderRadius: "4px", fontWeight: "bold" }}
-                              onClick={() => {
-                                setSelectedOrderId(order.id);
-                                setThreeDotsModalOrderId(order.id);
-                                setDriverSwitchSelect(order.driver_id || "");
-                                setOrderStatusSelect(order.status);
-                                setCancelOrderReasonInput("");
-                              }}
-                              title="Open Order Actions & Details (⋮)"
-                            >
-                              ⋮
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Slide-Up Bulk Control Drawer */}
-            {selectedOrderIds.length > 0 && (
-              <div style={{
-                position: "absolute",
-                bottom: 0,
-                left: 0,
-                right: 0,
-                background: "var(--bg-surface)",
-                borderTop: "2px solid var(--accent)",
-                boxShadow: "0 -4px 20px rgba(0,0,0,0.15)",
-                padding: "12px 18px",
-                display: "grid",
-                gridTemplateColumns: "180px 1fr",
-                alignItems: "center",
-                gap: "24px",
-                zIndex: 100
-              }}>
-                <div>
-                  <div style={{ fontSize: "13px", fontWeight: 700 }}>Bulk Actions</div>
-                  <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>Selected: <b>{selectedOrderIds.length} orders</b></div>
-                </div>
-
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "16px", justifyContent: "flex-end" }}>
-                  {/* Bulk Assign */}
-                  <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                    <select
-                      value={bulkDriverSelect}
-                      onChange={(e) => setBulkDriverSelect(e.target.value)}
-                      style={{ padding: "6px", fontSize: "11px", borderRadius: "4px", border: "1px solid var(--border)", width: "130px", background: "var(--bg-base)" }}
-                    >
-                      <option value="">Select Driver</option>
-                      {availableDrivers.map(d => (
-                        <option key={d.id} value={d.id}>{d.name}</option>
-                      ))}
-                    </select>
-                    <button className="btn btn-primary btn-xs" disabled={!bulkDriverSelect} onClick={executeBulkAssign}>
-                      Assign
-                    </button>
-                  </div>
-
-                  {/* Bulk Reroute */}
-                  <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                    <select
-                      value={bulkZoneSelect}
-                      onChange={(e) => setBulkZoneSelect(e.target.value)}
-                      style={{ padding: "6px", fontSize: "11px", borderRadius: "4px", border: "1px solid var(--border)", width: "120px", background: "var(--bg-base)" }}
-                    >
-                      <option value="">Select Zone</option>
-                      {availableZones.map(z => (
-                        <option key={z} value={z}>{z}</option>
-                      ))}
-                    </select>
-                    <button className="btn btn-secondary btn-xs" disabled={!bulkZoneSelect} onClick={executeBulkReroute}>
-                      Reroute
-                    </button>
-                  </div>
-
-                  {/* Bulk Cancel */}
-                  <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                    <input 
-                      type="text" 
-                      placeholder="Reason for cancel..." 
-                      value={bulkCancelReason}
-                      onChange={(e) => setBulkCancelReason(e.target.value)}
-                      style={{ padding: "6px", fontSize: "11px", borderRadius: "4px", border: "1px solid var(--border)", width: "140px", background: "var(--bg-base)" }}
-                    />
-                    <button className="btn btn-ghost btn-xs" style={{ color: "var(--status-red)" }} onClick={executeBulkCancel}>
-                      Cancel
-                    </button>
-                  </div>
-
-                  {/* Bulk Escalate */}
-                  <button className="btn btn-secondary btn-xs" onClick={executeBulkEscalate} style={{ borderColor: "var(--status-red)", color: "var(--status-red)" }}>
-                    SLA Escalate
-                  </button>
-                </div>
-              </div>
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+              >
+                <X size={12} />
+              </button>
             )}
           </div>
+
+          {/* Date Range Filter */}
+          <DateRangeFilter value={dateRange} onChange={setDateRange} />
+
+          {/* Zone Selector */}
+          <select
+            value={selectedZone}
+            onChange={(e) => setSelectedZone(e.target.value)}
+            className="px-3 py-1.5 text-xs font-medium rounded-lg bg-[#141b2a] border border-slate-700/70 text-slate-200 outline-none focus:border-rose-500 cursor-pointer"
+          >
+            <option value="all">All Sectors &amp; Zones</option>
+            {availableZones.map((z) => (
+              <option key={z} value={z}>{z}</option>
+            ))}
+          </select>
+
+          {/* Quick Filter Toggle Buttons */}
+          <button
+            type="button"
+            onClick={() => setUnassignedOnly(!unassignedOnly)}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors border cursor-pointer ${
+              unassignedOnly
+                ? "bg-rose-500/10 border-rose-500/40 text-rose-400"
+                : "bg-[#141b2a] border-slate-800 text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            <Bike size={13} />
+            <span>Unassigned</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setPriorityOnly(!priorityOnly)}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors border cursor-pointer ${
+              priorityOnly
+                ? "bg-amber-500/10 border-amber-500/40 text-amber-400"
+                : "bg-[#141b2a] border-slate-800 text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            <Star size={13} className={priorityOnly ? "fill-amber-400" : ""} />
+            <span>Priority</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSlaRiskOnly(!slaRiskOnly)}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors border cursor-pointer ${
+              slaRiskOnly
+                ? "bg-rose-500/10 border-rose-500/40 text-rose-400"
+                : "bg-[#141b2a] border-slate-800 text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            <AlertTriangle size={13} />
+            <span>SLA at Risk</span>
+          </button>
+
+          {/* Reset Filters */}
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={resetAllFilters}
+              className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-rose-400 hover:text-rose-300 font-semibold transition-colors cursor-pointer"
+            >
+              <RotateCcw size={12} />
+              <span>Reset</span>
+            </button>
+          )}
         </div>
 
-        {/* ========================================== */}
-        {/* RIGHT PANEL: CONTEXT DETAILS DRAWER       */}
-        {/* ========================================== */}
-        <div className="panel" style={{ display: "flex", flexDirection: "column", minHeight: 0, overflowY: "auto" }}>
-          {selectedOrder ? (
-            <div style={{ display: "flex", flexDirection: "column", height: "100%", padding: "16px", gap: "16px" }}>
-              
-              {/* Drawer Header */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border)", paddingBottom: "12px" }}>
-                <div>
-                  <span style={{ fontSize: "10px", fontWeight: 700, color: "var(--accent)", textTransform: "uppercase" }}>Order Dispatch Details</span>
-                  <h3 style={{ fontSize: "16px", fontWeight: 700, margin: "2px 0 0" }} className="mono">#{selectedOrder.id}</h3>
+        {/* Results Counter */}
+        <div className="text-xs text-slate-400 font-medium">
+          Showing <strong className="text-white">{sortedOrders.length}</strong> of {orders.length} orders
+        </div>
+      </div>
+
+      {/* ── 4. High-Density Wide Orders Table ── */}
+      <div className="w-full rounded-xl bg-[#111622] border border-slate-800 overflow-hidden shadow-lg">
+        <div className="overflow-x-auto w-full">
+          <table className="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr className="bg-[#0c101a] border-b border-slate-800 text-slate-400 uppercase text-[11px] font-bold tracking-wider">
+                <th className="py-3 px-4 w-10 text-center">
+                  <input
+                    type="checkbox"
+                    checked={sortedOrders.length > 0 && selectedOrderIds.length === sortedOrders.length}
+                    onChange={handleToggleSelectAll}
+                    className="accent-rose-600 rounded cursor-pointer"
+                  />
+                </th>
+                <th className="py-3 px-4 cursor-pointer hover:text-white" onClick={() => handleSort("id")}>
+                  <div className="flex items-center gap-1">
+                    <span>Order #</span>
+                    <ArrowUpDown size={11} />
+                  </div>
+                </th>
+                <th className="py-3 px-4 cursor-pointer hover:text-white" onClick={() => handleSort("created_at")}>
+                  <div className="flex items-center gap-1">
+                    <span>Date &amp; Time</span>
+                    <ArrowUpDown size={11} />
+                  </div>
+                </th>
+                <th className="py-3 px-4">Customer</th>
+                <th className="py-3 px-4">Restaurant / Store</th>
+                <th className="py-3 px-4">Courier / Driver</th>
+                <th className="py-3 px-4">Status</th>
+                <th className="py-3 px-4 cursor-pointer hover:text-white" onClick={() => handleSort("sla")}>
+                  <div className="flex items-center gap-1">
+                    <span>SLA / ETA</span>
+                    <ArrowUpDown size={11} />
+                  </div>
+                </th>
+                <th className="py-3 px-4 cursor-pointer hover:text-white text-right" onClick={() => handleSort("amount")}>
+                  <div className="flex items-center justify-end gap-1">
+                    <span>Total</span>
+                    <ArrowUpDown size={11} />
+                  </div>
+                </th>
+                <th className="py-3 px-4 text-center w-28">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800/60">
+              {sortedOrders.length === 0 ? (
+                <tr>
+                  <td colSpan={10} className="py-16 text-center text-slate-400">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <ShoppingBag size={32} className="text-slate-600" />
+                      <p className="text-sm font-semibold text-slate-300">No orders match current filters</p>
+                      <p className="text-xs text-slate-500">Try changing the date range, status tab, or clearing search query.</p>
+                      {hasActiveFilters && (
+                        <button
+                          type="button"
+                          onClick={resetAllFilters}
+                          className="mt-2 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold transition-colors"
+                        >
+                          Clear All Filters
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                sortedOrders.map((order) => {
+                  const isSelected = selectedOrderId === order.id;
+                  const isChecked = selectedOrderIds.includes(order.id);
+                  const sla = calculateSLATime(order.created_at);
+                  const risk = getDelayRisk(order);
+                  const orderDate = new Date(order.created_at);
+
+                  return (
+                    <tr
+                      key={order.id}
+                      onClick={() => setSelectedOrderId(order.id)}
+                      className={`group hover:bg-[#161d2d] transition-colors cursor-pointer ${
+                        isSelected ? "bg-[#1c2438]" : ""
+                      }`}
+                    >
+                      {/* Checkbox */}
+                      <td className="py-3.5 px-4 text-center" onClick={(e) => handleRowCheckbox(e, order.id)}>
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => {}}
+                          className="accent-rose-600 rounded cursor-pointer"
+                        />
+                      </td>
+
+                      {/* Order ID & Priority */}
+                      <td className="py-3.5 px-4 whitespace-nowrap">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-mono font-bold text-white text-xs">#{order.id.slice(0, 10)}</span>
+                          {order.priority && (
+                            <span title="High Priority Order">
+                              <Star size={12} className="fill-amber-400 text-amber-400" />
+                            </span>
+                          )}
+                        </div>
+                        {order.zone && (
+                          <div className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
+                            <MapPin size={10} />
+                            <span>{order.zone}</span>
+                          </div>
+                        )}
+                      </td>
+
+                      {/* Date & Time */}
+                      <td className="py-3.5 px-4 whitespace-nowrap">
+                        <div className="text-slate-200 font-semibold">
+                          {orderDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        </div>
+                        <div className="text-[10px] text-slate-400">
+                          {orderDate.toLocaleDateString([], { month: "short", day: "numeric" })}
+                        </div>
+                      </td>
+
+                      {/* Customer */}
+                      <td className="py-3.5 px-4">
+                        <div className="font-semibold text-slate-200 truncate max-w-[150px]">
+                          {order.customer_name || "Guest Customer"}
+                        </div>
+                        <div className="text-[10px] text-slate-400 truncate max-w-[150px]">
+                          {order.delivery_address || order.zone || "Delivery Zone"}
+                        </div>
+                      </td>
+
+                      {/* Merchant */}
+                      <td className="py-3.5 px-4">
+                        <div className="font-semibold text-slate-200 flex items-center gap-1 truncate max-w-[160px]">
+                          <Store size={12} className="text-slate-400 flex-shrink-0" />
+                          <span className="truncate">{order.merchant_name || "Wolfie Merchant"}</span>
+                        </div>
+                      </td>
+
+                      {/* Driver / Courier */}
+                      <td className="py-3.5 px-4">
+                        {order.driver_name && order.driver_name !== "Unassigned" ? (
+                          <div className="flex items-center gap-1.5 text-slate-200 font-medium">
+                            <Bike size={13} className="text-sky-400 flex-shrink-0" />
+                            <span className="truncate max-w-[130px]">{order.driver_name}</span>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedOrderId(order.id);
+                            }}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-rose-500/10 text-rose-400 border border-rose-500/30 hover:bg-rose-500/20 transition-colors"
+                          >
+                            <Bike size={11} />
+                            <span>+ Assign</span>
+                          </button>
+                        )}
+                      </td>
+
+                      {/* Status */}
+                      <td className="py-3.5 px-4 whitespace-nowrap">
+                        {renderStatusBadge(order.status)}
+                      </td>
+
+                      {/* SLA Countdown / ETA */}
+                      <td className="py-3.5 px-4 whitespace-nowrap">
+                        {order.status === "completed" || order.status === "cancelled" ? (
+                          <span className="text-slate-500 font-mono">—</span>
+                        ) : (
+                          <div>
+                            <span
+                              className={`font-mono font-bold text-xs ${
+                                sla.status === "breached"
+                                  ? "text-rose-400"
+                                  : sla.status === "high_risk"
+                                  ? "text-amber-400"
+                                  : "text-emerald-400"
+                              }`}
+                            >
+                              {sla.formatted}
+                            </span>
+                            {order.eta_minutes && (
+                              <div className="text-[10px] text-slate-400 mt-0.5">
+                                ETA ~{order.eta_minutes}m
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </td>
+
+                      {/* Total Amount */}
+                      <td className="py-3.5 px-4 text-right font-mono font-bold text-slate-100 whitespace-nowrap">
+                        ${Number(order.total || order.amount || 0).toFixed(2)}
+                      </td>
+
+                      {/* Row Actions */}
+                      <td className="py-3.5 px-4 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedOrderId(order.id)}
+                          className="px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-colors inline-flex items-center gap-1 cursor-pointer"
+                        >
+                          <span>Inspect</span>
+                          <ChevronRight size={12} />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* ── 5. Bulk Actions Floating Bar ── */}
+      {selectedOrderIds.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 px-5 py-3 rounded-2xl bg-[#0f1422] border border-slate-700 shadow-2xl flex items-center gap-4 animate-in slide-in-from-bottom-5">
+          <div className="text-xs font-bold text-white bg-rose-600 px-2.5 py-1 rounded-full">
+            {selectedOrderIds.length} Orders Selected
+          </div>
+
+          <div className="flex items-center gap-2">
+            <select
+              value={bulkDriverId}
+              onChange={(e) => setBulkDriverId(e.target.value)}
+              className="px-2.5 py-1 text-xs rounded-lg bg-[#161c2c] border border-slate-700 text-slate-200"
+            >
+              <option value="">Choose Driver...</option>
+              {drivers.filter((d) => d.status !== "offline").map((d) => (
+                <option key={d.id} value={d.id}>{d.name} ({d.zone})</option>
+              ))}
+            </select>
+
+            <button
+              type="button"
+              disabled={!bulkDriverId}
+              onClick={async () => {
+                if (!bulkDriverId) return;
+                const ok = await bulkAssignDrivers(selectedOrderIds, bulkDriverId);
+                if (ok) {
+                  triggerToast(`Assigned ${selectedOrderIds.length} orders to courier`, "success");
+                  setSelectedOrderIds([]);
+                  setBulkDriverId("");
+                }
+              }}
+              className="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-semibold transition-colors"
+            >
+              Assign Courier
+            </button>
+
+            <button
+              type="button"
+              onClick={async () => {
+                const ok = await bulkEscalateOrders(selectedOrderIds);
+                if (ok) {
+                  triggerToast(`SLA Escalated for ${selectedOrderIds.length} orders`, "error");
+                  setSelectedOrderIds([]);
+                }
+              }}
+              className="px-3 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold transition-colors"
+            >
+              SLA Escalate
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSelectedOrderIds([])}
+              className="text-xs text-slate-400 hover:text-white underline ml-2"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── 6. Slide-Out Order Detail Drawer (DoorDash & UberEats Style) ── */}
+      {selectedOrder && (
+        <>
+          <div
+            className="order-drawer-backdrop"
+            onClick={() => setSelectedOrderId(null)}
+          />
+          <aside className="order-drawer-panel">
+            {/* Drawer Header */}
+            <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-[#111624]">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-base font-black text-white">#{selectedOrder.id}</span>
+                  {selectedOrder.priority && (
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/30">
+                      Priority
+                    </span>
+                  )}
                 </div>
-                <button className="btn btn-ghost btn-xs" onClick={() => setSelectedOrderId(null)}><X size={14} /></button>
+                <div className="text-[11px] text-slate-400 mt-0.5">
+                  Placed {new Date(selectedOrder.created_at).toLocaleString()}
+                </div>
               </div>
 
-              {/* Dynamic Mini-Map tracking Restaurant -> Driver -> Customer */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                <span style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase" }}>Live Track mini-map</span>
-                <div style={{ height: "200px", width: "100%", position: "relative", border: "1px solid var(--border)", borderRadius: "var(--radius-md)", overflow: "hidden" }}>
-                  <MapComponent 
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                  title="Print Order Docket"
+                >
+                  <Printer size={16} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedOrderId(null)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            {/* Drawer Scrollable Content */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-5">
+              {/* Status Stepper Tracker */}
+              <div className="p-3.5 rounded-xl bg-[#141b2b] border border-slate-800">
+                <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-3">
+                  Delivery Timeline Tracker
+                </div>
+                <div className="space-y-3 relative pl-6 border-l-2 border-slate-800 ml-2">
+                  {[
+                    { key: "pending", label: "Order Received", desc: "Order confirmed in platform" },
+                    { key: "preparing", label: "Kitchen Preparing", desc: "Restaurant is prepping food" },
+                    { key: "delivering", label: "Courier in Transit", desc: "Out for customer delivery" },
+                    { key: "completed", label: "Delivered", desc: "Handover verified by customer" },
+                  ].map((step, idx) => {
+                    const statuses = ["pending", "preparing", "delivering", "completed"];
+                    const currentIdx = statuses.indexOf(selectedOrder.status === "delivered" ? "completed" : selectedOrder.status);
+                    const isDone = currentIdx >= idx;
+                    const isCurrent = (selectedOrder.status === "delivered" ? "completed" : selectedOrder.status) === step.key;
+
+                    return (
+                      <div key={step.key} className="relative">
+                        <span
+                          className={`absolute -left-[31px] top-0.5 w-3.5 h-3.5 rounded-full border-2 border-[#141b2b] ${
+                            isCurrent
+                              ? "bg-rose-500 ring-4 ring-rose-500/20"
+                              : isDone
+                              ? "bg-emerald-500"
+                              : "bg-slate-700"
+                          }`}
+                        />
+                        <div className={`text-xs font-bold ${isCurrent ? "text-rose-400" : isDone ? "text-slate-200" : "text-slate-500"}`}>
+                          {step.label}
+                        </div>
+                        <div className="text-[10px] text-slate-400 mt-0.5">{step.desc}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Live Tracking Map */}
+              <div>
+                <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">
+                  Live Dispatch GPS
+                </div>
+                <div className="h-[180px] w-full rounded-xl overflow-hidden border border-slate-800">
+                  <MapComponent
                     orders={[selectedOrder]}
                     drivers={drivers}
                     selectedOrderId={selectedOrder.id}
@@ -993,762 +980,303 @@ export default function DispatchEnginePage() {
                 </div>
               </div>
 
-              {/* Status Stepper Timeline */}
-              <div>
-                <span style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", display: "block", marginBottom: "8px" }}>Status Timeline</span>
-                <div style={{ display: "flex", flexDirection: "column", gap: "12px", borderLeft: "2px solid var(--border)", marginLeft: "8px", paddingLeft: "16px", position: "relative" }}>
-                  {[
-                    { key: "pending", label: "Order Created", desc: "Awaiting driver assignment" },
-                    { key: "preparing", label: "Kitchen Preparing", desc: "Restaurant preparing food" },
-                    { key: "delivering", label: "Courier Transit", desc: "Out for customer delivery" },
-                    { key: "completed", label: "Delivered", desc: "Handover confirmed" }
-                  ].map((step, idx) => {
-                    const statuses = ["pending", "preparing", "delivering", "completed"];
-                    const currentIdx = statuses.indexOf(selectedOrder.status);
-                    const isDone = currentIdx >= idx;
-                    const isCurrent = selectedOrder.status === step.key;
-
-                    return (
-                      <div key={step.key} style={{ position: "relative", fontSize: "12px" }}>
-                        {/* Node bullet */}
-                        <div style={{
-                          position: "absolute",
-                          left: "-23px",
-                          top: "2px",
-                          width: "12px",
-                          height: "12px",
-                          borderRadius: "50%",
-                          background: isCurrent ? "var(--accent)" : (isDone ? "var(--status-green)" : "var(--border)"),
-                          border: "2px solid var(--bg-surface)",
-                          boxShadow: isCurrent ? "0 0 8px var(--accent)" : "none"
-                        }} />
-                        <div style={{ fontWeight: isCurrent ? 700 : 500, color: isCurrent ? "var(--text-primary)" : "var(--text-secondary)" }}>
-                          {step.label}
-                        </div>
-                        <div style={{ fontSize: "10.5px", color: "var(--text-muted)", marginTop: "2px" }}>
-                          {step.desc}
-                        </div>
-                      </div>
-                    );
-                  })}
+              {/* Restaurant / Merchant Profile */}
+              <div className="p-3.5 rounded-xl bg-[#141b2b] border border-slate-800">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                    <Store size={13} className="text-slate-400" />
+                    <span>Restaurant Information</span>
+                  </div>
+                  <span className="text-[10px] text-emerald-400 font-semibold">Kitchen Open</span>
+                </div>
+                <div className="text-sm font-bold text-white">{selectedOrder.merchant_name || "Wolfie Restaurant Partner"}</div>
+                <div className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
+                  <MapPin size={11} className="text-slate-500 flex-shrink-0" />
+                  <span>{selectedOrder.merchant_address || selectedOrder.zone || "Algiers Centre Sector"}</span>
                 </div>
               </div>
 
               {/* Customer Profile */}
-              <div style={{ borderTop: "1px solid var(--border)", paddingTop: "12px" }}>
-                <span style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", display: "block", marginBottom: "6px" }}>Customer Profile</span>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: "13px" }}>{selectedOrder.customer_name}</div>
-                    <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>ID: {selectedOrder.customer_id}{selectedOrder.zone ? ` · ${selectedOrder.zone}` : ''}</div>
+              <div className="p-3.5 rounded-xl bg-[#141b2b] border border-slate-800">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                    <User size={13} className="text-slate-400" />
+                    <span>Customer &amp; Drop-off</span>
                   </div>
-                  <div style={{ display: "flex", gap: "6px" }}>
-                    <button className="btn btn-secondary btn-xs" onClick={() => triggerToast("Dialing customer...", "info")}>
-                      <Phone size={11} /> Call
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => triggerToast("Connecting to customer VoIP...", "info")}
+                      className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-semibold flex items-center gap-1"
+                    >
+                      <Phone size={10} /> Call
                     </button>
-                    <button className="btn btn-secondary btn-xs" onClick={() => triggerToast("Customer chat opened", "info")}>
-                      <MessageSquare size={11} /> Msg
+                    <button
+                      type="button"
+                      onClick={() => triggerToast("Customer chat thread opened", "info")}
+                      className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-semibold flex items-center gap-1"
+                    >
+                      <MessageSquare size={10} /> Chat
                     </button>
                   </div>
                 </div>
-              </div>
-
-              {/* Route & Placement Details */}
-              <div style={{ borderTop: "1px solid var(--border)", paddingTop: "12px", display: "flex", flexDirection: "column", gap: "6px" }}>
-                <span style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase" }}>Addresses & Route Details</span>
-                <div style={{ fontSize: "11.5px", display: "flex", flexDirection: "column", gap: "6px", background: "var(--bg-sunken)", padding: "10px", borderRadius: "6px" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                    <Store size={12} className="text-cyan-400" />
-                    <span style={{ color: "var(--text-muted)", fontWeight: 500 }}>Pickup:</span> <span style={{ fontWeight: 600 }}>{selectedOrder.pickup_address || "Restaurant Address"}</span>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                    <MapPin size={12} className="text-rose-400" />
-                    <span style={{ color: "var(--text-muted)", fontWeight: 500 }}>Delivery:</span> <span style={{ fontWeight: 600 }}>{selectedOrder.delivery_address || "Customer Address"}</span>
-                  </div>
+                <div className="text-sm font-bold text-white">{selectedOrder.customer_name || "Customer Name"}</div>
+                <div className="text-xs text-slate-300 mt-1 flex items-start gap-1">
+                  <MapPin size={12} className="text-rose-400 mt-0.5 flex-shrink-0" />
+                  <span>{selectedOrder.delivery_address || selectedOrder.zone || "Customer Delivery Address"}</span>
                 </div>
               </div>
 
-              {/* Merchant Status & Buffer Offsets */}
-              {(() => {
-                const merchant = merchants.find(m => m.id === selectedOrder.merchant_id);
-                if (!merchant) return null;
-                return (
-                  <div style={{ borderTop: "1px solid var(--border)", paddingTop: "12px", display: "flex", flexDirection: "column", gap: "8px" }}>
-                    <span style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase" }}>Merchant Controller</span>
-                    
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <div>
-                        <div style={{ fontWeight: 600, fontSize: "13px" }}>{selectedOrder.merchant_name}</div>
-                        <div style={{ fontSize: "11.5px", color: "var(--text-secondary)" }}>{merchant.rating} · Category: {merchant.category}</div>
-                        {selectedOrder.merchant_address && (
-                          <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>
-                            {selectedOrder.merchant_address}
-                          </div>
-                        )}
-                      </div>
-                      <div style={{ display: "flex", gap: "4px" }}>
-                        {(['open', 'paused', 'busy', 'delayed'] as const).map(st => (
-                          <button
-                            key={st}
-                            className={`btn ${merchant.operational_status === st ? "btn-primary" : "btn-secondary"} btn-xs`}
-                            style={{ textTransform: "capitalize", padding: "1px 4px", fontSize: "10px" }}
-                            onClick={() => setMerchantStatus(merchant.id, st)}
-                          >
-                            {st}
-                          </button>
-                        ))}
+              {/* Courier / Driver Assignment */}
+              <div className="p-3.5 rounded-xl bg-[#141b2b] border border-slate-800">
+                <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-1.5">
+                  <Bike size={13} className="text-slate-400" />
+                  <span>Assigned Courier</span>
+                </div>
+
+                {selectedOrder.driver_name && selectedOrder.driver_name !== "Unassigned" ? (
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-sm font-bold text-white">{selectedOrder.driver_name}</div>
+                      <div className="text-xs text-slate-400 flex items-center gap-2 mt-0.5">
+                        <span>Courier ID: {selectedOrder.driver_id?.slice(0, 8)}</span>
+                        <span>&middot;</span>
+                        <span className="text-emerald-400 font-semibold">Active en route</span>
                       </div>
                     </div>
-
-                    <div style={{ background: "var(--bg-sunken)", padding: "10px", borderRadius: "6px", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "11.5px" }}>
-                      <div>
-                        <div style={{ fontWeight: 600 }}>Kitchen Backlog Delay</div>
-                        <div style={{ fontSize: "9.5px", color: "var(--text-muted)" }}>Scales customer-facing ETAs</div>
-                      </div>
-                      <input 
-                        type="checkbox" 
-                        checked={merchant.kitchen_delay || false} 
-                        onChange={() => {
-                          const state = useDashboardStore.getState();
-                          state.updateDriver // force state trigger update
-                          useDashboardStore.setState({
-                            merchants: state.merchants.map(m => m.id === merchant.id ? { ...m, kitchen_delay: !m.kitchen_delay } : m)
-                          });
-                          triggerToast("Kitchen delay state toggled", "info");
-                        }}
-                        style={{ width: "16px", height: "16px", accentColor: "var(--accent)" }}
-                      />
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => triggerToast("Calling courier cell...", "info")}
+                      className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1"
+                    >
+                      <Phone size={11} /> Call Courier
+                    </button>
                   </div>
-                );
-              })()}
-
-              {/* Cart Ticket Details */}
-              <div style={{ borderTop: "1px solid var(--border)", paddingTop: "12px" }}>
-                <span style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", display: "block", marginBottom: "8px" }}>
-                  Cart Items Ticket
-                </span>
-                <div style={{ display: "flex", flexDirection: "column", gap: "8px", background: "var(--bg-sunken)", padding: "10px", borderRadius: "6px" }}>
-                  {selectedOrder.items && Array.isArray(selectedOrder.items) && selectedOrder.items.length > 0 ? (
-                    selectedOrder.items.map((item: any, idx: number) => (
-                      <div key={idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px" }}>
-                        <div>
-                          <span style={{ fontWeight: 600, color: "var(--accent)", marginRight: "6px" }}>{item.quantity}x</span>
-                          <span>{item.name}</span>
-                        </div>
-                        <span className="mono" style={{ color: "var(--text-secondary)" }}>
-                          {((item.price || 0) * (item.quantity || 1)).toFixed(2)} {selectedOrder.currency || 'DA'}
-                        </span>
-                      </div>
-                    ))
-                  ) : (
-                    <div style={{ fontSize: "11px", color: "var(--text-muted)", textAlign: "center" }}>No items in cart</div>
-                  )}
-                </div>
-              </div>
-
-              {/* Invoice Details (Facture) */}
-              <div style={{ borderTop: "1px solid var(--border)", paddingTop: "12px" }}>
-                <span style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", display: "block", marginBottom: "8px" }}>
-                  Invoice Details (Facture)
-                </span>
-                <div style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "12px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between" }}>
-                    <span style={{ color: "var(--text-muted)" }}>Subtotal</span>
-                    <span className="mono">{(selectedOrder.subtotal || selectedOrder.amount || 0).toFixed(2)} {selectedOrder.currency || 'DA'}</span>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between" }}>
-                    <span style={{ color: "var(--text-muted)" }}>Delivery Fee</span>
-                    <span className="mono">{(selectedOrder.delivery_fee || 0).toFixed(2)} {selectedOrder.currency || 'DA'}</span>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between" }}>
-                    <span style={{ color: "var(--text-muted)" }}>Service Fee</span>
-                    <span className="mono">{(selectedOrder.service_fee || 0).toFixed(2)} {selectedOrder.currency || 'DA'}</span>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px dashed var(--border)", paddingTop: "6px", marginTop: "4px", fontWeight: 700, fontSize: "13px" }}>
-                    <span>Total Amount</span>
-                    <span className="mono" style={{ color: "var(--accent)" }}>{(selectedOrder.total || selectedOrder.amount || 0).toFixed(2)} {selectedOrder.currency || 'DA'}</span>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "var(--text-muted)", marginTop: "4px" }}>
-                    <span>Payment Method</span>
-                    <span style={{ textTransform: "uppercase" }}>{selectedOrder.payment_method || 'CASH'}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Driver Details / Assign Panel */}
-              <div style={{ borderTop: "1px solid var(--border)", paddingTop: "12px", display: "flex", flexDirection: "column", gap: "8px" }}>
-                <span style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase" }}>Driver Dispatch Control</span>
-                {selectedOrder.driver_id ? (
-                  (() => {
-                    const driver = drivers.find(d => d.id === selectedOrder.driver_id);
-                    return (
-                      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <div>
-                            <div style={{ fontWeight: 600, fontSize: "13px" }}>{selectedOrder.driver_name}</div>
-                            <div style={{ fontSize: "11px", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 4 }}>
-                              <span>Zone: {driver?.zone} · Rating:</span>
-                              <Star size={10} className="fill-amber-400 text-amber-400" />
-                              <span>{driver?.rating || '5.0'}</span>
-                            </div>
-                          </div>
-                          <div style={{ display: "flex", gap: "6px" }}>
-                            <button className="btn btn-secondary btn-xs" onClick={() => triggerToast(`Dialing driver ${driver?.phone}...`, "info")}>
-                              <Phone size={11} /> Call
-                            </button>
-                            <button className="btn btn-secondary btn-xs" onClick={() => triggerToast("Driver chat opened", "info")}>
-                              <MessageSquare size={11} /> Msg
-                            </button>
-                          </div>
-                        </div>
-
-                        <div style={{ display: "flex", gap: "8px", marginTop: "4px" }}>
-                          <button 
-                            className="btn btn-secondary btn-xs" 
-                            style={{ flex: 1, borderColor: "var(--status-red)", color: "var(--status-red)", justifyContent: "center" }}
-                            onClick={() => {
-                              suspendDriver(selectedOrder.driver_id!);
-                              triggerToast("Driver suspension status toggled", "info");
-                            }}
-                          >
-                            Suspend Driver
-                          </button>
-                          <button 
-                            className="btn btn-ghost btn-xs" 
-                            style={{ flex: 1, justifyContent: "center", border: "1px solid var(--border)" }}
-                            onClick={() => {
-                              // Clear driver to allow reassigning
-                              useDashboardStore.setState({
-                                orders: orders.map(o => o.id === selectedOrder.id ? { ...o, driver_id: undefined, driver_name: "Unassigned", status: "pending" } : o)
-                              });
-                              triggerToast("Courier unassigned. Order back to pending queue.", "info");
-                            }}
-                          >
-                            Reassign Order
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })()
                 ) : (
-                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                    <div style={{ fontSize: "11.5px", color: "var(--status-red)", fontWeight: 700 }}>
-                      Alert: This order requires a dispatch courier immediately.
+                  <div className="space-y-2">
+                    <div className="text-xs text-rose-400 font-medium">
+                      No courier assigned yet. Pick from online fleet:
                     </div>
-                    {recommendedDrivers.length === 0 ? (
-                      <div style={{ fontSize: "11px", color: "var(--text-muted)", padding: "8px", background: "var(--bg-sunken)", borderRadius: "4px", textAlign: "center" }}>
-                        No available couriers online right now. Reroute drivers.
-                      </div>
-                    ) : (
-                      <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                        <div style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-secondary)" }}>AI Recommended Drivers ({recommendedDrivers.length})</div>
-                        {recommendedDrivers.slice(0, 3).map(d => {
-                          const sameZone = d.zone === selectedOrder.zone;
-                          return (
-                            <div key={d.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--bg-sunken)", padding: "6px 8px", borderRadius: "4px", fontSize: "11.5px", border: sameZone ? "1px solid var(--status-green)" : "1px solid transparent" }}>
-                              <span><b>{d.name}</b> ({d.zone})</span>
-                              <button className="btn btn-primary btn-xs" style={{ padding: "2px 6px" }} onClick={() => handleAssignSingle(d.id)}>
-                                Assign
-                              </button>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
+                    <div className="flex items-center gap-2">
+                      <select
+                        id="drawer-driver-select"
+                        className="flex-1 px-2.5 py-1.5 rounded-lg bg-[#0d121e] border border-slate-700 text-slate-200 text-xs outline-none"
+                      >
+                        <option value="">Select available driver...</option>
+                        {drivers.filter((d) => d.status !== "offline").map((d) => (
+                          <option key={d.id} value={d.id}>
+                            {d.name} ({d.zone}) - Rating: {d.rating}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const el = document.getElementById("drawer-driver-select") as HTMLSelectElement;
+                          if (el?.value) handleAssignSingle(el.value);
+                        }}
+                        className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-colors"
+                      >
+                        Assign
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
 
-              {/* AI Predictive Analytics */}
-              {(() => {
-                const metrics = aiMetrics.find(m => m.restaurant_id === selectedOrder.merchant_id) || aiMetrics[0];
-                if (!metrics) return null;
-                return (
-                  <div style={{ borderTop: "1px solid var(--border)", paddingTop: "12px", display: "flex", flexDirection: "column", gap: "6px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase" }}>WAP AI Analytics ({metrics.model_version})</span>
-                      <button 
-                        className="btn btn-ghost btn-xs" 
-                        style={{ fontSize: "9.5px", padding: "1px 4px", border: "1px solid var(--border)" }}
-                        onClick={async () => {
-                          const success = await retrainWapModel();
-                          if (success) triggerToast("WAP retrain request queued", "success");
-                        }}
-                      >
-                        Retrain Model
-                      </button>
-                    </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", fontSize: "11px" }}>
-                      <div style={{ background: "var(--bg-sunken)", padding: "6px 8px", borderRadius: "4px" }}>
-                        <span style={{ color: "var(--text-muted)" }}>MAE Margin:</span> <b>{metrics.mae}m</b>
-                      </div>
-                      <div style={{ background: "var(--bg-sunken)", padding: "6px 8px", borderRadius: "4px" }}>
-                        <span style={{ color: "var(--text-muted)" }}>Accuracy score:</span> <b>{Math.round(metrics.r2_score * 100)}%</b>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {/* Action Overrides */}
-              <div style={{ borderTop: "1px solid var(--border)", paddingTop: "12px", display: "flex", flexDirection: "column", gap: "8px" }}>
-                <span style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase" }}>Dispatcher Actions & Incident Control</span>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
-                  <button className="btn btn-secondary btn-sm" style={{ justifyContent: "center", color: "var(--status-red)", borderColor: "var(--status-red)" }} onClick={handleCancelSingle}>
-                    Cancel Order
-                  </button>
-                  <button className="btn btn-secondary btn-sm" style={{ justifyContent: "center", color: "var(--status-green)", borderColor: "var(--status-green)" }} onClick={handleForceCompleteSingle}>
-                    Force Complete
-                  </button>
+              {/* Order Items & Receipt Breakdown */}
+              <div className="p-3.5 rounded-xl bg-[#141b2b] border border-slate-800">
+                <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center justify-between">
+                  <span>Order Items &amp; Pricing</span>
+                  <span>{selectedOrder.items?.length || 1} items</span>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
-                  <button className="btn btn-secondary btn-sm" style={{ justifyContent: "center" }} onClick={() => setShowRefundModal(true)}>
-                    Issue Refund
-                  </button>
-                  <button className="btn btn-secondary btn-sm" style={{ justifyContent: "center", color: "var(--status-red)", borderColor: "var(--status-red)" }} onClick={handleEscalateSingle}>
-                    Escalate SLA
-                  </button>
+
+                {/* Items List */}
+                <div className="divide-y divide-slate-800/80 mb-3">
+                  {selectedOrder.items && selectedOrder.items.length > 0 ? (
+                    selectedOrder.items.map((item, idx) => (
+                      <div key={idx} className="py-2 flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2">
+                          <span className="w-5 h-5 rounded bg-slate-800 text-slate-300 flex items-center justify-center font-bold text-[10px]">
+                            {item.quantity}x
+                          </span>
+                          <span className="font-semibold text-slate-200">{item.name}</span>
+                        </div>
+                        <span className="font-mono text-slate-300">
+                          ${(Number(item.price) * item.quantity).toFixed(2)}
+                        </span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="py-2 flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2">
+                        <span className="w-5 h-5 rounded bg-slate-800 text-slate-300 flex items-center justify-center font-bold text-[10px]">
+                          1x
+                        </span>
+                        <span className="font-semibold text-slate-200">Standard Delivery Basket</span>
+                      </div>
+                      <span className="font-mono text-slate-300">
+                        ${Number(selectedOrder.total || selectedOrder.amount || 0).toFixed(2)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Financial Summary */}
+                <div className="pt-2 border-t border-slate-800 space-y-1.5 text-xs text-slate-400">
+                  <div className="flex justify-between">
+                    <span>Subtotal</span>
+                    <span className="font-mono text-slate-200">
+                      ${Number(selectedOrder.subtotal || ((selectedOrder.total || selectedOrder.amount) * 0.82) || 0).toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Delivery Fee</span>
+                    <span className="font-mono text-slate-200">
+                      ${Number(selectedOrder.delivery_fee || 3.99).toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Tax &amp; Platform Fee</span>
+                    <span className="font-mono text-slate-200">
+                      ${Number(selectedOrder.service_fee || 1.85).toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between font-bold text-sm text-white pt-2 border-t border-slate-800">
+                    <span>Grand Total</span>
+                    <span className="font-mono text-rose-400">
+                      ${Number(selectedOrder.total || selectedOrder.amount || 0).toFixed(2)}
+                    </span>
+                  </div>
                 </div>
               </div>
-
             </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", padding: "40px", color: "var(--text-muted)", textAlign: "center" }}>
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.5, marginBottom: "16px" }}>
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="16" x2="12" y2="12" />
-                <line x1="12" y1="8" x2="12.01" y2="8" />
-              </svg>
-              <div style={{ fontSize: "14px", fontWeight: 600 }}>No Order Selected</div>
-              <div style={{ fontSize: "11.5px", marginTop: "4px" }}>Click on an order row in the grid to load full logistics details, dispatch recommended drivers, adjust buffers, and track on the live mini-map.</div>
+
+            {/* Drawer Footer Actions (DoorDash / UberEats Ops Controls) */}
+            <div className="p-4 border-t border-slate-800 bg-[#111624] flex flex-col gap-2">
+              <div className="grid grid-cols-2 gap-2">
+                {selectedOrder.status !== "completed" && selectedOrder.status !== "delivered" && (
+                  <button
+                    type="button"
+                    onClick={handleForceCompleteSingle}
+                    disabled={isSubmitting}
+                    className="py-2 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-colors text-center"
+                  >
+                    Force Complete
+                  </button>
+                )}
+                {selectedOrder.status !== "cancelled" && (
+                  <button
+                    type="button"
+                    onClick={handleCancelSingle}
+                    disabled={isSubmitting}
+                    className="py-2 px-3 rounded-lg bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 border border-rose-500/30 text-xs font-bold transition-colors text-center"
+                  >
+                    Cancel Order
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRefundAmount(selectedOrder.total || selectedOrder.amount || 10);
+                    setShowRefundModal(true);
+                  }}
+                  className="flex-1 py-1.5 px-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-colors"
+                >
+                  Issue Refund
+                </button>
+                <button
+                  type="button"
+                  onClick={handleEscalateSingle}
+                  className="flex-1 py-1.5 px-2 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs font-semibold transition-colors"
+                >
+                  SLA Escalate
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePriorityToggle}
+                  className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-400 text-xs font-semibold"
+                  title="Toggle Priority Flag"
+                >
+                  <Star size={14} className={selectedOrder.priority ? "fill-amber-400" : ""} />
+                </button>
+              </div>
             </div>
-          )}
-        </div>
+          </aside>
+        </>
+      )}
 
-      </div>
-
-      {/* Refund Modal Overlay */}
+      {/* ── 7. Refund Modal ── */}
       {showRefundModal && selectedOrder && (
-        <div style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: "rgba(0,0,0,0.5)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          zIndex: 9999
-        }}>
-          <div className="panel" style={{ width: "400px", padding: "20px", display: "flex", flexDirection: "column", gap: "16px", background: "var(--bg-surface)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border)", paddingBottom: "10px" }}>
-              <h3 style={{ fontSize: "14px", fontWeight: 700 }}>Issue Refund for #{selectedOrder.id}</h3>
-              <button className="btn btn-ghost btn-xs" onClick={() => setShowRefundModal(false)}><X size={14} /></button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="w-full max-w-md p-5 rounded-2xl bg-[#111624] border border-slate-700 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-bold text-white">Issue Customer Refund</h3>
+              <button
+                type="button"
+                onClick={() => setShowRefundModal(false)}
+                className="text-slate-400 hover:text-white"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="text-xs text-slate-400">
+              Order #{selectedOrder.id} &middot; Total Paid: ${Number(selectedOrder.total || selectedOrder.amount || 0).toFixed(2)}
             </div>
 
             <div>
-              <label style={{ fontSize: "11.5px", fontWeight: 600, display: "block", marginBottom: "4px" }}>REFUND AMOUNT (Max: {selectedOrder.amount} {selectedOrder.currency})</label>
-              <input 
-                type="number" 
-                min="0" 
-                max={selectedOrder.amount}
-                placeholder="Enter amount..."
-                value={refundAmount || ""}
-                onChange={(e) => setRefundAmount(parseFloat(e.target.value))}
-                style={{ width: "100%", padding: "8px", fontSize: "12px", borderRadius: "4px", border: "1px solid var(--border)", background: "var(--bg-base)" }}
+              <label className="block text-xs font-semibold text-slate-300 mb-1">Refund Amount ($)</label>
+              <input
+                type="number"
+                step="0.01"
+                value={refundAmount}
+                onChange={(e) => setRefundAmount(parseFloat(e.target.value) || 0)}
+                className="w-full px-3 py-2 rounded-lg bg-[#161c2c] border border-slate-700 text-white text-sm outline-none focus:border-rose-500"
               />
             </div>
 
             <div>
-              <label style={{ fontSize: "11.5px", fontWeight: 600, display: "block", marginBottom: "4px" }}>REASON FOR REFUND</label>
-              <textarea 
-                placeholder="Customer late complaint, missing items, food quality issues..."
+              <label className="block text-xs font-semibold text-slate-300 mb-1">Reason for Refund</label>
+              <textarea
                 value={refundReason}
                 onChange={(e) => setRefundReason(e.target.value)}
-                style={{ width: "100%", padding: "8px", fontSize: "12px", borderRadius: "4px", border: "1px solid var(--border)", height: "80px", background: "var(--bg-base)", resize: "none" }}
+                placeholder="e.g. Missing items, late delivery, cold food..."
+                rows={3}
+                className="w-full px-3 py-2 rounded-lg bg-[#161c2c] border border-slate-700 text-white text-xs outline-none focus:border-rose-500 resize-none"
               />
             </div>
 
-            <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
-              <button className="btn btn-secondary btn-sm" onClick={() => setShowRefundModal(false)}>Cancel</button>
-              <button 
-                className="btn btn-primary btn-sm" 
-                disabled={!refundAmount || !refundReason}
-                onClick={handleRefundRequestSingle}
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowRefundModal(false)}
+                className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-colors"
               >
-                Submit Request
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={!refundAmount || !refundReason.trim()}
+                onClick={async () => {
+                  const ok = await requestRefund(selectedOrder.id, refundAmount, refundReason);
+                  if (ok) {
+                    triggerToast(`Refund of $${refundAmount.toFixed(2)} requested`, "success");
+                    setShowRefundModal(false);
+                    setRefundReason("");
+                  }
+                }}
+                className="px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white text-xs font-bold transition-colors"
+              >
+                Submit Refund
               </button>
             </div>
           </div>
         </div>
       )}
-
-      {/* ════════════════════════════════════════════════════════════════ */}
-      {/* THREE-DOTS (⋮) ACTION & DISPATCH CONTROL MODAL OVERLAY           */}
-      {/* ════════════════════════════════════════════════════════════════ */}
-      {threeDotsModalOrderId && (() => {
-        const modalOrder = orders.find(o => o.id === threeDotsModalOrderId);
-        if (!modalOrder) return null;
-
-        const modalSla = calculateSLATime(modalOrder.created_at);
-        const modalMerchant = merchants.find(m => m.id === modalOrder.merchant_id);
-        const modalDriver = drivers.find(d => d.id === modalOrder.driver_id);
-        const modalHasRefund = refunds.some(r => r.order_id === modalOrder.id && r.status === "pending");
-
-        return (
-          <div style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: "rgba(0,0,0,0.8)",
-            backdropFilter: "blur(4px)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 10000,
-            padding: "20px"
-          }}>
-            <div className="panel" style={{
-              width: "920px",
-              maxWidth: "95vw",
-              maxHeight: "90vh",
-              display: "flex",
-              flexDirection: "column",
-              overflow: "hidden",
-              background: "var(--bg-surface)",
-              borderRadius: "var(--radius-lg)",
-              border: "1px solid var(--border)",
-              boxShadow: "0 20px 50px rgba(0,0,0,0.5)"
-            }}>
-              
-              {/* Modal Header */}
-              <div style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                padding: "16px 20px",
-                borderBottom: "1px solid var(--border)",
-                background: "var(--bg-base)"
-              }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                  <Zap size={20} className="text-cyan-400" />
-                  <div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                      <h2 className="mono" style={{ fontSize: "18px", fontWeight: 800 }}>#{modalOrder.id}</h2>
-                      <StatusBadge status={modalOrder.status} />
-                      <span style={{ fontSize: "11px", background: "var(--accent-light)", color: "var(--accent)", padding: "2px 8px", borderRadius: "4px", fontWeight: 700 }}>
-                        {modalOrder.zone || "Algiers"}
-                      </span>
-                    </div>
-                    <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>
-                      Created: {new Date(modalOrder.created_at).toLocaleString()}
-                    </div>
-                  </div>
-                </div>
-
-                <button 
-                  className="btn btn-ghost btn-sm" 
-                  onClick={() => setThreeDotsModalOrderId(null)}
-                  style={{ padding: "4px 10px" }}
-                >
-                  <X size={16} />
-                </button>
-              </div>
-
-              {/* Modal Body - 2 Columns Grid */}
-              <div style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "20px",
-                padding: "20px",
-                overflowY: "auto",
-                flex: 1
-              }}>
-                
-                {/* LEFT COLUMN: Map, Dispatch Time & Route */}
-                <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                  
-                  {/* Live Dispatch Mini-Map */}
-                  <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--accent)", textTransform: "uppercase" }}>
-                        Live Dispatch Map & Route
-                      </span>
-                      <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>GPS Live Tracking</span>
-                    </div>
-                    <div style={{ height: "220px", width: "100%", borderRadius: "var(--radius-md)", border: "1px solid var(--border)", overflow: "hidden" }}>
-                      <MapComponent
-                        orders={[modalOrder]}
-                        drivers={drivers}
-                        selectedOrderId={modalOrder.id}
-                        selectedDriverId={modalOrder.driver_id}
-                        selectedMerchantId={modalOrder.merchant_id}
-                        viewMode="orders"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Time Dispatch & SLA Countdown */}
-                  <div style={{ background: "var(--bg-sunken)", padding: "14px", borderRadius: "var(--radius-md)", border: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: "10px" }}>
-                    <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase" }}>
-                      ⏱️ Time Dispatch & SLA Countdown
-                    </div>
-
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-                      <div style={{ background: "var(--bg-base)", padding: "8px 10px", borderRadius: "6px", border: "1px solid var(--border)" }}>
-                        <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>SLA Timer Remaining</div>
-                        <div style={{ fontSize: "16px", fontWeight: 800, color: modalSla.status === 'breached' ? "var(--status-red)" : "var(--status-green)", marginTop: "2px" }} className="mono">
-                          {modalSla.formatted}
-                        </div>
-                      </div>
-
-                      <div style={{ background: "var(--bg-base)", padding: "8px 10px", borderRadius: "6px", border: "1px solid var(--border)" }}>
-                        <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>Estimated ETA</div>
-                        <div style={{ fontSize: "16px", fontWeight: 800, color: "var(--text-primary)", marginTop: "2px" }} className="mono">
-                          {modalOrder.eta_minutes ? `${modalOrder.eta_minutes} min` : "Estimating..."}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div style={{ fontSize: "11px", color: "var(--text-muted)", display: "flex", flexDirection: "column", gap: "6px", borderTop: "1px dashed var(--border)", paddingTop: "8px" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                        <Store size={12} className="text-cyan-400" />
-                        <span>Pickup: <b>{modalOrder.pickup_address || modalOrder.merchant_address || "Restaurant Storefront"}</b></span>
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                        <MapPin size={12} className="text-rose-400" />
-                        <span>Delivery: <b>{modalOrder.delivery_address || "Customer Location"}</b></span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Financial Details (Infos Financières / Facture) */}
-                  <div style={{ background: "var(--bg-sunken)", padding: "14px", borderRadius: "var(--radius-md)", border: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: "8px" }}>
-                    <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", display: "flex", alignItems: "center", gap: 6 }}>
-                      <CreditCard size={13} className="text-cyan-400" />
-                      Financial Infos & Payment
-                    </div>
-
-                    <div style={{ display: "flex", flexDirection: "column", gap: "4px", fontSize: "12px" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between" }}>
-                        <span style={{ color: "var(--text-muted)" }}>Subtotal:</span>
-                        <span className="mono">{(modalOrder.subtotal || modalOrder.amount || 0).toFixed(2)} {modalOrder.currency || 'DA'}</span>
-                      </div>
-                      <div style={{ display: "flex", justifyContent: "space-between" }}>
-                        <span style={{ color: "var(--text-muted)" }}>Delivery Fee:</span>
-                        <span className="mono">{(modalOrder.delivery_fee || 0).toFixed(2)} {modalOrder.currency || 'DA'}</span>
-                      </div>
-                      <div style={{ display: "flex", justifyContent: "space-between" }}>
-                        <span style={{ color: "var(--text-muted)" }}>Service Fee:</span>
-                        <span className="mono">{(modalOrder.service_fee || 0).toFixed(2)} {modalOrder.currency || 'DA'}</span>
-                      </div>
-                      <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px dashed var(--border)", paddingTop: "6px", marginTop: "2px", fontWeight: 800, fontSize: "13px" }}>
-                        <span>Total Amount:</span>
-                        <span className="mono" style={{ color: "var(--accent)" }}>{(modalOrder.total || modalOrder.amount || 0).toFixed(2)} {modalOrder.currency || 'DA'}</span>
-                      </div>
-                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "var(--text-muted)", marginTop: "4px" }}>
-                        <span>Payment Method: <b>{modalOrder.payment_method || 'CASH ON DELIVERY'}</b></span>
-                        <span>Payment Status: <b style={{ color: modalHasRefund ? "var(--status-red)" : "var(--status-green)" }}>{modalHasRefund ? "Refund Pending" : "Paid"}</b></span>
-                      </div>
-                    </div>
-
-                    <div style={{ marginTop: "6px", display: "flex", gap: "8px" }}>
-                      <button
-                        className="btn btn-secondary btn-xs"
-                        onClick={() => {
-                          setShowRefundModal(true);
-                          setRefundAmount(modalOrder.amount);
-                        }}
-                      >
-                        Request Refund
-                      </button>
-                    </div>
-                  </div>
-
-                </div>
-
-                {/* RIGHT COLUMN: Order Status, Switch Driver, Cancel & Contacts */}
-                <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                  
-                  {/* 1. Order Status Control */}
-                  <div style={{ background: "var(--bg-sunken)", padding: "14px", borderRadius: "var(--radius-md)", border: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: "8px" }}>
-                    <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase" }}>
-                      Order Status Control
-                    </div>
-                    <div style={{ display: "flex", gap: "8px" }}>
-                      <select
-                        value={orderStatusSelect}
-                        onChange={(e) => setOrderStatusSelect(e.target.value)}
-                        style={{ flex: 1, padding: "8px", fontSize: "12px", borderRadius: "6px", border: "1px solid var(--border)", background: "var(--bg-base)", color: "var(--text-primary)" }}
-                      >
-                        <option value="pending">Pending</option>
-                        <option value="preparing">Preparing (Kitchen)</option>
-                        <option value="delivering">Delivering (Transit)</option>
-                        <option value="completed">Completed (Delivered)</option>
-                        <option value="cancelled">Cancelled</option>
-                      </select>
-                      <button
-                        className="btn btn-primary btn-sm"
-                        onClick={() => {
-                          useDashboardStore.getState().updateOrder({ id: modalOrder.id, status: orderStatusSelect as any });
-                          triggerToast(`Updated status to ${orderStatusSelect}`, 'success');
-                        }}
-                      >
-                        Update Status
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* 2. Switch Driver Button & Reassignment */}
-                  <div style={{ background: "var(--bg-sunken)", padding: "14px", borderRadius: "var(--radius-md)", border: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: "8px" }}>
-                    <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", display: "flex", justifyContent: "space-between" }}>
-                      <span>Switch / Reassign Driver</span>
-                      <span style={{ color: "var(--text-muted)" }}>Current: {modalOrder.driver_name || "Unassigned"}</span>
-                    </div>
-
-                    <div style={{ display: "flex", gap: "8px" }}>
-                      <select
-                        value={driverSwitchSelect}
-                        onChange={(e) => setDriverSwitchSelect(e.target.value)}
-                        style={{ flex: 1, padding: "8px", fontSize: "12px", borderRadius: "6px", border: "1px solid var(--border)", background: "var(--bg-base)", color: "var(--text-primary)" }}
-                      >
-                        <option value="">Select New Driver</option>
-                        {drivers.map(d => (
-                          <option key={d.id} value={d.id}>
-                            {d.name} ({d.zone}) - {d.status}
-                          </option>
-                        ))}
-                      </select>
-                      <button
-                        className="btn btn-primary btn-sm"
-                        disabled={!driverSwitchSelect}
-                        onClick={async () => {
-                          const success = await assignDriver(modalOrder.id, driverSwitchSelect);
-                          if (success) {
-                            const selD = drivers.find(d => d.id === driverSwitchSelect);
-                            triggerToast(`Switched driver to ${selD?.name || driverSwitchSelect}`, 'success');
-                          }
-                        }}
-                      >
-                        Switch Driver
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* 3. Cancel Order Panel */}
-                  <div style={{ background: "rgba(239, 68, 68, 0.05)", padding: "14px", borderRadius: "var(--radius-md)", border: "1px solid rgba(239, 68, 68, 0.2)", display: "flex", flexDirection: "column", gap: "8px" }}>
-                    <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--status-red)", textTransform: "uppercase" }}>
-                      Cancel Order Details
-                    </div>
-                    <input
-                      type="text"
-                      placeholder="Enter cancellation reason (e.g. Item unavailable, customer requested)..."
-                      value={cancelOrderReasonInput}
-                      onChange={(e) => setCancelOrderReasonInput(e.target.value)}
-                      style={{ width: "100%", padding: "8px", fontSize: "12px", borderRadius: "6px", border: "1px solid var(--border)", background: "var(--bg-base)", color: "var(--text-primary)" }}
-                    />
-                    <button
-                      className="btn btn-secondary btn-sm"
-                      style={{ color: "var(--status-red)", borderColor: "var(--status-red)", width: "100%", justifyContent: "center" }}
-                      onClick={async () => {
-                        const reason = cancelOrderReasonInput.trim() || "Admin operational cancel override";
-                        const success = await cancelOrder(modalOrder.id, reason);
-                        if (success) {
-                          triggerToast(`Order #${modalOrder.id} cancelled`, 'info');
-                          setThreeDotsModalOrderId(null);
-                        }
-                      }}
-                    >
-                      Confirm Cancel Order
-                    </button>
-                  </div>
-
-                  {/* 4. Contact Parties (Seller, Client, Driver) */}
-                  <div style={{ background: "var(--bg-sunken)", padding: "14px", borderRadius: "var(--radius-md)", border: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: "10px" }}>
-                    <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", display: "flex", alignItems: "center", gap: 6 }}>
-                      <Phone size={13} className="text-cyan-400" />
-                      Contact Parties (Seller, Client & Driver)
-                    </div>
-
-                    {/* Seller / Merchant */}
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--bg-base)", padding: "8px 10px", borderRadius: "6px" }}>
-                      <div>
-                        <div style={{ fontSize: "11px", fontWeight: 700, display: "flex", alignItems: "center", gap: 5 }}>
-                          <Store size={12} className="text-cyan-400" />
-                          <span>Seller: {modalOrder.merchant_name || "Merchant Store"}</span>
-                        </div>
-                        <div style={{ fontSize: "10px", color: "var(--text-muted)", marginLeft: 17 }}>{modalMerchant?.zone || modalOrder.zone}</div>
-                      </div>
-                      <div style={{ display: "flex", gap: "4px" }}>
-                        <button className="btn btn-secondary btn-xs" onClick={() => triggerToast(`Dialing Merchant ${modalOrder.merchant_name}...`, "info")}>
-                          <Phone size={11} /> Call
-                        </button>
-                        <button className="btn btn-secondary btn-xs" onClick={() => triggerToast(`Chatting with Merchant ${modalOrder.merchant_name}`, "info")}>
-                          <MessageSquare size={11} /> Msg
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Client / Customer */}
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--bg-base)", padding: "8px 10px", borderRadius: "6px" }}>
-                      <div>
-                        <div style={{ fontSize: "11px", fontWeight: 700, display: "flex", alignItems: "center", gap: 5 }}>
-                          <User size={12} className="text-cyan-400" />
-                          <span>Client: {modalOrder.customer_name || "Customer"}</span>
-                        </div>
-                        <div style={{ fontSize: "10px", color: "var(--text-muted)", marginLeft: 17 }}>ID: {modalOrder.customer_id}</div>
-                      </div>
-                      <div style={{ display: "flex", gap: "4px" }}>
-                        <button className="btn btn-secondary btn-xs" onClick={() => triggerToast(`Dialing Client ${modalOrder.customer_name}...`, "info")}>
-                          <Phone size={11} /> Call
-                        </button>
-                        <button className="btn btn-secondary btn-xs" onClick={() => triggerToast(`Chatting with Client ${modalOrder.customer_name}`, "info")}>
-                          <MessageSquare size={11} /> Msg
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Driver */}
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--bg-base)", padding: "8px 10px", borderRadius: "6px" }}>
-                      <div>
-                        <div style={{ fontSize: "11px", fontWeight: 700, display: "flex", alignItems: "center", gap: 5 }}>
-                          <Bike size={12} className="text-cyan-400" />
-                          <span>Driver: {modalOrder.driver_name || "Unassigned"}</span>
-                        </div>
-                        <div style={{ fontSize: "10px", color: "var(--text-muted)", marginLeft: 17, display: "flex", alignItems: "center", gap: 3 }}>
-                          <span>{modalDriver ? modalDriver.zone : "No driver assigned"}</span>
-                          {modalDriver && (
-                            <>
-                              <span>· Rating:</span>
-                              <Star size={9} className="fill-amber-400 text-amber-400" />
-                              <span>{modalDriver.rating}</span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                      <div style={{ display: "flex", gap: "4px" }}>
-                        <button className="btn btn-secondary btn-xs" disabled={!modalOrder.driver_id} onClick={() => triggerToast(`Dialing Driver ${modalOrder.driver_name}...`, "info")}>
-                          <Phone size={11} /> Call
-                        </button>
-                        <button className="btn btn-secondary btn-xs" disabled={!modalOrder.driver_id} onClick={() => triggerToast(`Chatting with Driver ${modalOrder.driver_name}`, "info")}>
-                          <MessageSquare size={11} /> Msg
-                        </button>
-                      </div>
-                    </div>
-
-                  </div>
-
-                </div>
-
-              </div>
-            </div>
-          </div>
-        );
-      })()}
     </div>
   );
 }
