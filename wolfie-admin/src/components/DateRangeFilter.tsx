@@ -98,7 +98,7 @@ export default function DateRangeFilter({ value, onChange, className = "" }: Dat
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#141b2a] hover:bg-[#1c253a] border border-slate-700/70 text-slate-200 text-xs font-semibold transition-all shadow-sm cursor-pointer"
+        className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#10131b] hover:bg-white/[0.06] border border-white/[0.08] text-slate-200 text-xs font-semibold transition-all shadow-sm cursor-pointer"
       >
         <Calendar size={14} className="text-slate-400" />
         <span>{value.preset === "custom" && value.startDate ? `${value.startDate} - ${value.endDate || "now"}` : currentLabel}</span>
@@ -109,7 +109,7 @@ export default function DateRangeFilter({ value, onChange, className = "" }: Dat
       {isOpen && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
-          <div className="absolute left-0 mt-1.5 w-64 p-2 rounded-xl bg-[#0f1422] border border-slate-700/80 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-100">
+          <div className="absolute left-0 mt-1.5 w-64 p-2 rounded-xl bg-[#0f1219] border border-white/[0.08] shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-100">
             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2 py-1 mb-1">
               Filter by Date
             </div>
@@ -134,14 +134,14 @@ export default function DateRangeFilter({ value, onChange, className = "" }: Dat
 
             {/* Custom Range Inputs */}
             {value.preset === "custom" && (
-              <div className="mt-2.5 pt-2.5 border-t border-slate-800 flex flex-col gap-2">
+              <div className="mt-2.5 pt-2.5 border-t border-white/[0.06] flex flex-col gap-2">
                 <div>
                   <label className="block text-[10px] font-medium text-slate-400 mb-1">Start Date</label>
                   <input
                     type="date"
                     value={value.startDate}
                     onChange={(e) => onChange({ ...value, startDate: e.target.value })}
-                    className="w-full px-2 py-1 text-xs rounded-md bg-[#161c2c] border border-slate-700 text-slate-200 outline-none focus:border-rose-500"
+                    className="w-full px-2 py-1 text-xs rounded-md bg-[#131722] border border-white/[0.08] text-slate-200 outline-none focus:border-rose-500"
                   />
                 </div>
                 <div>
@@ -150,7 +150,7 @@ export default function DateRangeFilter({ value, onChange, className = "" }: Dat
                     type="date"
                     value={value.endDate}
                     onChange={(e) => onChange({ ...value, endDate: e.target.value })}
-                    className="w-full px-2 py-1 text-xs rounded-md bg-[#161c2c] border border-slate-700 text-slate-200 outline-none focus:border-rose-500"
+                    className="w-full px-2 py-1 text-xs rounded-md bg-[#131722] border border-white/[0.08] text-slate-200 outline-none focus:border-rose-500"
                   />
                 </div>
                 <button

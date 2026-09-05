@@ -211,7 +211,7 @@ export default function DashboardPage() {
   return (
     <>
       {/* ── Page Header (DoorDash & Uber Eats Operations Hub) ── */}
-      <div className="page-header flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800/80 pb-4 mb-6">
+      <div className="page-header flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/[0.07] pb-4 mb-6">
         <div>
           <div className="page-title">
             <BlurText

@@ -113,7 +113,7 @@ export default function Topbar({
         <button
           type="button"
           onClick={onToggleSidebar}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#161c28] hover:bg-[#1e2638] text-white border border-slate-700/60 transition-all shadow-sm text-xs font-semibold cursor-pointer"
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-white border border-white/[0.09] transition-all shadow-sm text-xs font-semibold cursor-pointer"
           title="Toggle Navigation Menu (Press [)"
           aria-label="Toggle Navigation Menu"
         >
