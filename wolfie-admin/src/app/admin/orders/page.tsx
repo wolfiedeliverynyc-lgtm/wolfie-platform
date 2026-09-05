@@ -36,7 +36,7 @@ import {
 const MapComponent = dynamic(() => import("@/components/MapComponent"), {
   ssr: false,
   loading: () => (
-    <div className="h-[200px] w-full flex items-center justify-center bg-[#0d121d] rounded-lg border border-white/[0.07] text-slate-400 text-xs">
+    <div className="h-[200px] w-full flex items-center justify-center bg-[#0d121d] rounded-lg  text-slate-400 text-xs">
       <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping mr-2" /> Loading Track Map...
     </div>
   )
@@ -338,7 +338,7 @@ export default function OrdersManagementPage() {
         );
       case "cancelled":
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-800 text-slate-400 border border-slate-700">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-800 text-slate-400 ">
             <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
             Cancelled
           </span>
@@ -412,7 +412,7 @@ export default function OrdersManagementPage() {
               ? "bg-emerald-600 text-white"
               : toast.type === "error"
               ? "bg-rose-600 text-white"
-              : "bg-slate-800 text-slate-100 border border-slate-700"
+              : "bg-slate-800 text-slate-100 "
           }`}
         >
           {toast.type === "success" ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />}
@@ -421,7 +421,7 @@ export default function OrdersManagementPage() {
       )}
 
       {/* ── 1. Page Header with DoorDash / UberEats Ops Ribbon ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/[0.06] pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4  pb-4">
         <div>
           <div className="flex items-center gap-2.5">
             <h1 className="text-xl font-black tracking-tight text-white">Live Orders Dispatch</h1>
@@ -437,7 +437,7 @@ export default function OrdersManagementPage() {
 
         {/* Quick KPI Counters */}
         <div className="flex items-center gap-2 overflow-x-auto py-1">
-          <div className="px-3 py-1.5 rounded-lg bg-[#0f1219] border border-white/[0.08] flex items-center gap-2 shadow-sm">
+          <div className="px-3 py-1.5 rounded-lg bg-[#0f1219]  flex items-center gap-2 shadow-sm">
             <span className="text-[11px] text-slate-400 font-medium">Active</span>
             <span className="text-sm font-bold text-white">{tabCounts.active}</span>
           </div>
@@ -451,15 +451,15 @@ export default function OrdersManagementPage() {
             <span className="text-[11px] font-medium">Unassigned</span>
             <span className="text-sm font-bold">{tabCounts.unassigned}</span>
           </div>
-          <div className="px-3 py-1.5 rounded-lg bg-[#0f1219] border border-white/[0.08] flex items-center gap-2 shadow-sm">
+          <div className="px-3 py-1.5 rounded-lg bg-[#0f1219]  flex items-center gap-2 shadow-sm">
             <span className="text-[11px] text-slate-400 font-medium">In Kitchen</span>
             <span className="text-sm font-bold text-amber-400">{tabCounts.preparing}</span>
           </div>
-          <div className="px-3 py-1.5 rounded-lg bg-[#0f1219] border border-white/[0.08] flex items-center gap-2 shadow-sm">
+          <div className="px-3 py-1.5 rounded-lg bg-[#0f1219]  flex items-center gap-2 shadow-sm">
             <span className="text-[11px] text-slate-400 font-medium">In Transit</span>
             <span className="text-sm font-bold text-sky-400">{tabCounts.delivering}</span>
           </div>
-          <div className="px-3 py-1.5 rounded-lg bg-[#0f1219] border border-white/[0.08] flex items-center gap-2 shadow-sm">
+          <div className="px-3 py-1.5 rounded-lg bg-[#0f1219]  flex items-center gap-2 shadow-sm">
             <span className="text-[11px] text-slate-400 font-medium">Delivered</span>
             <span className="text-sm font-bold text-emerald-400">{tabCounts.completed}</span>
           </div>
@@ -467,7 +467,7 @@ export default function OrdersManagementPage() {
       </div>
 
       {/* ── 2. Horizontal Status Tabs (DoorDash & Uber Eats Style) ── */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 border-b border-white/[0.06]">
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 ">
         {[
           { id: "all", label: "All Orders", count: tabCounts.all },
           { id: "active", label: "Active Deliveries", count: tabCounts.active },
@@ -507,7 +507,7 @@ export default function OrdersManagementPage() {
       </div>
 
       {/* ── 3. Filters & Search Toolbar (Organized, High-Density) ── */}
-      <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl bg-[#0f1219] border border-white/[0.08] shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl bg-[#0f1219]  shadow-sm">
         <div className="flex flex-wrap items-center gap-2.5 flex-1 min-w-[280px]">
           {/* Fast Search input */}
           <div className="relative flex-1 min-w-[200px] max-w-[340px]">
@@ -517,7 +517,7 @@ export default function OrdersManagementPage() {
               placeholder="Search by Order #, Customer, Store, Courier..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-8 py-1.5 text-xs rounded-lg bg-[#131722] border border-white/[0.08] text-white placeholder-slate-500 outline-none focus:border-rose-500 transition-colors"
+              className="w-full pl-9 pr-8 py-1.5 text-xs rounded-lg bg-[#131722]  text-white placeholder-slate-500 outline-none focus:border-rose-500 transition-colors"
             />
             {searchQuery && (
               <button
@@ -537,7 +537,7 @@ export default function OrdersManagementPage() {
           <select
             value={selectedZone}
             onChange={(e) => setSelectedZone(e.target.value)}
-            className="px-3 py-1.5 text-xs font-medium rounded-lg bg-[#131722] border border-white/[0.08] text-slate-200 outline-none focus:border-rose-500 cursor-pointer"
+            className="px-3 py-1.5 text-xs font-medium rounded-lg bg-[#131722]  text-slate-200 outline-none focus:border-rose-500 cursor-pointer"
           >
             <option value="all">All Sectors &amp; Zones</option>
             {availableZones.map((z) => (
@@ -605,11 +605,11 @@ export default function OrdersManagementPage() {
       </div>
 
       {/* ── 4. High-Density Wide Orders Table ── */}
-      <div className="w-full rounded-xl bg-[#0f1219] border border-white/[0.08] overflow-hidden shadow-lg">
+      <div className="w-full rounded-xl bg-[#0f1219]  overflow-hidden shadow-lg">
         <div className="overflow-x-auto w-full">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
-              <tr className="bg-[#0b0e15] border-b border-white/[0.08] text-slate-400 uppercase text-[11px] font-bold tracking-wider">
+              <tr className="bg-[#0b0e15]  text-slate-400 uppercase text-[11px] font-bold tracking-wider">
                 <th className="py-3 px-4 w-10 text-center">
                   <input
                     type="checkbox"
@@ -821,7 +821,7 @@ export default function OrdersManagementPage() {
 
       {/* ── 5. Bulk Actions Floating Bar ── */}
       {selectedOrderIds.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 px-5 py-3 rounded-2xl bg-[#0e1118] border border-slate-700 shadow-2xl flex items-center gap-4 animate-in slide-in-from-bottom-5">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 px-5 py-3 rounded-2xl bg-[#0e1118]  shadow-2xl flex items-center gap-4 animate-in slide-in-from-bottom-5">
           <div className="text-xs font-bold text-white bg-rose-600 px-2.5 py-1 rounded-full">
             {selectedOrderIds.length} Orders Selected
           </div>
@@ -830,7 +830,7 @@ export default function OrdersManagementPage() {
             <select
               value={bulkDriverId}
               onChange={(e) => setBulkDriverId(e.target.value)}
-              className="px-2.5 py-1 text-xs rounded-lg bg-[#161c2c] border border-slate-700 text-slate-200"
+              className="px-2.5 py-1 text-xs rounded-lg bg-[#161c2c]  text-slate-200"
             >
               <option value="">Choose Driver...</option>
               {drivers.filter((d) => d.status !== "offline").map((d) => (
@@ -926,7 +926,7 @@ export default function OrdersManagementPage() {
             {/* Drawer Scrollable Content */}
             <div className="flex-1 overflow-y-auto p-4 space-y-5">
               {/* Status Stepper Tracker */}
-              <div className="p-3.5 rounded-xl bg-[#121622] border border-white/[0.07]">
+              <div className="p-3.5 rounded-xl bg-[#121622] ">
                 <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-3">
                   Delivery Timeline Tracker
                 </div>
@@ -968,7 +968,7 @@ export default function OrdersManagementPage() {
                 <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">
                   Live Dispatch GPS
                 </div>
-                <div className="h-[180px] w-full rounded-xl overflow-hidden border border-white/[0.07]">
+                <div className="h-[180px] w-full rounded-xl overflow-hidden ">
                   <MapComponent
                     orders={[selectedOrder]}
                     drivers={drivers}
@@ -981,7 +981,7 @@ export default function OrdersManagementPage() {
               </div>
 
               {/* Restaurant / Merchant Profile */}
-              <div className="p-3.5 rounded-xl bg-[#121622] border border-white/[0.07]">
+              <div className="p-3.5 rounded-xl bg-[#121622] ">
                 <div className="flex items-center justify-between mb-2">
                   <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
                     <Store size={13} className="text-slate-400" />
@@ -997,7 +997,7 @@ export default function OrdersManagementPage() {
               </div>
 
               {/* Customer Profile */}
-              <div className="p-3.5 rounded-xl bg-[#121622] border border-white/[0.07]">
+              <div className="p-3.5 rounded-xl bg-[#121622] ">
                 <div className="flex items-center justify-between mb-2">
                   <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
                     <User size={13} className="text-slate-400" />
@@ -1028,7 +1028,7 @@ export default function OrdersManagementPage() {
               </div>
 
               {/* Courier / Driver Assignment */}
-              <div className="p-3.5 rounded-xl bg-[#121622] border border-white/[0.07]">
+              <div className="p-3.5 rounded-xl bg-[#121622] ">
                 <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-1.5">
                   <Bike size={13} className="text-slate-400" />
                   <span>Assigned Courier</span>
@@ -1060,7 +1060,7 @@ export default function OrdersManagementPage() {
                     <div className="flex items-center gap-2">
                       <select
                         id="drawer-driver-select"
-                        className="flex-1 px-2.5 py-1.5 rounded-lg bg-[#0d121e] border border-slate-700 text-slate-200 text-xs outline-none"
+                        className="flex-1 px-2.5 py-1.5 rounded-lg bg-[#0d121e]  text-slate-200 text-xs outline-none"
                       >
                         <option value="">Select available driver...</option>
                         {drivers.filter((d) => d.status !== "offline").map((d) => (
@@ -1085,7 +1085,7 @@ export default function OrdersManagementPage() {
               </div>
 
               {/* Order Items & Receipt Breakdown */}
-              <div className="p-3.5 rounded-xl bg-[#121622] border border-white/[0.07]">
+              <div className="p-3.5 rounded-xl bg-[#121622] ">
                 <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center justify-between">
                   <span>Order Items &amp; Pricing</span>
                   <span>{selectedOrder.items?.length || 1} items</span>
@@ -1212,7 +1212,7 @@ export default function OrdersManagementPage() {
       {/* ── 7. Refund Modal ── */}
       {showRefundModal && selectedOrder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-          <div className="w-full max-w-md p-5 rounded-2xl bg-[#0d1017] border border-slate-700 shadow-2xl space-y-4">
+          <div className="w-full max-w-md p-5 rounded-2xl bg-[#0d1017]  shadow-2xl space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-bold text-white">Issue Customer Refund</h3>
               <button
@@ -1235,7 +1235,7 @@ export default function OrdersManagementPage() {
                 step="0.01"
                 value={refundAmount}
                 onChange={(e) => setRefundAmount(parseFloat(e.target.value) || 0)}
-                className="w-full px-3 py-2 rounded-lg bg-[#161c2c] border border-slate-700 text-white text-sm outline-none focus:border-rose-500"
+                className="w-full px-3 py-2 rounded-lg bg-[#161c2c]  text-white text-sm outline-none focus:border-rose-500"
               />
             </div>
 
@@ -1246,7 +1246,7 @@ export default function OrdersManagementPage() {
                 onChange={(e) => setRefundReason(e.target.value)}
                 placeholder="e.g. Missing items, late delivery, cold food..."
                 rows={3}
-                className="w-full px-3 py-2 rounded-lg bg-[#161c2c] border border-slate-700 text-white text-xs outline-none focus:border-rose-500 resize-none"
+                className="w-full px-3 py-2 rounded-lg bg-[#161c2c]  text-white text-xs outline-none focus:border-rose-500 resize-none"
               />
             </div>
 

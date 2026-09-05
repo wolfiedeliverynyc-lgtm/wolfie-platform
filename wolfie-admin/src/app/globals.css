@@ -2,23 +2,23 @@
 @import "tailwindcss";
 
 
-/* ── Design Tokens (Minimalism & Swiss Style Operations Theme) ────── */
+/* ── Design Tokens (Borderless Flat Minimalist Theme) ─────────────── */
 :root {
-  /* Surfaces - Minimalist Deep Matte */
-  --bg-base:       #090a0f;
-  --bg-surface:    #0f1219;
-  --bg-card:       #111520;
-  --bg-sunken:     #0c0e14;
-  --bg-hover:      rgba(255, 255, 255, 0.04);
-  --bg-active:     rgba(255, 255, 255, 0.08);
+  /* Surfaces - Clean Tonal Contrasts Without Harsh Lines */
+  --bg-base:       #0a0b10;
+  --bg-surface:    #12151f;
+  --bg-card:       #161a26;
+  --bg-sunken:     #0e1017;
+  --bg-hover:      rgba(255, 255, 255, 0.05);
+  --bg-active:     rgba(255, 255, 255, 0.1);
 
-  /* Hairline Borders - Minimalist Precision */
-  --border:        rgba(255, 255, 255, 0.07);
-  --border-subtle: rgba(255, 255, 255, 0.04);
-  --border-strong: rgba(255, 255, 255, 0.15);
-  --border-focus:  rgba(255, 255, 255, 0.35);
+  /* Borderless - Zero Lines */
+  --border:        transparent;
+  --border-subtle: transparent;
+  --border-strong: transparent;
+  --border-focus:  transparent;
 
-  /* Typography Colors - High Contrast Minimalist */
+  /* Typography Colors */
   --text-primary:   #f8fafc;
   --text-secondary: #94a3b8;
   --text-muted:     #64748b;
@@ -56,14 +56,14 @@
   --gap-lg:  20px;
   --gap-xl:  28px;
 
-  /* Minimalist Radius - Sharp, Geometric, Elegant */
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 10px;
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
 
-  /* Minimalist Shadows */
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.35);
-  --shadow-md: 0 4px 16px -2px rgba(0, 0, 0, 0.5);
+  /* Shadows - Soft ambient depth without borders */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
   --glow-accent: none;
 
   /* Typography Stacks */
@@ -522,18 +522,19 @@ body {
 
 .kpi-card {
   background: var(--bg-surface);
-  border: 1px solid var(--border);
+  border: none;
   border-radius: var(--radius-lg);
-  padding: 16px 18px;
+  padding: 18px 20px;
   position: relative;
   overflow: hidden;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.3);
-  transition: border-color 0.2s ease, transform 0.2s ease;
+  box-shadow: var(--shadow-sm);
+  transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .kpi-card:hover {
-  border-color: var(--border-strong);
-  transform: translateY(-1px);
+  background: #151926;
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
 }
 
 .kpi-card-label {
@@ -568,14 +569,7 @@ body {
 .kpi-card-delta.down { color: var(--status-red); }
 .kpi-card-delta.flat { color: var(--text-muted); }
 
-.kpi-card-accent {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: rgba(255, 255, 255, 0.08);
-}
+.kpi-card-accent { display: none; }
 
 /* ── Operational Grid ─────────────────────────────────────────── */
 .ops-grid {
@@ -587,26 +581,28 @@ body {
 
 .ops-grid-full { grid-column: 1 / -1; }
 
-/* ── Minimalist Cards & Panels (Precision Lines) ──────────────── */
+/* ── Borderless Cards & Panels (Clean Flat Surfaces) ────────── */
 .panel {
   background: var(--bg-surface);
-  border: 1px solid var(--border);
+  border: none;
   border-radius: var(--radius-lg);
   overflow: hidden;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.35);
-  transition: border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
+  box-shadow: var(--shadow-sm);
+  transition: background 0.2s ease, box-shadow 0.2s ease;
 }
 
 .panel:hover {
-  border-color: var(--border-strong);
+  background: #141824;
+  box-shadow: var(--shadow-md);
 }
 
 .panel-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 18px;
-  border-bottom: 1px solid var(--border);
+  padding: 14px 20px;
+  border-bottom: none;
+  background: rgba(255, 255, 255, 0.02);
   gap: 12px;
 }
 
@@ -646,8 +642,8 @@ body {
 }
 
 .ops-table thead {
-  background: var(--bg-sunken);
-  border-bottom: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: none;
 }
 
 .ops-table th {
@@ -662,8 +658,8 @@ body {
 }
 
 .ops-table td {
-  padding: 10px 14px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 11px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.02);
   color: var(--text-secondary);
   vertical-align: middle;
 }
@@ -1136,9 +1132,9 @@ body {
   bottom: 0;
   width: 480px;
   max-width: 95vw;
-  background: #0f1422;
-  border-left: 1px solid var(--border);
-  box-shadow: -10px 0 40px rgba(0, 0, 0, 0.8);
+  background: #10131d;
+  border-left: none;
+  box-shadow: -15px 0 50px rgba(0, 0, 0, 0.7);
   z-index: 85;
   display: flex;
   flex-direction: column;
