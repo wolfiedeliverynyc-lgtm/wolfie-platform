@@ -1,4 +1,6 @@
 "use client";
+import { ExternalLink, UtensilsCrossed, Utensils } from "lucide-react";
+
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useDashboardStore } from "@/stores/dashboardStore";
 
@@ -142,13 +144,13 @@ export default function AdminMenuCatalogPage() {
                 <img src={selectedMerchant.logo_image} alt={selectedMerchant.name} style={{ width: 44, height: 44, borderRadius: 8, objectFit: "cover", border: "1px solid var(--border)" }} />
               ) : (
                 <div style={{ width: 44, height: 44, borderRadius: 8, background: "var(--bg-base)", border: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>
-                  🏪
+                  
                 </div>
               )}
               <div>
                 <div style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)" }}>{selectedMerchant.name}</div>
                 <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
-                  <span>📍 {selectedMerchant.zone || selectedMerchant.address || "No address recorded"}</span>
+                  <span>{selectedMerchant.zone || selectedMerchant.address || "No address recorded"}</span>
                   <span style={{ margin: "0 8px" }}>•</span>
                   <span>Category: {selectedMerchant.category || "General"}</span>
                   <span style={{ margin: "0 8px" }}>•</span>
@@ -160,7 +162,7 @@ export default function AdminMenuCatalogPage() {
             <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
               {menuDoc && (
                 <a href={menuDoc} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                  <span>📄</span> View Scanned Menu ↗
+                  <ExternalLink size={13} className="inline mr-1" /> View Scanned Menu ↗
                 </a>
               )}
               <button className="btn btn-primary btn-sm" onClick={() => fetchMenu(selectedMerchantId)} disabled={loading}>
@@ -221,7 +223,7 @@ export default function AdminMenuCatalogPage() {
             </div>
           ) : filteredItems.length === 0 ? (
             <div style={{ textAlign: "center", padding: "60px 20px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
-              <div style={{ fontSize: 40 }}>📋</div>
+              <UtensilsCrossed size={40} className="text-slate-600 mb-2" />
               <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>
                 {menuItems.length === 0 ? "No Menu Items in Database" : "No Items Match Filter"}
               </div>
@@ -257,7 +259,7 @@ export default function AdminMenuCatalogPage() {
                         {item.image_url || item.image ? (
                           <img src={item.image_url || item.image} alt={item.name} style={{ width: 36, height: 36, borderRadius: 6, objectFit: "cover" }} onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
                         ) : (
-                          <span style={{ fontSize: 20 }}>🍽️</span>
+                          <Utensils size={20} className="text-cyan-400" />
                         )}
                         <span>{item.name}</span>
                       </div>

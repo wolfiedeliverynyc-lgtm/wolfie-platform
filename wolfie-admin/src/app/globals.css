@@ -2,46 +2,46 @@
 @import "tailwindcss";
 
 
-/* ── Design Tokens ─────────────────────────────────────────────── */
+/* ── Design Tokens (Futuristic Cyber-Ops Theme) ───────────────────── */
 :root {
   /* Surfaces */
-  --bg-base:       #f8f9fa;
-  --bg-surface:    #ffffff;
-  --bg-sunken:     #f1f3f5;
-  --bg-hover:      #f0f2f5;
-  --bg-active:     #e8edf2;
+  --bg-base:       #060813;
+  --bg-surface:    rgba(13, 19, 35, 0.82);
+  --bg-sunken:     rgba(8, 12, 22, 0.92);
+  --bg-hover:      rgba(0, 229, 255, 0.08);
+  --bg-active:     rgba(0, 229, 255, 0.16);
 
   /* Borders */
-  --border:        #e2e6ea;
-  --border-strong: #c8ced4;
+  --border:        rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(0, 229, 255, 0.3);
 
   /* Text */
-  --text-primary:   #0f1923;
-  --text-secondary: #4a5568;
-  --text-muted:     #8a94a6;
-  --text-xmuted:    #b0bac7;
+  --text-primary:   #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted:     #64748b;
+  --text-xmuted:    #334155;
 
   /* Brand / Accent */
-  --accent:        #1a6ef5;
-  --accent-light:  #e8f0fe;
-  --accent-hover:  #1458d0;
+  --accent:        #00e5ff;
+  --accent-light:  rgba(0, 229, 255, 0.12);
+  --accent-hover:  #00b8d4;
 
   /* Status */
-  --status-green:  #16a34a;
-  --status-amber:  #d97706;
-  --status-red:    #dc2626;
-  --status-blue:   #2563eb;
-  --status-gray:   #6b7280;
+  --status-green:  #00f59b;
+  --status-amber:  #ffb800;
+  --status-red:    #ff3366;
+  --status-blue:   #38bdf8;
+  --status-gray:   #64748b;
 
-  --status-green-bg: #f0fdf4;
-  --status-amber-bg: #fffbeb;
-  --status-red-bg:   #fef2f2;
-  --status-blue-bg:  #eff6ff;
+  --status-green-bg: rgba(0, 245, 155, 0.12);
+  --status-amber-bg: rgba(255, 184, 0, 0.12);
+  --status-red-bg:   rgba(255, 51, 102, 0.12);
+  --status-blue-bg:  rgba(56, 189, 248, 0.12);
 
   /* Layout */
-  --sidebar-w:         220px;
-  --sidebar-collapsed: 56px;
-  --topbar-h:          52px;
+  --sidebar-w:         230px;
+  --sidebar-collapsed: 60px;
+  --topbar-h:          54px;
   --content-max:       1440px;
 
   /* Spacing */
@@ -52,17 +52,18 @@
   --gap-xl:  28px;
 
   /* Radius */
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 10px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
 
-  /* Shadow */
-  --shadow-sm: 0 1px 2px rgba(0,0,0,.06), 0 1px 3px rgba(0,0,0,.08);
-  --shadow-md: 0 2px 8px rgba(0,0,0,.08), 0 1px 3px rgba(0,0,0,.05);
+  /* Shadow & Glow */
+  --shadow-sm: 0 2px 8px rgba(0,0,0,.5), 0 0 1px rgba(0,229,255,.2);
+  --shadow-md: 0 8px 32px rgba(0,0,0,.6), 0 0 1px rgba(0,229,255,.3);
+  --glow-accent: 0 0 20px rgba(0, 229, 255, 0.35);
 
   /* Font */
   --font-mono: 'Geist Mono', 'JetBrains Mono', monospace;
-  --font-sans: 'Geist', 'Inter', system-ui, sans-serif;
+  --font-sans: 'Outfit', 'Geist', 'Inter', system-ui, sans-serif;
 }
 
 /* ── Reset / Base ─────────────────────────────────────────────── */
@@ -477,11 +478,21 @@ body {
 
 .kpi-card {
   background: var(--bg-surface);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 14px 16px;
+  padding: 16px 18px;
   position: relative;
   overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.kpi-card:hover {
+  border-color: var(--border-strong);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5), 0 0 15px rgba(0, 229, 255, 0.12);
+  transform: translateY(-2px);
 }
 
 .kpi-card-label {
@@ -494,13 +505,14 @@ body {
 }
 
 .kpi-card-value {
-  font-size: 24px;
-  font-weight: 700;
+  font-size: 26px;
+  font-weight: 800;
   color: var(--text-primary);
   letter-spacing: -0.03em;
   line-height: 1;
   margin-bottom: 6px;
   font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
 }
 
 .kpi-card-delta {
@@ -520,9 +532,9 @@ body {
   bottom: 0;
   left: 0;
   right: 0;
-  height: 3px;
-  background: var(--accent);
-  opacity: 0.12;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  opacity: 0.8;
 }
 
 /* ── Operational Grid ─────────────────────────────────────────── */
@@ -538,9 +550,17 @@ body {
 /* ── Panel ────────────────────────────────────────────────────── */
 .panel {
   background: var(--bg-surface);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   overflow: hidden;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.panel:hover {
+  border-color: rgba(0, 229, 255, 0.22);
 }
 
 .panel-header {
@@ -619,19 +639,22 @@ body {
 .badge {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  border-radius: 20px;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 4px;
   font-size: 11px;
   font-weight: 600;
   white-space: nowrap;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-.badge-green  { background: var(--status-green-bg); color: var(--status-green); }
-.badge-amber  { background: var(--status-amber-bg); color: var(--status-amber); }
-.badge-red    { background: var(--status-red-bg);   color: var(--status-red); }
-.badge-blue   { background: var(--status-blue-bg);  color: var(--status-blue); }
-.badge-gray   { background: var(--bg-sunken);       color: var(--text-muted); }
+.badge-green  { background: rgba(0, 245, 155, 0.1); color: var(--status-green); border-color: rgba(0, 245, 155, 0.3); box-shadow: 0 0 10px rgba(0, 245, 155, 0.15); }
+.badge-amber  { background: rgba(255, 184, 0, 0.1); color: var(--status-amber); border-color: rgba(255, 184, 0, 0.3); box-shadow: 0 0 10px rgba(255, 184, 0, 0.15); }
+.badge-red    { background: rgba(255, 51, 102, 0.1); color: var(--status-red); border-color: rgba(255, 51, 102, 0.3); box-shadow: 0 0 10px rgba(255, 51, 102, 0.15); }
+.badge-blue   { background: rgba(56, 189, 248, 0.1); color: var(--status-blue); border-color: rgba(56, 189, 248, 0.3); box-shadow: 0 0 10px rgba(56, 189, 248, 0.15); }
+.badge-gray   { background: var(--bg-sunken); color: var(--text-muted); border-color: var(--border); }
 
 .badge::before {
   content: '';
@@ -639,6 +662,7 @@ body {
   height: 5px;
   border-radius: 50%;
   background: currentColor;
+  box-shadow: 0 0 6px currentColor;
 }
 
 /* ── Buttons ──────────────────────────────────────────────────── */

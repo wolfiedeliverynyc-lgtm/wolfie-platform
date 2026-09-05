@@ -1,4 +1,6 @@
 "use client";
+import { X } from "lucide-react";
+
 import React, { useState, useMemo, useEffect } from "react";
 import { useDashboardStore } from "@/stores/dashboardStore";
 import StatusBadge from "@/shared/components/StatusBadge";
@@ -112,7 +114,7 @@ export default function DriversFleetPage() {
           <div className="panel" style={{ padding: 16 }}>
             <div style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 500, textTransform: "uppercase" }}>Average rating</div>
             <div style={{ fontSize: 24, fontWeight: 700, marginTop: 4 }}>
-              ★ {(drivers.reduce((sum, d) => sum + d.rating, 0) / (drivers.length || 1)).toFixed(2)}
+              {(drivers.reduce((sum, d) => sum + d.rating, 0) / (drivers.length || 1)).toFixed(2)}
             </div>
           </div>
         </div>
@@ -184,7 +186,7 @@ export default function DriversFleetPage() {
                       <StatusBadge status={driver.status} />
                     </td>
                     <td className="mono">{driver.completed_trips}</td>
-                    <td style={{ fontWeight: 600 }}>★ {driver.rating}</td>
+                    <td style={{ fontWeight: 600 }}>{driver.rating}</td>
                     <td style={{ textAlign: "right" }}>
                       <button
                         className="btn btn-secondary btn-xs"
@@ -220,7 +222,7 @@ export default function DriversFleetPage() {
             <button 
               onClick={() => setReviewsModalOpen(false)}
               style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 20 }}
-            >✕</button>
+            ><X size={14} /></button>
             <div className="panel-title" style={{ marginBottom: 16 }}>Reviews for {currentDriverName}</div>
             
             {loadingReviews ? (
@@ -232,7 +234,7 @@ export default function DriversFleetPage() {
                 {driverReviews.map((r, i) => (
                   <div key={i} style={{ background: 'var(--bg-base)', padding: 16, borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                      <span style={{ color: 'var(--gold)', fontWeight: 'bold' }}>{'★'.repeat(r.rating)}{'☆'.repeat(5-r.rating)}</span>
+                      <span style={{ color: 'var(--gold)', fontWeight: 'bold' }}>{'Rating: ' + r.rating + '/5'}</span>
                       <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{new Date(r.created_at).toLocaleDateString()}</span>
                     </div>
                     <p style={{ fontSize: 13, color: 'var(--text-primary)', margin: 0 }}>

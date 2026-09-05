@@ -7,6 +7,8 @@ import { Order } from "@/types";
 import AnalyticsCard from "@/shared/components/AnalyticsCard";
 import StatusBadge from "@/shared/components/StatusBadge";
 import DataTable from "@/shared/components/DataTable";
+import BlurText from "@/components/react-bits/BlurText";
+import { Download, Plus, Star, Radio, Users, Layers, ShieldCheck } from "lucide-react";
 
 export default function DashboardPage() {
   const {
@@ -192,16 +194,22 @@ export default function DashboardPage() {
       {/* ── Page Header ── */}
       <div className="page-header">
         <div>
-          <div className="page-title">Operations Overview</div>
+          <div className="page-title">
+            <BlurText
+              text="OPERATIONS COMMAND CENTER"
+              delay={70}
+              animateBy="words"
+              direction="top"
+              className="text-lg font-extrabold tracking-wider text-[#f8fafc]"
+            />
+          </div>
           <div className="page-subtitle">
             {new Date().toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long", year: "numeric" })} &nbsp;·&nbsp; Live System Overview
           </div>
         </div>
         <div className="page-actions">
           <button className="btn btn-secondary btn-sm" id="btn-export">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
-            </svg>
+            <Download size={13} style={{ marginRight: 4 }} />
             Export
           </button>
           <button
@@ -214,9 +222,7 @@ export default function DashboardPage() {
               });
             }}
           >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
+            <Plus size={14} style={{ marginRight: 4 }} />
             New Order
           </button>
         </div>
@@ -284,8 +290,10 @@ export default function DashboardPage() {
                     <div style={{ fontWeight: 600, fontSize: 12.5, color: "var(--text-primary)", marginBottom: 2 }}>
                       {d.name}
                     </div>
-                    <div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>
-                      {d.zone} · {d.completed_trips} trips · ★ {d.rating}
+                    <div style={{ fontSize: 11.5, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 3 }}>
+                      <span>{d.zone ? `${d.zone} · ` : ""}{d.completed_trips} trips ·</span>
+                      <Star size={10} className="fill-amber-400 text-amber-400" />
+                      <span>{d.rating}</span>
                     </div>
                   </div>
                   <StatusBadge status={d.status} />

@@ -1,4 +1,6 @@
 "use client";
+import { Cpu } from "lucide-react";
+
 import React, { useState, useEffect, useMemo } from "react";
 import { useDashboardStore } from "@/stores/dashboardStore";
 import {
@@ -94,7 +96,7 @@ export default function MetricsWolfPage() {
       <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
           <div className="page-title" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <span>🐺 Diagnostic Center</span>
+            <span style={{ display: "flex", alignItems: "center", gap: 6 }}><Cpu size={16} className="text-cyan-400" /> Diagnostic Center</span>
             <span style={{ fontSize: 10, background: "rgba(239, 68, 68, 0.15)", color: "var(--accent)", padding: "2px 8px", borderRadius: "20px", textTransform: "uppercase", fontWeight: 700 }}>
               Live Diagnostics
             </span>

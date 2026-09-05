@@ -1,4 +1,5 @@
 "use client";
+import { Star, Bike, Store, Mail, Phone, MapPin, Shield, FileText, User, Utensils, Clock, Folder, CheckCircle, XCircle, AlertTriangle, BookOpen, Landmark, ExternalLink, RefreshCw } from "lucide-react";
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useDashboardStore } from "@/stores/dashboardStore";
 
@@ -38,7 +39,7 @@ export default function KYCReviewPage() {
         expected_daily_orders: null,
         kyc_status: d.kyc_status || "not_started",
         kyc_documents: d.kyc_documents || {},
-        extraInfo: `Trips: ${d.completed_trips} | Rating: ★${d.rating}`
+        extraInfo: `Trips: ${d.completed_trips} | Rating: ${d.rating}`
       }));
     } else {
       return merchants.map(m => ({
@@ -201,10 +202,10 @@ export default function KYCReviewPage() {
 
       <div style={{ display: "flex", gap: "var(--gap-sm)", marginBottom: "var(--gap-lg)" }}>
         <button className={`btn ${activeTab === "driver" ? "btn-primary" : "btn-secondary"}`} onClick={() => setActiveTab("driver")}>
-          🏍️ Drivers Fleet
+          Drivers Fleet
         </button>
         <button className={`btn ${activeTab === "restaurant" ? "btn-primary" : "btn-secondary"}`} onClick={() => setActiveTab("restaurant")}>
-          🏪 Merchants Registry
+          Merchants Registry
         </button>
       </div>
 
@@ -239,9 +240,9 @@ export default function KYCReviewPage() {
                       </span>
                     </div>
                     <div style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "monospace" }}>ID: #{item.id.slice(0, 16)}...</div>
-                    {item.email && <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>✉️ {item.email}</div>}
+                    {item.email && <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2, display: "flex", alignItems: "center", gap: 4 }}><Mail size={11} /> {item.email}</div>}
                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>
-                      <span>{item.zone ? `📍 ${item.zone.length > 35 ? item.zone.slice(0, 35) + "…" : item.zone}` : "📍 No address"}</span>
+                      <span>{item.zone ? `${item.zone.length > 35 ? item.zone.slice(0, 35) + "…" : item.zone}` : "No address"}</span>
                       <span>{item.extraInfo}</span>
                     </div>
                   </div>
@@ -254,7 +255,7 @@ export default function KYCReviewPage() {
         <div className="panel" style={{ display: "flex", flexDirection: "column", overflow: "hidden", height: "100%" }}>
           {!selectedItem ? (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", color: "var(--text-muted)" }}>
-              <div style={{ fontSize: 48, marginBottom: 12 }}>🛡️</div>
+              <Shield size={48} className="text-cyan-400" style={{ marginBottom: 12, opacity: 0.7 }} />
               <p style={{ fontSize: 14, fontWeight: 500 }}>Select a candidate to examine files</p>
               <p style={{ fontSize: 11, marginTop: 4 }}>Review and activate driver/restaurant accounts</p>
             </div>
@@ -265,31 +266,31 @@ export default function KYCReviewPage() {
                 <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
                   {selectedItem.logo_image
                     ? <img src={selectedItem.logo_image} alt={selectedItem.name} style={{ width: 48, height: 48, borderRadius: 8, objectFit: "cover", border: "1px solid var(--border)", flexShrink: 0 }} onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
-                    : <div style={{ width: 48, height: 48, borderRadius: 8, background: "var(--bg-base)", border: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>{selectedItem.role === "restaurant" ? "🏪" : "🏍️"}</div>
+                    : <div style={{ width: 48, height: 48, borderRadius: 8, background: "var(--bg-base)", border: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>{selectedItem.role === "restaurant" ? <Store size={22} className="text-cyan-400" /> : <Bike size={22} className="text-cyan-400" />}</div>
                   }
                   <div>
                     <h3 style={{ fontSize: 17, fontWeight: 700, color: "var(--text-primary)", marginBottom: 4 }}>{selectedItem.name}</h3>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 14px", fontSize: 12, color: "var(--text-muted)" }}>
-                      {selectedItem.email && <span>✉️ {selectedItem.email}</span>}
-                      {selectedItem.phone && selectedItem.phone !== "N/A" && <span>📞 {selectedItem.phone}</span>}
-                      {selectedItem.address && <span>📍 {selectedItem.address.length > 40 ? selectedItem.address.slice(0, 40) + "…" : selectedItem.address}</span>}
+                      {selectedItem.email && <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Mail size={12} /> {selectedItem.email}</span>}
+                      {selectedItem.phone && selectedItem.phone !== "N/A" && <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Phone size={12} /> {selectedItem.phone}</span>}
+                      {selectedItem.address && <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><MapPin size={12} /> {selectedItem.address.length > 40 ? selectedItem.address.slice(0, 40) + "…" : selectedItem.address}</span>}
                     </div>
                   </div>
                 </div>
                 <div style={{ textAlign: "right", flexShrink: 0 }}>
                   <div style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 700 }}>KYC Status</div>
                   <div style={{ fontSize: 14, fontWeight: 900, color: getKycBadgeColor(selectedItem.kyc_status), marginTop: 4, textTransform: "uppercase" }}>
-                    ● {selectedItem.kyc_status.replace("_", " ")}
+                    {selectedItem.kyc_status.replace("_", " ")}
                   </div>
                 </div>
               </div>
 
               {/* Sub-tabs */}
               <div style={{ display: "flex", gap: 6, marginBottom: 14, borderBottom: "1px solid var(--border)", paddingBottom: 10 }}>
-                <button className={`btn btn-xs ${detailTab === "documents" ? "btn-primary" : "btn-secondary"}`} onClick={() => setDetailTab("documents")}>📄 Documents</button>
-                <button className={`btn btn-xs ${detailTab === "profile" ? "btn-primary" : "btn-secondary"}`} onClick={() => setDetailTab("profile")}>👤 Profile &amp; Bio</button>
+                <button className={`btn btn-xs ${detailTab === "documents" ? "btn-primary" : "btn-secondary"}`} onClick={() => setDetailTab("documents")}><FileText size={13} style={{ display: "inline", marginRight: 4 }} /> Documents</button>
+                <button className={`btn btn-xs ${detailTab === "profile" ? "btn-primary" : "btn-secondary"}`} onClick={() => setDetailTab("profile")}><User size={13} style={{ display: "inline", marginRight: 4 }} /> Profile & Bio</button>
                 {selectedItem.role === "restaurant" && (
-                  <button className={`btn btn-xs ${detailTab === "menu" ? "btn-primary" : "btn-secondary"}`} onClick={() => setDetailTab("menu")}>📋 Menu Preview</button>
+                  <button className={`btn btn-xs ${detailTab === "menu" ? "btn-primary" : "btn-secondary"}`} onClick={() => setDetailTab("menu")}><Utensils size={13} style={{ display: "inline", marginRight: 4 }} /> Menu Preview</button>
                 )}
               </div>
 
@@ -306,10 +307,10 @@ export default function KYCReviewPage() {
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                             <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}>{doc.label}</span>
                             <span style={{ fontSize: 9, fontWeight: "bold", color: doc.fileUrl ? (doc.status === "approved" ? "var(--status-green)" : doc.status === "rejected" ? "var(--status-red)" : "var(--gold)") : "var(--text-muted)" }}>
-                              {doc.fileUrl ? (doc.status === "approved" ? "✓ Verified" : doc.status === "rejected" ? "✗ Rejected" : "● Reviewing") : "○ Not uploaded"}
+                              {doc.fileUrl ? (doc.status === "approved" ? "Verified" : doc.status === "rejected" ? "Rejected" : "Reviewing") : "Not uploaded"}
                             </span>
                           </div>
-                          <p style={{ fontSize: 10.5, color: "var(--text-muted)", marginTop: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>📄 {doc.fileName}</p>
+                          <p style={{ fontSize: 10.5, color: "var(--text-muted)", marginTop: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{doc.fileName}</p>
                         </div>
                       );
                     })}
@@ -349,7 +350,7 @@ export default function KYCReviewPage() {
                                   onError={e => { const t = e.currentTarget; t.style.display = "none"; const fb = t.nextElementSibling as HTMLElement | null; if (fb) fb.style.display = "flex"; }}
                                 />
                                 <div style={{ display: "none", flexDirection: "column", alignItems: "center", gap: 8, padding: 16 }}>
-                                  <div style={{ fontSize: 32 }}>⚠️</div>
+                                  <AlertTriangle size={32} className="text-amber-400" />
                                   <div style={{ fontSize: 12, color: "var(--text-muted)", textAlign: "center" }}>Preview unable to render directly in browser</div>
                                   <a href={activeDoc.fileUrl} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-xs" style={{ fontSize: 11, padding: "4px 10px" }}>
                                     Open Document Link ↗
@@ -362,7 +363,7 @@ export default function KYCReviewPage() {
                             )
                           ) : (
                             <>
-                              <div style={{ fontSize: 36, marginBottom: 8 }}>📄</div>
+                              <FileText size={36} style={{ marginBottom: 8, opacity: 0.4 }} />
                               <div style={{ fontSize: 11, fontWeight: "bold", color: "var(--text-muted)", textAlign: "center", textTransform: "uppercase" }}>No Document Uploaded</div>
                               <p style={{ fontSize: 10, color: "var(--text-muted)", textAlign: "center", marginTop: 4, padding: "0 10px" }}>{activeDoc.desc}</p>
                             </>
@@ -376,7 +377,7 @@ export default function KYCReviewPage() {
                         </div>
                         {activeDoc.status === "rejected" && activeDoc.errorReason && (
                           <div style={{ marginTop: 8, background: "rgba(229,62,62,0.1)", border: "1px solid rgba(229,62,62,0.2)", borderRadius: 6, padding: "6px 10px", fontSize: 11, color: "var(--status-red)" }}>
-                            ⚠️ <strong>Rejection reason:</strong> "{activeDoc.errorReason}"
+                            <AlertTriangle size={13} style={{ display: "inline", marginRight: 4 }} /> <strong>Rejection reason:</strong> "{activeDoc.errorReason}"
                           </div>
                         )}
                       </div>
@@ -392,11 +393,11 @@ export default function KYCReviewPage() {
                     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                       <h4 style={{ fontSize: 12, textTransform: "uppercase", color: "var(--text-muted)", fontWeight: 700 }}>Contact &amp; Location</h4>
                       {[
-                        { label: "Email", value: selectedItem.email || "—", icon: "✉️" },
-                        { label: "Phone", value: selectedItem.phone !== "N/A" ? selectedItem.phone : "—", icon: "📞" },
-                        { label: "Address", value: selectedItem.address || "—", icon: "📍" },
-                        { label: "Cuisine / Category", value: selectedItem.cuisine || "—", icon: "🍽️" },
-                        { label: "Expected Daily Orders", value: selectedItem.expected_daily_orders ? `~${selectedItem.expected_daily_orders} orders/day` : "—", icon: "📦" },
+                        { label: "Email", value: selectedItem.email || "—", icon: "Email" },
+                        { label: "Phone", value: selectedItem.phone !== "N/A" ? selectedItem.phone : "—", icon: "Phone" },
+                        { label: "Address", value: selectedItem.address || "—", icon: "Address" },
+                        { label: "Cuisine / Category", value: selectedItem.cuisine || "—", icon: "Cuisine" },
+                        { label: "Expected Daily Orders", value: selectedItem.expected_daily_orders ? `~${selectedItem.expected_daily_orders} orders/day` : "—", icon: "Volume" },
                       ].map(row => (
                         <div key={row.label} style={{ background: "var(--bg-base)", border: "1px solid var(--border)", borderRadius: 8, padding: "10px 14px" }}>
                           <div style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 3 }}>{row.icon} {row.label}</div>
@@ -407,20 +408,20 @@ export default function KYCReviewPage() {
                     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                       <h4 style={{ fontSize: 12, textTransform: "uppercase", color: "var(--text-muted)", fontWeight: 700 }}>Bio &amp; Story</h4>
                       <div style={{ background: "var(--bg-base)", border: "1px solid var(--border)", borderRadius: 8, padding: "10px 14px" }}>
-                        <div style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 4 }}>📝 Bio</div>
+                        <div style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 4 }}>Bio Information</div>
                         <p style={{ fontSize: 12, color: selectedItem.bio ? "var(--text-primary)" : "var(--text-muted)", lineHeight: 1.6, fontStyle: selectedItem.bio ? "normal" : "italic" }}>
                           {selectedItem.bio || "No bio provided"}
                         </p>
                       </div>
                       {selectedItem.story && (
                         <div style={{ background: "var(--bg-base)", border: "1px solid var(--border)", borderRadius: 8, padding: "10px 14px" }}>
-                          <div style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 4 }}>📖 Story</div>
+                          <div style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 4 }}>Merchant Story</div>
                           <p style={{ fontSize: 12, color: "var(--text-primary)", lineHeight: 1.6 }}>{selectedItem.story}</p>
                         </div>
                       )}
                       {selectedItem.role === "restaurant" && (
                         <>
-                          <h4 style={{ fontSize: 12, textTransform: "uppercase", color: "var(--text-muted)", fontWeight: 700, marginTop: 4 }}>🏦 Bank Account</h4>
+                          <h4 style={{ fontSize: 12, textTransform: "uppercase", color: "var(--text-muted)", fontWeight: 700, marginTop: 4 }}>Bank Account</h4>
                           {bankInfo ? (
                             <div style={{ background: "var(--bg-base)", border: "1px solid var(--border)", borderRadius: 8, padding: "10px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
                               {Object.entries(bankInfo).map(([key, val]: [string, any]) => (
@@ -449,7 +450,7 @@ export default function KYCReviewPage() {
                   {menuDoc && (
                     <div style={{ marginBottom: 12, padding: "10px 14px", background: "rgba(255,225,0,0.06)", border: "1px solid rgba(255,225,0,0.2)", borderRadius: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <div style={{ fontSize: 12, color: "var(--text-primary)", display: "flex", alignItems: "center", gap: 8 }}>
-                        <span style={{ fontSize: 16 }}>📄</span>
+                        <FileText size={16} />
                         <div>
                           <div style={{ fontWeight: 700 }}>Scanned Menu Document / PDF</div>
                           <div style={{ fontSize: 10, color: "var(--text-muted)" }}>Uploaded by restaurant during onboarding</div>
@@ -463,11 +464,11 @@ export default function KYCReviewPage() {
 
                   {menuLoading ? (
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 200, color: "var(--text-muted)", fontSize: 13 }}>
-                      ⏳ Loading menu items...
+                      Loading menu items...
                     </div>
                   ) : menuItems.length === 0 ? (
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 220, padding: 24, textAlign: "center", background: "var(--bg-base)", borderRadius: 12, border: "1px dashed var(--border)" }}>
-                      <div style={{ fontSize: 40, marginBottom: 10 }}>📋</div>
+                      <Utensils size={40} style={{ marginBottom: 10, opacity: 0.4 }} />
                       <h4 style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: 6 }}>No Catalog Items Created Yet</h4>
                       <p style={{ fontSize: 12, color: "var(--text-muted)", maxWidth: 400, lineHeight: 1.6 }}>
                         This restaurant has not added individual digital menu items to the catalog database yet.
@@ -497,7 +498,7 @@ export default function KYCReviewPage() {
                           <div style={{ flex: 1 }}>
                             <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>{item.name || item.item_name || "—"}</div>
                             {item.description && <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{item.description}</div>}
-                            {item.category && <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 3 }}>📂 {item.category}</div>}
+                            {item.category && <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 3, display: "flex", alignItems: "center", gap: 4 }}><Folder size={11} /> {item.category}</div>}
                           </div>
                           <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 12 }}>
                             <div style={{ fontSize: 14, fontWeight: 700, color: "var(--primary)" }}>{item.price !== undefined ? `$${Number(item.price).toFixed(2)}` : "—"}</div>
@@ -514,12 +515,12 @@ export default function KYCReviewPage() {
               <div style={{ borderTop: "1px solid var(--border)", paddingTop: 16 }}>
                 {selectedItem.kyc_status === "approved" ? (
                   <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(72,187,120,0.1)", border: "1px solid rgba(72,187,120,0.2)", color: "var(--status-green)", padding: 12, borderRadius: "var(--radius-md)", fontSize: 13 }}>
-                    <span>✅</span>
+                    <CheckCircle size={16} className="text-emerald-400" />
                     <span><strong>KYC Verification Passed:</strong> This registry is approved and active on the platform.</span>
                   </div>
                 ) : selectedItem.kyc_status === "rejected" ? (
                   <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(229,62,62,0.08)", border: "1px solid rgba(229,62,62,0.2)", color: "var(--status-red)", padding: 12, borderRadius: "var(--radius-md)", fontSize: 13 }}>
-                    <span>❌</span>
+                    <XCircle size={16} className="text-rose-400" />
                     <span><strong>KYC Rejected:</strong> This account has been declined and deactivated.</span>
                     <button className="btn btn-xs btn-secondary" style={{ marginLeft: "auto" }} onClick={() => handleDecision("approved")} disabled={submitting}>Re-approve</button>
                   </div>

@@ -4,6 +4,7 @@ import { useDashboardStore } from "@/stores/dashboardStore";
 import StatusBadge from "@/shared/components/StatusBadge";
 import { Order, Driver, Merchant } from "@/types";
 import dynamic from "next/dynamic";
+import { Star, Phone, MessageSquare, Store, MapPin, CreditCard, User, Bike, AlertTriangle, X, Zap } from "lucide-react";
 
 // Dynamically import MapComponent to prevent SSR Leaflet errors
 const MapComponent = dynamic(() => import("@/components/MapComponent"), {
@@ -469,7 +470,7 @@ export default function DispatchEnginePage() {
           alignItems: "center",
           gap: "8px"
         }}>
-          <span>{toast.type === 'success' ? '✓' : toast.type === 'error' ? '⚠' : 'ℹ'}</span>
+          <span>{toast.type === 'success' ? 'SUCCESS' : toast.type === 'error' ? 'ALERT' : 'INFO'}</span>
           {toast.message}
         </div>
       )}
@@ -614,7 +615,10 @@ export default function DispatchEnginePage() {
                 onChange={(e) => setFilterPriorityOnly(e.target.checked)}
                 style={{ accentColor: "var(--accent)" }}
               />
-              <span>⭐ Priority Overrides Only</span>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                <Star size={13} className="fill-amber-400 text-amber-400" />
+                Priority Overrides Only
+              </span>
             </label>
             <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", cursor: "pointer" }}>
               <input 
@@ -623,7 +627,7 @@ export default function DispatchEnginePage() {
                 onChange={(e) => setFilterUnassignedOnly(e.target.checked)}
                 style={{ accentColor: "var(--accent)" }}
               />
-              <span>🚨 Unassigned Queue Only</span>
+              <span>Unassigned Queue Only</span>
             </label>
             <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", cursor: "pointer" }}>
               <input 
@@ -632,7 +636,7 @@ export default function DispatchEnginePage() {
                 onChange={(e) => setFilterRefundRequestedOnly(e.target.checked)}
                 style={{ accentColor: "var(--accent)" }}
               />
-              <span>💸 Refund Requested Only</span>
+              <span>Refund Requested Only</span>
             </label>
           </div>
         </div>
@@ -788,7 +792,7 @@ export default function DispatchEnginePage() {
                             {order.driver_id ? (
                               <span style={{ color: "var(--text-secondary)" }}>{order.driver_name || drivers.find(d => d.id === order.driver_id)?.name || `Driver (${order.driver_id.substring(0,8)})`}</span>
                             ) : (
-                              <span style={{ color: "var(--status-red)", fontWeight: 700 }}>🚨 Unassigned</span>
+                              <span style={{ color: "var(--status-red)", fontWeight: 700 }}>Unassigned</span>
                             )}
                           </td>
                           <td>
@@ -796,7 +800,7 @@ export default function DispatchEnginePage() {
                           </td>
                           <td className="mono" style={{ color: etaWarning ? "var(--status-red)" : "inherit", fontWeight: etaWarning ? 700 : 400 }}>
                             {order.status === 'completed' ? '—' : (order.eta_minutes ? `${order.eta_minutes} min` : 'estimating')}
-                            {etaWarning && <span title="ETA drifts past WAP prediction!" style={{ marginLeft: 4 }}>⚠️</span>}
+                            {etaWarning && <span title="ETA drifts past WAP prediction!"><AlertTriangle size={12} className="inline text-amber-400 ml-1" /></span>}
                           </td>
                           <td className="mono" style={{ color: "var(--text-muted)" }}>
                             {order.status === 'completed' ? '—' : `${wapPredictedMinutes} min`}
@@ -827,7 +831,7 @@ export default function DispatchEnginePage() {
                                 triggerToast(`Toggled order priority`, 'info');
                               }}
                             >
-                              {order.priority ? "⭐" : "☆"}
+                              <Star size={14} className={order.priority ? "fill-amber-400 text-amber-400" : "text-gray-500"} />
                             </button>
                           </td>
                           <td>
@@ -950,7 +954,7 @@ export default function DispatchEnginePage() {
 
                   {/* Bulk Escalate */}
                   <button className="btn btn-secondary btn-xs" onClick={executeBulkEscalate} style={{ borderColor: "var(--status-red)", color: "var(--status-red)" }}>
-                    🚨 SLA Escalate
+                    SLA Escalate
                   </button>
                 </div>
               </div>
@@ -971,7 +975,7 @@ export default function DispatchEnginePage() {
                   <span style={{ fontSize: "10px", fontWeight: 700, color: "var(--accent)", textTransform: "uppercase" }}>Order Dispatch Details</span>
                   <h3 style={{ fontSize: "16px", fontWeight: 700, margin: "2px 0 0" }} className="mono">#{selectedOrder.id}</h3>
                 </div>
-                <button className="btn btn-ghost btn-xs" onClick={() => setSelectedOrderId(null)}>✕</button>
+                <button className="btn btn-ghost btn-xs" onClick={() => setSelectedOrderId(null)}><X size={14} /></button>
               </div>
 
               {/* Dynamic Mini-Map tracking Restaurant -> Driver -> Customer */}
@@ -1039,8 +1043,12 @@ export default function DispatchEnginePage() {
                     <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>ID: {selectedOrder.customer_id}{selectedOrder.zone ? ` · ${selectedOrder.zone}` : ''}</div>
                   </div>
                   <div style={{ display: "flex", gap: "6px" }}>
-                    <button className="btn btn-secondary btn-xs" onClick={() => triggerToast("Dialing customer...", "info")}>📞 Call</button>
-                    <button className="btn btn-secondary btn-xs" onClick={() => triggerToast("Customer chat opened", "info")}>💬 Msg</button>
+                    <button className="btn btn-secondary btn-xs" onClick={() => triggerToast("Dialing customer...", "info")}>
+                      <Phone size={11} /> Call
+                    </button>
+                    <button className="btn btn-secondary btn-xs" onClick={() => triggerToast("Customer chat opened", "info")}>
+                      <MessageSquare size={11} /> Msg
+                    </button>
                   </div>
                 </div>
               </div>
@@ -1049,11 +1057,13 @@ export default function DispatchEnginePage() {
               <div style={{ borderTop: "1px solid var(--border)", paddingTop: "12px", display: "flex", flexDirection: "column", gap: "6px" }}>
                 <span style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase" }}>Addresses & Route Details</span>
                 <div style={{ fontSize: "11.5px", display: "flex", flexDirection: "column", gap: "6px", background: "var(--bg-sunken)", padding: "10px", borderRadius: "6px" }}>
-                  <div>
-                    <span style={{ color: "var(--text-muted)", fontWeight: 500 }}>🏪 Pickup:</span> <span style={{ fontWeight: 600 }}>{selectedOrder.pickup_address || "Restaurant Address"}</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                    <Store size={12} className="text-cyan-400" />
+                    <span style={{ color: "var(--text-muted)", fontWeight: 500 }}>Pickup:</span> <span style={{ fontWeight: 600 }}>{selectedOrder.pickup_address || "Restaurant Address"}</span>
                   </div>
-                  <div>
-                    <span style={{ color: "var(--text-muted)", fontWeight: 500 }}>📍 Delivery:</span> <span style={{ fontWeight: 600 }}>{selectedOrder.delivery_address || "Customer Address"}</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                    <MapPin size={12} className="text-rose-400" />
+                    <span style={{ color: "var(--text-muted)", fontWeight: 500 }}>Delivery:</span> <span style={{ fontWeight: 600 }}>{selectedOrder.delivery_address || "Customer Address"}</span>
                   </div>
                 </div>
               </div>
@@ -1069,10 +1079,10 @@ export default function DispatchEnginePage() {
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <div>
                         <div style={{ fontWeight: 600, fontSize: "13px" }}>{selectedOrder.merchant_name}</div>
-                        <div style={{ fontSize: "11.5px", color: "var(--text-secondary)" }}>★ {merchant.rating} · Category: {merchant.category}</div>
+                        <div style={{ fontSize: "11.5px", color: "var(--text-secondary)" }}>{merchant.rating} · Category: {merchant.category}</div>
                         {selectedOrder.merchant_address && (
                           <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>
-                            📍 {selectedOrder.merchant_address}
+                            {selectedOrder.merchant_address}
                           </div>
                         )}
                       </div>
@@ -1177,13 +1187,19 @@ export default function DispatchEnginePage() {
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                           <div>
                             <div style={{ fontWeight: 600, fontSize: "13px" }}>{selectedOrder.driver_name}</div>
-                            <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>
-                              Zone: {driver?.zone} · Rating: ★{driver?.rating || '5.0'}
+                            <div style={{ fontSize: "11px", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 4 }}>
+                              <span>Zone: {driver?.zone} · Rating:</span>
+                              <Star size={10} className="fill-amber-400 text-amber-400" />
+                              <span>{driver?.rating || '5.0'}</span>
                             </div>
                           </div>
                           <div style={{ display: "flex", gap: "6px" }}>
-                            <button className="btn btn-secondary btn-xs" onClick={() => triggerToast(`Dialing driver ${driver?.phone}...`, "info")}>📞 Call</button>
-                            <button className="btn btn-secondary btn-xs" onClick={() => triggerToast("Driver chat opened", "info")}>💬 Msg</button>
+                            <button className="btn btn-secondary btn-xs" onClick={() => triggerToast(`Dialing driver ${driver?.phone}...`, "info")}>
+                              <Phone size={11} /> Call
+                            </button>
+                            <button className="btn btn-secondary btn-xs" onClick={() => triggerToast("Driver chat opened", "info")}>
+                              <MessageSquare size={11} /> Msg
+                            </button>
                           </div>
                         </div>
 
@@ -1196,7 +1212,7 @@ export default function DispatchEnginePage() {
                               triggerToast("Driver suspension status toggled", "info");
                             }}
                           >
-                            ⚠️ Suspend Driver
+                            Suspend Driver
                           </button>
                           <button 
                             className="btn btn-ghost btn-xs" 
@@ -1209,7 +1225,7 @@ export default function DispatchEnginePage() {
                               triggerToast("Courier unassigned. Order back to pending queue.", "info");
                             }}
                           >
-                            🔄 Reassign Order
+                            Reassign Order
                           </button>
                         </div>
                       </div>
@@ -1218,7 +1234,7 @@ export default function DispatchEnginePage() {
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                     <div style={{ fontSize: "11.5px", color: "var(--status-red)", fontWeight: 700 }}>
-                      🚨 Alert: This order requires a dispatch courier immediately.
+                      Alert: This order requires a dispatch courier immediately.
                     </div>
                     {recommendedDrivers.length === 0 ? (
                       <div style={{ fontSize: "11px", color: "var(--text-muted)", padding: "8px", background: "var(--bg-sunken)", borderRadius: "4px", textAlign: "center" }}>
@@ -1260,7 +1276,7 @@ export default function DispatchEnginePage() {
                           if (success) triggerToast("WAP retrain request queued", "success");
                         }}
                       >
-                        ⚡ Retrain Model
+                        Retrain Model
                       </button>
                     </div>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", fontSize: "11px" }}>
@@ -1280,18 +1296,18 @@ export default function DispatchEnginePage() {
                 <span style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase" }}>Dispatcher Actions & Incident Control</span>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
                   <button className="btn btn-secondary btn-sm" style={{ justifyContent: "center", color: "var(--status-red)", borderColor: "var(--status-red)" }} onClick={handleCancelSingle}>
-                    🛑 Cancel Order
+                    Cancel Order
                   </button>
                   <button className="btn btn-secondary btn-sm" style={{ justifyContent: "center", color: "var(--status-green)", borderColor: "var(--status-green)" }} onClick={handleForceCompleteSingle}>
-                    ✓ Force Complete
+                    Force Complete
                   </button>
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
                   <button className="btn btn-secondary btn-sm" style={{ justifyContent: "center" }} onClick={() => setShowRefundModal(true)}>
-                    💸 Issue Refund
+                    Issue Refund
                   </button>
                   <button className="btn btn-secondary btn-sm" style={{ justifyContent: "center", color: "var(--status-red)", borderColor: "var(--status-red)" }} onClick={handleEscalateSingle}>
-                    🚨 Escalate SLA
+                    Escalate SLA
                   </button>
                 </div>
               </div>
@@ -1329,7 +1345,7 @@ export default function DispatchEnginePage() {
           <div className="panel" style={{ width: "400px", padding: "20px", display: "flex", flexDirection: "column", gap: "16px", background: "var(--bg-surface)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border)", paddingBottom: "10px" }}>
               <h3 style={{ fontSize: "14px", fontWeight: 700 }}>Issue Refund for #{selectedOrder.id}</h3>
-              <button className="btn btn-ghost btn-xs" onClick={() => setShowRefundModal(false)}>✕</button>
+              <button className="btn btn-ghost btn-xs" onClick={() => setShowRefundModal(false)}><X size={14} /></button>
             </div>
 
             <div>
@@ -1419,13 +1435,13 @@ export default function DispatchEnginePage() {
                 background: "var(--bg-base)"
               }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                  <span style={{ fontSize: "20px" }}>⚡</span>
+                  <Zap size={20} className="text-cyan-400" />
                   <div>
                     <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                       <h2 className="mono" style={{ fontSize: "18px", fontWeight: 800 }}>#{modalOrder.id}</h2>
                       <StatusBadge status={modalOrder.status} />
                       <span style={{ fontSize: "11px", background: "var(--accent-light)", color: "var(--accent)", padding: "2px 8px", borderRadius: "4px", fontWeight: 700 }}>
-                        📍 {modalOrder.zone || "Algiers"}
+                        {modalOrder.zone || "Algiers"}
                       </span>
                     </div>
                     <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>
@@ -1437,9 +1453,9 @@ export default function DispatchEnginePage() {
                 <button 
                   className="btn btn-ghost btn-sm" 
                   onClick={() => setThreeDotsModalOrderId(null)}
-                  style={{ fontSize: "16px", padding: "4px 10px" }}
+                  style={{ padding: "4px 10px" }}
                 >
-                  ✕
+                  <X size={16} />
                 </button>
               </div>
 
@@ -1460,7 +1476,7 @@ export default function DispatchEnginePage() {
                   <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--accent)", textTransform: "uppercase" }}>
-                        🗺️ Live Dispatch Map & Route
+                        Live Dispatch Map & Route
                       </span>
                       <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>GPS Live Tracking</span>
                     </div>
@@ -1498,16 +1514,23 @@ export default function DispatchEnginePage() {
                       </div>
                     </div>
 
-                    <div style={{ fontSize: "11px", color: "var(--text-muted)", display: "flex", flexDirection: "column", gap: "4px", borderTop: "1px dashed var(--border)", paddingTop: "8px" }}>
-                      <div>🏪 Pickup: <b>{modalOrder.pickup_address || modalOrder.merchant_address || "Restaurant Storefront"}</b></div>
-                      <div>📍 Delivery: <b>{modalOrder.delivery_address || "Customer Location"}</b></div>
+                    <div style={{ fontSize: "11px", color: "var(--text-muted)", display: "flex", flexDirection: "column", gap: "6px", borderTop: "1px dashed var(--border)", paddingTop: "8px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                        <Store size={12} className="text-cyan-400" />
+                        <span>Pickup: <b>{modalOrder.pickup_address || modalOrder.merchant_address || "Restaurant Storefront"}</b></span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                        <MapPin size={12} className="text-rose-400" />
+                        <span>Delivery: <b>{modalOrder.delivery_address || "Customer Location"}</b></span>
+                      </div>
                     </div>
                   </div>
 
                   {/* Financial Details (Infos Financières / Facture) */}
                   <div style={{ background: "var(--bg-sunken)", padding: "14px", borderRadius: "var(--radius-md)", border: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: "8px" }}>
-                    <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase" }}>
-                      💳 Financial Infos & Payment
+                    <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", display: "flex", alignItems: "center", gap: 6 }}>
+                      <CreditCard size={13} className="text-cyan-400" />
+                      Financial Infos & Payment
                     </div>
 
                     <div style={{ display: "flex", flexDirection: "column", gap: "4px", fontSize: "12px" }}>
@@ -1541,7 +1564,7 @@ export default function DispatchEnginePage() {
                           setRefundAmount(modalOrder.amount);
                         }}
                       >
-                        💸 Request Refund
+                        Request Refund
                       </button>
                     </div>
                   </div>
@@ -1554,7 +1577,7 @@ export default function DispatchEnginePage() {
                   {/* 1. Order Status Control */}
                   <div style={{ background: "var(--bg-sunken)", padding: "14px", borderRadius: "var(--radius-md)", border: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: "8px" }}>
                     <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase" }}>
-                      🔄 Order Status Control
+                      Order Status Control
                     </div>
                     <div style={{ display: "flex", gap: "8px" }}>
                       <select
@@ -1583,7 +1606,7 @@ export default function DispatchEnginePage() {
                   {/* 2. Switch Driver Button & Reassignment */}
                   <div style={{ background: "var(--bg-sunken)", padding: "14px", borderRadius: "var(--radius-md)", border: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: "8px" }}>
                     <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", display: "flex", justifyContent: "space-between" }}>
-                      <span>🏍️ Switch / Reassign Driver</span>
+                      <span>Switch / Reassign Driver</span>
                       <span style={{ color: "var(--text-muted)" }}>Current: {modalOrder.driver_name || "Unassigned"}</span>
                     </div>
 
@@ -1619,7 +1642,7 @@ export default function DispatchEnginePage() {
                   {/* 3. Cancel Order Panel */}
                   <div style={{ background: "rgba(239, 68, 68, 0.05)", padding: "14px", borderRadius: "var(--radius-md)", border: "1px solid rgba(239, 68, 68, 0.2)", display: "flex", flexDirection: "column", gap: "8px" }}>
                     <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--status-red)", textTransform: "uppercase" }}>
-                      🛑 Cancel Order Details
+                      Cancel Order Details
                     </div>
                     <input
                       type="text"
@@ -1646,43 +1669,74 @@ export default function DispatchEnginePage() {
 
                   {/* 4. Contact Parties (Seller, Client, Driver) */}
                   <div style={{ background: "var(--bg-sunken)", padding: "14px", borderRadius: "var(--radius-md)", border: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: "10px" }}>
-                    <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase" }}>
-                      📞 Contact Parties (Seller, Client & Driver)
+                    <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", display: "flex", alignItems: "center", gap: 6 }}>
+                      <Phone size={13} className="text-cyan-400" />
+                      Contact Parties (Seller, Client & Driver)
                     </div>
 
                     {/* Seller / Merchant */}
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--bg-base)", padding: "8px 10px", borderRadius: "6px" }}>
                       <div>
-                        <div style={{ fontSize: "11px", fontWeight: 700 }}>🏪 Seller: {modalOrder.merchant_name || "Merchant Store"}</div>
-                        <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>{modalMerchant?.zone || modalOrder.zone}</div>
+                        <div style={{ fontSize: "11px", fontWeight: 700, display: "flex", alignItems: "center", gap: 5 }}>
+                          <Store size={12} className="text-cyan-400" />
+                          <span>Seller: {modalOrder.merchant_name || "Merchant Store"}</span>
+                        </div>
+                        <div style={{ fontSize: "10px", color: "var(--text-muted)", marginLeft: 17 }}>{modalMerchant?.zone || modalOrder.zone}</div>
                       </div>
                       <div style={{ display: "flex", gap: "4px" }}>
-                        <button className="btn btn-secondary btn-xs" onClick={() => triggerToast(`Dialing Merchant ${modalOrder.merchant_name}...`, "info")}>📞 Call</button>
-                        <button className="btn btn-secondary btn-xs" onClick={() => triggerToast(`Chatting with Merchant ${modalOrder.merchant_name}`, "info")}>💬 Msg</button>
+                        <button className="btn btn-secondary btn-xs" onClick={() => triggerToast(`Dialing Merchant ${modalOrder.merchant_name}...`, "info")}>
+                          <Phone size={11} /> Call
+                        </button>
+                        <button className="btn btn-secondary btn-xs" onClick={() => triggerToast(`Chatting with Merchant ${modalOrder.merchant_name}`, "info")}>
+                          <MessageSquare size={11} /> Msg
+                        </button>
                       </div>
                     </div>
 
                     {/* Client / Customer */}
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--bg-base)", padding: "8px 10px", borderRadius: "6px" }}>
                       <div>
-                        <div style={{ fontSize: "11px", fontWeight: 700 }}>👤 Client: {modalOrder.customer_name || "Customer"}</div>
-                        <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>ID: {modalOrder.customer_id}</div>
+                        <div style={{ fontSize: "11px", fontWeight: 700, display: "flex", alignItems: "center", gap: 5 }}>
+                          <User size={12} className="text-cyan-400" />
+                          <span>Client: {modalOrder.customer_name || "Customer"}</span>
+                        </div>
+                        <div style={{ fontSize: "10px", color: "var(--text-muted)", marginLeft: 17 }}>ID: {modalOrder.customer_id}</div>
                       </div>
                       <div style={{ display: "flex", gap: "4px" }}>
-                        <button className="btn btn-secondary btn-xs" onClick={() => triggerToast(`Dialing Client ${modalOrder.customer_name}...`, "info")}>📞 Call</button>
-                        <button className="btn btn-secondary btn-xs" onClick={() => triggerToast(`Chatting with Client ${modalOrder.customer_name}`, "info")}>💬 Msg</button>
+                        <button className="btn btn-secondary btn-xs" onClick={() => triggerToast(`Dialing Client ${modalOrder.customer_name}...`, "info")}>
+                          <Phone size={11} /> Call
+                        </button>
+                        <button className="btn btn-secondary btn-xs" onClick={() => triggerToast(`Chatting with Client ${modalOrder.customer_name}`, "info")}>
+                          <MessageSquare size={11} /> Msg
+                        </button>
                       </div>
                     </div>
 
                     {/* Driver */}
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--bg-base)", padding: "8px 10px", borderRadius: "6px" }}>
                       <div>
-                        <div style={{ fontSize: "11px", fontWeight: 700 }}>🏍️ Driver: {modalOrder.driver_name || "Unassigned"}</div>
-                        <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>{modalDriver ? `${modalDriver.zone} (Rating ★${modalDriver.rating})` : "No driver assigned"}</div>
+                        <div style={{ fontSize: "11px", fontWeight: 700, display: "flex", alignItems: "center", gap: 5 }}>
+                          <Bike size={12} className="text-cyan-400" />
+                          <span>Driver: {modalOrder.driver_name || "Unassigned"}</span>
+                        </div>
+                        <div style={{ fontSize: "10px", color: "var(--text-muted)", marginLeft: 17, display: "flex", alignItems: "center", gap: 3 }}>
+                          <span>{modalDriver ? modalDriver.zone : "No driver assigned"}</span>
+                          {modalDriver && (
+                            <>
+                              <span>· Rating:</span>
+                              <Star size={9} className="fill-amber-400 text-amber-400" />
+                              <span>{modalDriver.rating}</span>
+                            </>
+                          )}
+                        </div>
                       </div>
                       <div style={{ display: "flex", gap: "4px" }}>
-                        <button className="btn btn-secondary btn-xs" disabled={!modalOrder.driver_id} onClick={() => triggerToast(`Dialing Driver ${modalOrder.driver_name}...`, "info")}>📞 Call</button>
-                        <button className="btn btn-secondary btn-xs" disabled={!modalOrder.driver_id} onClick={() => triggerToast(`Chatting with Driver ${modalOrder.driver_name}`, "info")}>💬 Msg</button>
+                        <button className="btn btn-secondary btn-xs" disabled={!modalOrder.driver_id} onClick={() => triggerToast(`Dialing Driver ${modalOrder.driver_name}...`, "info")}>
+                          <Phone size={11} /> Call
+                        </button>
+                        <button className="btn btn-secondary btn-xs" disabled={!modalOrder.driver_id} onClick={() => triggerToast(`Chatting with Driver ${modalOrder.driver_name}`, "info")}>
+                          <MessageSquare size={11} /> Msg
+                        </button>
                       </div>
                     </div>
 

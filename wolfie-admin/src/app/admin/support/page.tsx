@@ -1,4 +1,6 @@
 "use client";
+import { Check, X } from "lucide-react";
+
 import React, { useState, useMemo, useEffect } from "react";
 import { useDashboardStore } from "@/stores/dashboardStore";
 
@@ -109,7 +111,7 @@ export default function SupportOperationsPage() {
                         onClick={() => approveRefund(refund.id)}
                         style={{ padding: "2px 5px", fontSize: 10 }}
                       >
-                        ✓
+                        Done
                       </button>
                       <button 
                         className="btn btn-ghost btn-xs" 
@@ -119,7 +121,7 @@ export default function SupportOperationsPage() {
                         }}
                         style={{ padding: "2px 5px", fontSize: 10, color: "var(--status-red)" }}
                       >
-                        ✕
+                        Close
                       </button>
                     </div>
                   </div>
@@ -241,7 +243,7 @@ export default function SupportOperationsPage() {
             <div className="panel" style={{ height: "100%", display: "flex", flexDirection: "column" }}>
               <div className="panel-header">
                 <div className="panel-title">Ticket Details</div>
-                <button className="btn btn-ghost btn-xs" onClick={() => setSelectedTicketId(null)}>✕</button>
+                <button className="btn btn-ghost btn-xs" onClick={() => setSelectedTicketId(null)}><X size={14} /></button>
               </div>
               <div className="panel-body" style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: "16px", padding: 16 }}>
                 <div>

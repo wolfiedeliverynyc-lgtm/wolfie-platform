@@ -1,4 +1,6 @@
 "use client";
+import { MapPin } from "lucide-react";
+
 import React, { useMemo, useEffect } from "react";
 import { useDashboardStore } from "@/stores/dashboardStore";
 
@@ -70,7 +72,7 @@ export default function ZonesDemandPage() {
         {/* Zones Grid */}
         {zonesSummary.length === 0 ? (
           <div className="panel" style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>
-            <div style={{ fontSize: 32, marginBottom: 8 }}>📍</div>
+            <MapPin size={32} className="text-cyan-400 mb-2" />
             <div style={{ fontWeight: 600, color: "var(--text-primary)" }}>No Operational Zones Detected</div>
             <div style={{ fontSize: 13, marginTop: 4 }}>Zones will appear automatically once drivers, restaurants, or orders are registered.</div>
           </div>
@@ -172,9 +174,9 @@ export default function ZonesDemandPage() {
                     </span>
                   </td>
                   <td style={{ textAlign: "right", fontSize: "12px", color: "var(--text-secondary)" }}>
-                    {zone.status === 'critical' ? '🔴 Dispatch relief drivers to zone immediately' 
-                     : zone.status === 'warning' ? '🟡 Monitor incoming order rates' 
-                     : '🟢 Adequate driver coverage'}
+                    {zone.status === 'critical' ? 'Dispatch relief drivers to zone immediately' 
+                     : zone.status === 'warning' ? 'Monitor incoming order rates' 
+                     : 'Adequate driver coverage'}
                   </td>
                 </tr>
               ))}

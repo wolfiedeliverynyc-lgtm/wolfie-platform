@@ -1,4 +1,6 @@
 "use client";
+import { X, Compass, Phone, MessageSquare } from "lucide-react";
+
 import React, { useState, useEffect, useMemo } from "react";
 import dynamic from "next/dynamic";
 import { useDashboardStore } from "@/stores/dashboardStore";
@@ -199,7 +201,7 @@ export default function LiveMapPage() {
           gap: "8px",
           animation: "slideIn 0.2s ease"
         }}>
-          <span>{toastMessage.type === 'success' ? '✓' : toastMessage.type === 'error' ? '⚠' : 'ℹ'}</span>
+          <span>{toastMessage.type === 'success' ? 'SUCCESS' : toastMessage.type === 'error' ? 'ALERT' : 'INFO'}</span>
           {toastMessage.text}
         </div>
       )}
@@ -342,7 +344,7 @@ export default function LiveMapPage() {
                     
                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "var(--text-muted)", marginTop: "4px" }}>
                       <span>Zone: {driver.zone}</span>
-                      <span>Rating: ★{driver.rating}</span>
+                      <span>Rating: {driver.rating}/5</span>
                     </div>
 
                     {driver.current_order_id && (
@@ -479,7 +481,7 @@ export default function LiveMapPage() {
                       <span style={{ fontSize: "10px", fontWeight: 700, color: "var(--status-green)", textTransform: "uppercase" }}>Driver Console</span>
                       <h3 style={{ fontSize: "15px", fontWeight: 700, margin: "2px 0 0" }}>{driver.name}</h3>
                     </div>
-                    <button className="btn btn-ghost btn-xs" onClick={() => setSelectedDriverId(undefined)}>✕</button>
+                    <button className="btn btn-ghost btn-xs" onClick={() => setSelectedDriverId(undefined)}><X size={14} /></button>
                   </div>
 
                   <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
@@ -487,7 +489,7 @@ export default function LiveMapPage() {
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
                       <div className="panel" style={{ padding: "8px 12px", background: "var(--bg-sunken)", border: "none" }}>
                         <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 600 }}>Rating</div>
-                        <div style={{ fontSize: "14px", fontWeight: 700, marginTop: "2px" }}>★ {driver.rating}</div>
+                        <div style={{ fontSize: "14px", fontWeight: 700, marginTop: "2px" }}>{driver.rating}/5</div>
                       </div>
                       <div className="panel" style={{ padding: "8px 12px", background: "var(--bg-sunken)", border: "none" }}>
                         <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 600 }}>Trips</div>
@@ -506,10 +508,10 @@ export default function LiveMapPage() {
                       <div style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: 600, marginBottom: "4px" }}>CONTACT COURIER</div>
                       <div style={{ display: "flex", gap: "8px" }}>
                         <button className="btn btn-secondary btn-sm" style={{ flex: 1 }} onClick={() => triggerToast(`Dialing phone ${driver.phone || 'N/A'}…`, 'info')}>
-                          📞 Call
+                          Call
                         </button>
                         <button className="btn btn-secondary btn-sm" style={{ flex: 1 }} onClick={() => triggerToast(`Messaging client chat hook…`, 'info')}>
-                          💬 Message
+                          Message
                         </button>
                       </div>
                     </div>
@@ -529,12 +531,12 @@ export default function LiveMapPage() {
                           <div style={{ fontSize: "10px", color: "var(--text-muted)", fontWeight: 600, marginBottom: "8px" }}>ROUTE TIMELINE</div>
                           <div style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "11.5px" }}>
                             <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                              <span style={{ color: "var(--status-green)" }}>✓</span>
+                              <span style={{ color: "var(--status-green)", fontWeight: "bold" }}>OK</span>
                               <span style={{ color: "var(--text-secondary)" }}>Merchant prep</span>
                             </div>
                             <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
                               <span style={{ color: activeOrder.status === 'delivering' ? 'var(--status-green)' : 'var(--text-muted)' }}>
-                                {activeOrder.status === 'delivering' ? '✓' : '○'}
+                                {activeOrder.status === 'delivering' ? '●' : '○'}
                               </span>
                               <span style={{ color: activeOrder.status === 'delivering' ? 'var(--text-primary)' : 'var(--text-muted)' }}>In-transit to customer</span>
                             </div>
@@ -592,7 +594,7 @@ export default function LiveMapPage() {
                             marginTop: "4px"
                           }}
                         >
-                          {driver.status === 'offline' ? "⚡ Activate Driver" : "🛑 Go Offline / Suspend"}
+                          {driver.status === 'offline' ? "Activate Driver" : "Go Offline / Suspend"}
                         </button>
                       </div>
                     </div>
@@ -616,7 +618,7 @@ export default function LiveMapPage() {
                       <span style={{ fontSize: "10px", fontWeight: 700, color: "var(--status-amber)", textTransform: "uppercase" }}>Merchant Console</span>
                       <h3 style={{ fontSize: "15px", fontWeight: 700, margin: "2px 0 0" }}>{merchant.name}</h3>
                     </div>
-                    <button className="btn btn-ghost btn-xs" onClick={() => setSelectedMerchantId(undefined)}>✕</button>
+                    <button className="btn btn-ghost btn-xs" onClick={() => setSelectedMerchantId(undefined)}><X size={14} /></button>
                   </div>
 
                   <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
@@ -624,7 +626,7 @@ export default function LiveMapPage() {
                     <div>
                       <div style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: 600, marginBottom: "4px" }}>CATEGORY & RATING</div>
                       <div style={{ fontSize: "12.5px", color: "var(--text-secondary)" }}>
-                        {merchant.category} · ★ {merchant.rating} · Zone: {merchant.zone}
+                        {merchant.category} · {merchant.rating}/5 · Zone: {merchant.zone}
                       </div>
                     </div>
 
@@ -730,7 +732,7 @@ export default function LiveMapPage() {
                       <span style={{ fontSize: "10px", fontWeight: 700, color: "var(--accent)", textTransform: "uppercase" }}>Order Dispatch Console</span>
                       <h3 style={{ fontSize: "15px", fontWeight: 700, margin: "2px 0 0" }}>#{order.id}</h3>
                     </div>
-                    <button className="btn btn-ghost btn-xs" onClick={() => setSelectedOrderId(undefined)}>✕</button>
+                    <button className="btn btn-ghost btn-xs" onClick={() => setSelectedOrderId(undefined)}><X size={14} /></button>
                   </div>
 
                   <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
@@ -775,7 +777,7 @@ export default function LiveMapPage() {
                     {/* AI Recommender for courier assignment */}
                     {!order.driver_id || order.driver_name === 'Unassigned' ? (
                       <div className="panel" style={{ padding: "12px", borderColor: "var(--status-green)" }}>
-                        <div style={{ fontSize: "10px", fontWeight: 700, color: "var(--status-green)", textTransform: "uppercase", marginBottom: "8px" }}>💡 AI nearest Dispatch Recommender</div>
+                        <div style={{ fontSize: "10px", fontWeight: 700, color: "var(--status-green)", textTransform: "uppercase", marginBottom: "8px" }}>AI Nearest Dispatch Recommender</div>
                         {suggestedDrivers.length === 0 ? (
                           <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>No idle drivers online in this sector.</div>
                         ) : (
@@ -790,7 +792,7 @@ export default function LiveMapPage() {
                                   if (success) triggerToast(`Courier assigned successfully!`, 'success');
                                 }}
                               >
-                                <span>⚡ <b>{d.name}</b> ({d.zone})</span>
+                                <span><b>{d.name}</b> ({d.zone})</span>
                                 <span style={{ color: "var(--status-green)", fontWeight: 600 }}>Assign</span>
                               </button>
                             ))}
@@ -818,14 +820,14 @@ export default function LiveMapPage() {
                             style={{ flex: 1, borderColor: "var(--status-green)", color: "var(--status-green)" }}
                             onClick={() => handleForceComplete(order.id)}
                           >
-                            ✓ Force Complete
+                            Force Complete
                           </button>
                           <button
                             className="btn btn-secondary btn-sm"
                             style={{ flex: 1, borderColor: "var(--status-red)", color: "var(--status-red)" }}
                             onClick={() => handleCancelOrder(order.id)}
                           >
-                            ✕ Cancel Order
+                            Cancel Order
                           </button>
                         </div>
 
@@ -834,7 +836,7 @@ export default function LiveMapPage() {
                           style={{ background: "var(--status-red)", borderColor: "var(--status-red)", justifyContent: "center" }}
                           onClick={() => handleEmergencyEscalate(order.id)}
                         >
-                          ⚠️ Trigger Emergency SLA Escalation
+                          Trigger Emergency SLA Escalation
                         </button>
                       </div>
                     </div>
@@ -856,7 +858,7 @@ export default function LiveMapPage() {
                 textAlign: "center",
                 color: "var(--text-muted)"
               }}>
-                <div style={{ fontSize: "36px", marginBottom: "16px" }}>🗺️</div>
+                <Compass size={36} className="text-cyan-400 mb-4" />
                 <h4 style={{ fontSize: "13.5px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "4px" }}>Operational Command Console</h4>
                 <p style={{ fontSize: "12px", lineHeight: "1.4" }}>
                   Select any driver marker, merchant, or customer location from the live operations map, or select from the sidebars to execute direct overrides and dispatch actions.

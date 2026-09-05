@@ -17,7 +17,7 @@ export default function Error({ error, reset }: ErrorProps) {
       <div className="max-w-[450px] space-y-6">
         {/* Glowing Warning Icon */}
         <div className="w-20 h-20 bg-red-950/40 text-red-500 border border-red-900/50 rounded-full flex items-center justify-center text-3xl mx-auto shadow-lg shadow-red-950/20 animate-pulse">
-          ⚠️
+          
         </div>
 
         {/* Error Info */}

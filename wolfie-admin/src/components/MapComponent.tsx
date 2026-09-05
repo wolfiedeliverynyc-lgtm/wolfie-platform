@@ -216,7 +216,7 @@ export default function MapComponent({
             cursor: pointer;
             transition: all 0.1s ease;
           ">
-            🏪
+            W
           </div>
         `;
 
@@ -231,7 +231,7 @@ export default function MapComponent({
           .bindTooltip(`
             <div style="font-family: var(--font-sans); font-size: 11px; padding: 2px;">
               <b>${merchant.name}</b> (${statusLabel})<br/>
-              Rating: ★ ${merchant.rating} · Prep Delay: ${merchant.prep_delay_minutes || 0}m
+              Rating: ${merchant.rating}/5 · Prep Delay: ${merchant.prep_delay_minutes || 0}m
             </div>
           `, { direction: 'top' })
           .addTo(layer);
@@ -263,10 +263,7 @@ export default function MapComponent({
                     : driver.status === 'available' ? 'var(--status-green)' 
                     : 'var(--status-gray)';
 
-        const emoji = driver.status === 'delivering' ? '🚚' 
-                    : driver.status === 'preparing' ? '🥡' 
-                    : driver.status === 'available' ? '⚡' 
-                    : '💤';
+        const emoji = driver.status === 'delivering' ? 'D' : driver.status === 'preparing' ? 'P' : driver.status === 'available' ? 'A' : 'S';
 
         const markerHtml = `
           <div style="position: relative; cursor: pointer;">
@@ -311,7 +308,7 @@ export default function MapComponent({
           .bindTooltip(`
             <div style="font-family: var(--font-sans); font-size: 11px; padding: 2px;">
               <b>${driver.name}</b> (${driver.status})<br/>
-              ${driver.zone ? `Zone: ${driver.zone} · ` : ''}Rating: ★ ${driver.rating}<br/>
+              ${driver.zone ? `Zone: ${driver.zone} · ` : ''}Rating: ${driver.rating}/5<br/>
               ${driver.current_order_id ? `Active order: ${driver.current_order_id}` : 'Idle (Available)'}
             </div>
           `, { direction: 'top' })
@@ -358,7 +355,7 @@ export default function MapComponent({
           font-size: ${isSelected ? '11px' : '9px'};
           cursor: pointer;
         ">
-          📍
+          ●
         </div>
       `;
       const custIcon = L.divIcon({

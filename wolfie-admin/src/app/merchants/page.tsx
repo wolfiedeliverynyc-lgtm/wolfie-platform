@@ -1,4 +1,6 @@
 "use client";
+import { X } from "lucide-react";
+
 import React, { useState, useMemo, useEffect } from "react";
 import { useDashboardStore } from "@/stores/dashboardStore";
 
@@ -155,7 +157,7 @@ export default function MerchantsOperationsPage() {
                     <td style={{ fontWeight: 600, color: "var(--text-primary)" }}>{m.name}</td>
                     <td>{m.category || "General"}</td>
                     <td>{m.zone || m.address || "—"}</td>
-                    <td style={{ fontWeight: 600 }}>★ {m.rating || 5.0}</td>
+                    <td style={{ fontWeight: 600 }}>{m.rating || 5.0}</td>
                     <td className="mono" style={{ fontWeight: 600 }}>
                       {m.commissionPct}%
                       <button 
@@ -208,7 +210,7 @@ export default function MerchantsOperationsPage() {
             <button 
               onClick={() => setReviewsModalOpen(false)}
               style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 20 }}
-            >✕</button>
+            ><X size={14} /></button>
             <div className="panel-title" style={{ marginBottom: 16 }}>Reviews for {currentMerchantName}</div>
             
             {loadingReviews ? (
@@ -220,7 +222,7 @@ export default function MerchantsOperationsPage() {
                 {merchantReviews.map((r, i) => (
                   <div key={i} style={{ background: 'var(--bg-base)', padding: 16, borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                      <span style={{ color: 'var(--gold)', fontWeight: 'bold' }}>{'★'.repeat(r.rating)}{'☆'.repeat(5-r.rating)}</span>
+                      <span style={{ color: 'var(--gold)', fontWeight: 'bold' }}>{'Rating: ' + r.rating + '/5'}</span>
                       <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{new Date(r.created_at).toLocaleDateString()}</span>
                     </div>
                     <p style={{ fontSize: 13, color: 'var(--text-primary)', margin: 0 }}>
