@@ -231,6 +231,7 @@ def create_app(config_name: str = None) -> Flask:
 
     # ── Health check ──────────────────────────
     @app.route("/health")
+    @app.route("/api/v1/health")
     def health():
         redis_inst = getattr(current_app, "redis", None)
         return jsonify({
@@ -426,11 +427,19 @@ def _register_socket_events():
     from flask import request
 
     @socketio.on("connect")
-    def on_connect():
-        token = request.args.get("token") or request.headers.get("Authorization", "").replace("Bearer ", "")
+    def on_connect(auth=None):
+        token = None
+        if isinstance(auth, dict):
+            token = auth.get("token")
         if not token:
-            logging.getLogger("wolfie").warning(f"WS connection rejected: No token found. (sid: {request.sid})")
-            return False  # Reject connection
+            token = request.args.get("token") or request.headers.get("Authorization", "").replace("Bearer ", "")
+
+        if not token:
+            request.ws_user_id = f"guest_{request.sid[:8]}"
+            request.ws_user_role = "guest"
+            logging.getLogger("wolfie").info(f"WS guest connected: {request.ws_user_id}")
+            return True
+
         try:
             import jwt
             from flask import current_app
@@ -446,9 +455,12 @@ def _register_socket_events():
                 ws_connections_active.inc()
             except Exception:
                 pass
+            return True
         except Exception as e:
-            logging.getLogger("wolfie").warning(f"WS connection rejected: Invalid token. {e} (sid: {request.sid})")
-            return False  # Reject connection
+            request.ws_user_id = f"guest_{request.sid[:8]}"
+            request.ws_user_role = "guest"
+            logging.getLogger("wolfie").warning(f"WS connection token invalid/expired, continuing as guest: {e} (sid: {request.sid})")
+            return True
 
     @socketio.on("disconnect")
     def on_disconnect():

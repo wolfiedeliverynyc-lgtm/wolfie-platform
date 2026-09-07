@@ -41,9 +41,8 @@ export default function AdminMenuCatalogPage() {
     setMenuItems([]);
     setMenuDoc(null);
     try {
-      const baseUrl = typeof window !== "undefined" && window.location.hostname === "localhost"
-        ? "http://localhost:5000"
-        : "https://wolfie-backend-pt9u.onrender.com";
+      const baseUrl = (process.env.NEXT_PUBLIC_API_URL || "https://wolfie-backend-pt9u.onrender.com")
+        .replace(/\/api\/v1\/?$/, '');
       const token = localStorage.getItem("token") || sessionStorage.getItem("token") || "";
 
       let res = await fetch(`${baseUrl}/api/v1/admin/restaurants/${merchantId}/menu`, {

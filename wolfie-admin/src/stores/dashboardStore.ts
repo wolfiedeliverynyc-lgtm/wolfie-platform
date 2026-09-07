@@ -11,6 +11,7 @@ import {
   Merchant
 } from '@/types';
 import api from '@/services/api';
+import axios from 'axios';
 
 interface ActivityItem {
   id: string;
@@ -314,7 +315,14 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
 
   fetchSystemStatus: async () => {
     try {
-      const res = await api.get('/health');
+      const baseUrl = api.defaults.baseURL || 'https://wolfie-backend-pt9u.onrender.com/api/v1';
+      const rootUrl = baseUrl.replace(/\/api\/v1\/?$/, '');
+      let res;
+      try {
+        res = await axios.get(`${rootUrl}/health`, { timeout: 8000 });
+      } catch {
+        res = await api.get('/health');
+      }
       const data = res.data;
       const dbStatus = data.database?.status === 'ok';
       const redisStatus = data.redis?.status === 'ok';

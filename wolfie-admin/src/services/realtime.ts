@@ -1,16 +1,18 @@
 import { io, Socket } from 'socket.io-client';
 
-// Adjust the URL to point to your backend realtime endpoint.
-const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:4000';
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'https://wolfie-backend-pt9u.onrender.com')
+  .replace(/\/api\/v1\/?$/, '');
+
+const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || API_BASE;
 
 // Create a singleton socket instance.
 export const socket: Socket = io(SOCKET_URL, {
   autoConnect: false,
-  transports: ['websocket'],
+  transports: ['websocket', 'polling'],
   reconnection: true,
-  reconnectionAttempts: 10,
-  reconnectionDelay: 2000,
-  reconnectionDelayMax: 10000,
+  reconnectionAttempts: 20,
+  reconnectionDelay: 1500,
+  reconnectionDelayMax: 5000,
   timeout: 20000,
 });
 
@@ -18,9 +20,12 @@ export const socket: Socket = io(SOCKET_URL, {
 export const connectSocket = () => {
   if (!socket.connected) {
     if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('access_token');
+      const token = localStorage.getItem('access_token') || localStorage.getItem('token') || sessionStorage.getItem('token');
       if (token) {
         socket.auth = { token };
+        if (socket.io && socket.io.opts) {
+          (socket.io.opts as any).query = { token };
+        }
       }
     }
     socket.connect();

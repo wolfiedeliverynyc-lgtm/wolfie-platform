@@ -83,8 +83,8 @@ export default function KYCReviewPage() {
     setMenuItems([]);
     setMenuDoc(null);
     try {
-      const baseUrl = typeof window !== "undefined" && window.location.hostname === "localhost"
-        ? "http://localhost:5000" : "https://wolfie-backend-pt9u.onrender.com";
+      const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'https://wolfie-backend-pt9u.onrender.com')
+        .replace(/\/api\/v1\/?$/, '');
       const token = localStorage.getItem("token") || sessionStorage.getItem("token") || "";
 
       // Try admin endpoint first
@@ -143,14 +143,14 @@ export default function KYCReviewPage() {
       if (!savedDoc) savedDoc = {};
       let rawUrl = typeof savedDoc === "string" ? savedDoc : (savedDoc.file_url || savedDoc.url || savedDoc.path || savedDoc.uri || savedDoc.link || savedDoc.src || savedDoc.file || "");
       let fileUrl = rawUrl;
-      const isLocalhost = typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
-      const prodBackend = "https://wolfie-backend-pt9u.onrender.com";
+      const targetBackend = (process.env.NEXT_PUBLIC_API_URL || 'https://wolfie-backend-pt9u.onrender.com')
+        .replace(/\/api\/v1\/?$/, '');
 
       if (fileUrl) {
         if (fileUrl.startsWith("/")) {
-          fileUrl = `${isLocalhost ? "http://localhost:5000" : prodBackend}${fileUrl}`;
-        } else if (!isLocalhost && (fileUrl.includes("localhost:5000") || fileUrl.includes("127.0.0.1:5000"))) {
-          fileUrl = fileUrl.replace(/http:\/\/(localhost|127\.0\.0\.1):5000/, prodBackend);
+          fileUrl = `${targetBackend}${fileUrl}`;
+        } else if (fileUrl.includes("localhost:5000") || fileUrl.includes("127.0.0.1:5000")) {
+          fileUrl = fileUrl.replace(/http:\/\/(localhost|127\.0\.0\.1):5000/, targetBackend);
         }
       }
       const fileName = typeof savedDoc === "string" ? cfg.fallbackName : (savedDoc.file_name || savedDoc.name || cfg.fallbackName);
