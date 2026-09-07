@@ -1,12 +1,15 @@
 "use client";
-import { X } from "lucide-react";
 
 import React, { useState, useMemo, useEffect } from "react";
 import { useDashboardStore } from "@/stores/dashboardStore";
+import { useMarketStore } from "@/stores/marketStore";
 import StatusBadge from "@/shared/components/StatusBadge";
 
 export default function DriversFleetPage() {
   const { drivers, fetchDashboardData, activateDriver, updateDriver, addActivity } = useDashboardStore();
+  const { currentMarketId, getMarketConfig, isRecordInMarket } = useMarketStore();
+  const activeConfig = getMarketConfig();
+
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
@@ -44,7 +47,7 @@ export default function DriversFleetPage() {
     fetchDashboardData();
   }, [fetchDashboardData]);
 
-  // Handle active status toggle (mock local toggles or POST requests)
+  // Handle active status toggle
   const handleToggleStatus = async (driverId: string, currentStatus: string) => {
     if (currentStatus === "offline") {
       alert("Driver is offline and cannot be set to active directly. They must turn on their app.");
@@ -54,15 +57,13 @@ export default function DriversFleetPage() {
     if (currentStatus === "available" || currentStatus === "preparing" || currentStatus === "delivering") {
       const confirmDeact = confirm("Are you sure you want to suspend/deactivate this driver?");
       if (confirmDeact) {
-        // Suspend driver locally and trigger activity log
         updateDriver({ id: driverId, status: "offline" });
         addActivity({
-          text: `Suspended Driver ${driverId} operations override`,
+          text: `Suspended Driver ${driverId} operations override in ${activeConfig.name}`,
           color: "var(--status-red)"
         });
       }
     } else {
-      // Activate driver
       const success = await activateDriver(driverId);
       if (success) {
         alert("Driver activated successfully.");
@@ -70,8 +71,12 @@ export default function DriversFleetPage() {
     }
   };
 
+  const marketDrivers = useMemo(() => {
+    return drivers.filter((d) => isRecordInMarket(d));
+  }, [drivers, isRecordInMarket]);
+
   const filteredDrivers = useMemo(() => {
-    return drivers.filter((d) => {
+    return marketDrivers.filter((d) => {
       const matchesSearch = 
         d.name.toLowerCase().includes(search.toLowerCase()) ||
         d.phone.includes(search) ||
@@ -80,14 +85,33 @@ export default function DriversFleetPage() {
       const matchesStatus = statusFilter === "all" ? true : d.status === statusFilter;
       return matchesSearch && matchesStatus;
     });
-  }, [drivers, search, statusFilter]);
+  }, [marketDrivers, search, statusFilter]);
 
   return (
     <>
       <div className="page-header">
         <div>
-          <div className="page-title">Drivers Fleet Management</div>
-          <div className="page-subtitle">Oversee active driver statuses, ratings, zones, and toggle system suspension overrides</div>
+          <div className="flex items-center gap-3">
+            <div className="page-title">Drivers Fleet Management</div>
+            <span
+              style={{
+                fontSize: 10.5,
+                fontWeight: 700,
+                padding: "2px 8px",
+                borderRadius: 4,
+                background: activeConfig.badgeBg,
+                border: `1px solid ${activeConfig.badgeBorder}`,
+                color: activeConfig.badgeText,
+                letterSpacing: "0.04em",
+                textTransform: "uppercase",
+              }}
+            >
+              {activeConfig.badgeLabel}
+            </span>
+          </div>
+          <div className="page-subtitle">
+            Oversee active driver telemetry, automated status, ratings, and operational overrides for {activeConfig.name}
+          </div>
         </div>
       </div>
 
@@ -96,25 +120,25 @@ export default function DriversFleetPage() {
         {/* KPI Strip */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "var(--gap-md)" }}>
           <div className="panel" style={{ padding: 16 }}>
-            <div style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 500, textTransform: "uppercase" }}>Total Drivers</div>
-            <div style={{ fontSize: 24, fontWeight: 700, marginTop: 4 }}>{drivers.length}</div>
+            <div style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 500, textTransform: "uppercase" }}>Market Fleet</div>
+            <div style={{ fontSize: 24, fontWeight: 700, marginTop: 4 }}>{marketDrivers.length}</div>
           </div>
           <div className="panel" style={{ padding: 16 }}>
             <div style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 500, textTransform: "uppercase" }}>Active / Online</div>
             <div style={{ fontSize: 24, fontWeight: 700, marginTop: 4, color: "var(--status-green)" }}>
-              {drivers.filter(d => d.status !== "offline").length}
+              {marketDrivers.filter(d => d.status !== "offline").length}
             </div>
           </div>
           <div className="panel" style={{ padding: 16 }}>
             <div style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 500, textTransform: "uppercase" }}>Idle & Available</div>
             <div style={{ fontSize: 24, fontWeight: 700, marginTop: 4, color: "var(--status-blue)" }}>
-              {drivers.filter(d => d.status === "available").length}
+              {marketDrivers.filter(d => d.status === "available").length}
             </div>
           </div>
           <div className="panel" style={{ padding: 16 }}>
-            <div style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 500, textTransform: "uppercase" }}>Average rating</div>
-            <div style={{ fontSize: 24, fontWeight: 700, marginTop: 4 }}>
-              {(drivers.reduce((sum, d) => sum + d.rating, 0) / (drivers.length || 1)).toFixed(2)}
+            <div style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 500, textTransform: "uppercase" }}>Avg Fleet Rating</div>
+            <div style={{ fontSize: 24, fontWeight: 700, marginTop: 4, color: "var(--status-amber)" }}>
+              ★ {(marketDrivers.reduce((sum, d) => sum + d.rating, 0) / (marketDrivers.length || 1)).toFixed(2)}
             </div>
           </div>
         </div>
@@ -139,6 +163,7 @@ export default function DriversFleetPage() {
             {["all", "available", "preparing", "delivering", "offline"].map((status) => (
               <button
                 key={status}
+                type="button"
                 className={`btn ${statusFilter === status ? "btn-primary" : "btn-secondary"} btn-xs`}
                 onClick={() => setStatusFilter(status)}
                 style={{ textTransform: "capitalize" }}
@@ -152,7 +177,7 @@ export default function DriversFleetPage() {
         {/* Fleet Table */}
         <div className="panel">
           <div className="panel-header">
-            <div className="panel-title">Active Fleet Registry</div>
+            <div className="panel-title">Active Fleet Registry &bull; {activeConfig.name}</div>
             <span style={{ fontSize: 11.5, color: "var(--text-muted)" }}>{filteredDrivers.length} matching</span>
           </div>
           <table className="ops-table">
@@ -172,7 +197,7 @@ export default function DriversFleetPage() {
               {filteredDrivers.length === 0 ? (
                 <tr>
                   <td colSpan={8} style={{ textAlign: "center", padding: "40px 0", color: "var(--text-muted)" }}>
-                    No drivers found matching criteria.
+                    No drivers found in {activeConfig.name} matching current filters.
                   </td>
                 </tr>
               ) : (
@@ -181,21 +206,23 @@ export default function DriversFleetPage() {
                     <td className="mono" style={{ fontWeight: 600 }}>#{driver.id}</td>
                     <td style={{ fontWeight: 500, color: "var(--text-primary)" }}>{driver.name}</td>
                     <td>{driver.phone}</td>
-                    <td>{driver.zone}</td>
+                    <td>{driver.zone || "Central"}</td>
                     <td>
                       <StatusBadge status={driver.status} />
                     </td>
                     <td className="mono">{driver.completed_trips}</td>
-                    <td style={{ fontWeight: 600 }}>{driver.rating}</td>
+                    <td style={{ fontWeight: 600, color: "var(--status-amber)" }}>★ {driver.rating}</td>
                     <td style={{ textAlign: "right" }}>
                       <button
+                        type="button"
                         className="btn btn-secondary btn-xs"
                         onClick={() => handleViewReviews(driver.id, driver.name)}
-                        style={{ marginRight: 8, color: "var(--gold)" }}
+                        style={{ marginRight: 8 }}
                       >
-                        View Reviews
+                        Reviews
                       </button>
                       <button
+                        type="button"
                         className={`btn ${driver.status === 'offline' ? 'btn-secondary' : 'btn-ghost'} btn-xs`}
                         onClick={() => handleToggleStatus(driver.id, driver.status)}
                         style={{ color: driver.status === 'offline' ? 'var(--status-green)' : 'var(--status-red)' }}
@@ -220,9 +247,12 @@ export default function DriversFleetPage() {
         }}>
           <div className="panel" style={{ width: 500, maxHeight: '80vh', overflowY: 'auto', padding: 24, position: 'relative' }}>
             <button 
+              type="button"
               onClick={() => setReviewsModalOpen(false)}
-              style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 20 }}
-            ><X size={14} /></button>
+              style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 16, fontWeight: 700 }}
+            >
+              ✕
+            </button>
             <div className="panel-title" style={{ marginBottom: 16 }}>Reviews for {currentDriverName}</div>
             
             {loadingReviews ? (
@@ -234,7 +264,7 @@ export default function DriversFleetPage() {
                 {driverReviews.map((r, i) => (
                   <div key={i} style={{ background: 'var(--bg-base)', padding: 16, borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                      <span style={{ color: 'var(--gold)', fontWeight: 'bold' }}>{'Rating: ' + r.rating + '/5'}</span>
+                      <span style={{ color: 'var(--status-amber)', fontWeight: 'bold' }}>Rating: {r.rating}/5</span>
                       <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{new Date(r.created_at).toLocaleDateString()}</span>
                     </div>
                     <p style={{ fontSize: 13, color: 'var(--text-primary)', margin: 0 }}>

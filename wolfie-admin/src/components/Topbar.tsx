@@ -19,6 +19,7 @@ import {
   ChevronDown,
   X
 } from "lucide-react";
+import { useMarketStore, MARKETS, MarketId } from "@/stores/marketStore";
 
 interface TopbarProps {
   breadcrumbs?: { label: string; href?: string }[];
@@ -51,6 +52,21 @@ export default function Topbar({
   const [showHealthPopover, setShowHealthPopover] = useState(false);
   const [showRealtimePopover, setShowRealtimePopover] = useState(false);
   const [isRechecking, setIsRechecking] = useState(false);
+
+  // Market state
+  const currentMarketId = useMarketStore((state) => state.currentMarketId);
+  const setMarket = useMarketStore((state) => state.setMarket);
+  const getMarketConfig = useMarketStore((state) => state.getMarketConfig);
+  const currentMarket = getMarketConfig();
+  const [showMarketDropdown, setShowMarketDropdown] = useState(false);
+  const [shortcutKey, setShortcutKey] = useState("⌘K");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
+      setShortcutKey(isMac ? "⌘K" : "Ctrl+K");
+    }
+  }, []);
 
   const computedBreadcrumbs = useMemo(() => {
     if (breadcrumbs && breadcrumbs.length > 0) return breadcrumbs;
@@ -175,6 +191,72 @@ export default function Topbar({
             </>
           )}
         </nav>
+
+        {/* Market Selector Badge */}
+        <div className="relative ml-2">
+          <button
+            type="button"
+            onClick={() => setShowMarketDropdown(!showMarketDropdown)}
+            className="flex items-center gap-2 px-2.5 py-1 rounded-md text-xs font-semibold tracking-wide border transition-all cursor-pointer"
+            style={{
+              backgroundColor: currentMarket.badgeBg,
+              borderColor: currentMarket.badgeBorder,
+              color: currentMarket.badgeText,
+            }}
+            title="Switch active operating market"
+          >
+            <span
+              className="w-2 h-2 rounded-full animate-pulse"
+              style={{ backgroundColor: currentMarket.badgeText }}
+            />
+            <span className="font-bold">{currentMarket.badgeLabel}</span>
+            <ChevronDown size={11} className="opacity-70" />
+          </button>
+
+          {showMarketDropdown && (
+            <>
+              <div
+                className="fixed inset-0 z-40"
+                onClick={() => setShowMarketDropdown(false)}
+              />
+              <div className="absolute left-0 mt-1.5 w-60 p-1.5 rounded-lg bg-[#0f1420] border border-white/[0.1] shadow-2xl z-50">
+                <div className="px-2 py-1 text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                  Operating Market
+                </div>
+                {(Object.keys(MARKETS) as MarketId[]).map((mId) => {
+                  const conf = MARKETS[mId];
+                  const isSelected = mId === currentMarketId;
+                  return (
+                    <button
+                      key={mId}
+                      type="button"
+                      onClick={() => {
+                        setMarket(mId);
+                        setShowMarketDropdown(false);
+                      }}
+                      className={`w-full text-left px-2.5 py-2 rounded text-xs font-semibold flex items-center justify-between transition-colors ${
+                        isSelected
+                          ? "bg-white/[0.08] text-white"
+                          : "text-slate-400 hover:text-white hover:bg-white/[0.04]"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="w-2 h-2 rounded-full"
+                          style={{ backgroundColor: conf.badgeText }}
+                        />
+                        <span>{conf.name}</span>
+                      </div>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded border border-white/[0.1] text-slate-400">
+                        {conf.timezoneCode}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Center: Search */}
@@ -183,7 +265,7 @@ export default function Topbar({
         <input
           type="text"
           className="topbar-search-input"
-          placeholder="Search orders, drivers, stores… (⌘K)"
+          placeholder={`Search orders, drivers, stores… (${shortcutKey})`}
           id="topbar-search"
           onClick={handleSearchClick}
           readOnly
@@ -194,11 +276,11 @@ export default function Topbar({
       {/* Ops Clocks & Live Indicators */}
       <div className="topbar-ops-bar hidden md:flex items-center">
         <div className="ops-clock-item">
-          <span className="ops-clock-label">NYC (EST)</span>
+          <span className="ops-clock-label">NYC (EDT)</span>
           <span className="ops-clock-val">{nyTime}</span>
         </div>
         <div className="ops-clock-item">
-          <span className="ops-clock-label">ALG (CET)</span>
+          <span className="ops-clock-label">ELK (CET)</span>
           <span className="ops-clock-val">{dzTime}</span>
         </div>
 
@@ -227,7 +309,7 @@ export default function Topbar({
               className="rt-dot live"
               style={{ backgroundColor: isSystemHealthy ? "var(--status-green)" : "var(--status-red)" }}
             />
-            <span>{isSystemHealthy ? "99.9% Live" : `${offlineCount} Alert`}</span>
+            <span>{isSystemHealthy ? "99.9% Live" : `${offlineCount} Alert${offlineCount !== 1 ? 's' : ''}`}</span>
             <ChevronDown size={11} className="opacity-70" />
           </button>
 

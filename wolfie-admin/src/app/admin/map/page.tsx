@@ -2,8 +2,10 @@
 import { X, Compass, Phone, MessageSquare } from "lucide-react";
 
 import React, { useState, useEffect, useMemo } from "react";
+import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useDashboardStore } from "@/stores/dashboardStore";
+import { useMarketStore } from "@/stores/marketStore";
 import { Order, Driver, Merchant } from "@/types";
 
 // Dynamically import MapComponent to prevent SSR errors with Leaflet
@@ -52,6 +54,16 @@ export default function LiveMapPage() {
   const [selectedDriverId, setSelectedDriverId] = useState<string | undefined>(undefined);
   const [selectedOrderId, setSelectedOrderId] = useState<string | undefined>(undefined);
   const [selectedMerchantId, setSelectedMerchantId] = useState<string | undefined>(undefined);
+
+  // Market Filtering
+  const currentMarketId = useMarketStore((state) => state.currentMarketId);
+  const getMarketConfig = useMarketStore((state) => state.getMarketConfig);
+  const isRecordInMarket = useMarketStore((state) => state.isRecordInMarket);
+  const currentMarket = getMarketConfig();
+
+  const marketOrders = useMemo(() => orders.filter(o => isRecordInMarket(o)), [orders, isRecordInMarket]);
+  const marketDrivers = useMemo(() => drivers.filter(d => isRecordInMarket(d)), [drivers, isRecordInMarket]);
+  const marketMerchants = useMemo(() => merchants.filter(m => isRecordInMarket(m)), [merchants, isRecordInMarket]);
   
   // Drag and drop states
   const [draggedOrderId, setDraggedOrderId] = useState<string | null>(null);
@@ -63,14 +75,14 @@ export default function LiveMapPage() {
   // Dispatch notification toast
   const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
 
-  // Dynamic list of active zones from live database data
+  // Dynamic list of active zones from live market data
   const availableZones = useMemo(() => {
     const set = new Set<string>();
-    drivers.forEach(d => { if (d.zone) set.add(d.zone); });
-    merchants.forEach(m => { if (m.zone) set.add(m.zone); });
-    orders.forEach(o => { if (o.zone) set.add(o.zone); });
+    marketDrivers.forEach(d => { if (d.zone) set.add(d.zone); });
+    marketMerchants.forEach(m => { if (m.zone) set.add(m.zone); });
+    marketOrders.forEach(o => { if (o.zone) set.add(o.zone); });
     return Array.from(set).sort();
-  }, [drivers, merchants, orders]);
+  }, [marketDrivers, marketMerchants, marketOrders]);
 
   useEffect(() => {
     fetchDashboardData();
@@ -84,12 +96,12 @@ export default function LiveMapPage() {
   // Show selection state changes in detail panels
   useEffect(() => {
     if (selectedMerchantId) {
-      const m = merchants.find(mer => mer.id === selectedMerchantId);
+      const m = marketMerchants.find(mer => mer.id === selectedMerchantId);
       if (m) {
         setPrepDelaySlider(m.prep_delay_minutes || 0);
       }
     }
-  }, [selectedMerchantId, merchants]);
+  }, [selectedMerchantId, marketMerchants]);
 
   const triggerToast = (text: string, type: 'success' | 'error' | 'info' = 'success') => {
     setToastMessage({ text, type });
@@ -118,23 +130,23 @@ export default function LiveMapPage() {
     setDraggedOrderId(null);
   };
 
-  // Derive operations metrics
-  const activeOrders = useMemo(() => orders.filter(o => o.status !== 'completed' && o.status !== 'cancelled'), [orders]);
+  // Derive operations metrics for active market
+  const activeOrders = useMemo(() => marketOrders.filter(o => o.status !== 'completed' && o.status !== 'cancelled'), [marketOrders]);
   const unassignedOrders = useMemo(() => activeOrders.filter(o => !o.driver_id || o.driver_name === 'Unassigned'), [activeOrders]);
-  const onlineDrivers = useMemo(() => drivers.filter(d => d.status !== 'offline'), [drivers]);
+  const onlineDrivers = useMemo(() => marketDrivers.filter(d => d.status !== 'offline'), [marketDrivers]);
   const idleDrivers = useMemo(() => onlineDrivers.filter(d => d.status === 'available'), [onlineDrivers]);
 
   // AI nearest driver recommendations for selected order
   const suggestedDrivers = useMemo(() => {
     if (!selectedOrderId) return [];
-    const order = orders.find(o => o.id === selectedOrderId);
+    const order = marketOrders.find(o => o.id === selectedOrderId);
     if (!order) return [];
 
     // Filter available drivers in the same zone first, then other available drivers
     const zoneMatch = idleDrivers.filter(d => d.zone === order.zone);
     const otherZones = idleDrivers.filter(d => d.zone !== order.zone);
     return [...zoneMatch, ...otherZones].slice(0, 3);
-  }, [selectedOrderId, idleDrivers, orders]);
+  }, [selectedOrderId, idleDrivers, marketOrders]);
 
   // Local handler wrappers
   const handleForceComplete = async (orderId: string) => {
@@ -390,11 +402,17 @@ export default function LiveMapPage() {
         {/* ========================================================= */}
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--gap-md)", minHeight: 0 }}>
           
-          {/* Quick Metrics Bar */}
-          <div className="panel" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", padding: "12px 16px", gap: "12px" }}>
+          {/* Quick Metrics Bar with Market Context */}
+          <div className="panel" style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 1fr 1fr 1fr", padding: "12px 16px", gap: "12px", alignItems: "center" }}>
+            <div style={{ borderRight: "1px solid var(--border)", paddingRight: "12px" }}>
+              <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 700 }}>Active Market</div>
+              <div style={{ fontSize: "12px", fontWeight: 700, marginTop: "4px", color: currentMarket.badgeText }}>
+                {currentMarket.badgeLabel}
+              </div>
+            </div>
             <div style={{ borderRight: "1px solid var(--border)", paddingRight: "12px" }}>
               <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 700 }}>Online Fleet</div>
-              <div style={{ fontSize: "18px", fontWeight: 700, marginTop: "2px" }}>{onlineDrivers.length} <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>/ {drivers.length}</span></div>
+              <div style={{ fontSize: "18px", fontWeight: 700, marginTop: "2px" }}>{onlineDrivers.length} <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>/ {marketDrivers.length}</span></div>
             </div>
             <div style={{ borderRight: "1px solid var(--border)", paddingRight: "12px" }}>
               <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 700 }}>Unassigned Orders</div>
@@ -405,7 +423,7 @@ export default function LiveMapPage() {
               <div style={{ fontSize: "18px", fontWeight: 700, marginTop: "2px", color: "var(--accent)" }}>{activeOrders.length}</div>
             </div>
             <div>
-              <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 700 }}>Idle Courier Rate</div>
+              <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 700 }}>Idle Fleet Rate</div>
               <div style={{ fontSize: "18px", fontWeight: 700, marginTop: "2px", color: idleDrivers.length > 0 ? "var(--status-green)" : "inherit" }}>
                 {onlineDrivers.length > 0 ? Math.round((idleDrivers.length / onlineDrivers.length) * 100) : 0}%
               </div>
@@ -421,7 +439,8 @@ export default function LiveMapPage() {
               top: 12,
               left: 12,
               zIndex: 999,
-              background: "#fff",
+              background: "#11141e",
+              border: "1px solid rgba(255,255,255,0.1)",
               padding: "4px",
               borderRadius: "var(--radius-md)",
               boxShadow: "var(--shadow-md)",
@@ -445,9 +464,39 @@ export default function LiveMapPage() {
               ))}
             </div>
 
+            {/* Empty State Overlay for Active Deliveries */}
+            {activeOrders.length === 0 && (
+              <div style={{
+                position: "absolute",
+                top: 54,
+                left: 12,
+                zIndex: 998,
+                background: "rgba(15, 20, 32, 0.94)",
+                backdropFilter: "blur(10px)",
+                border: "1px solid rgba(255, 255, 255, 0.12)",
+                borderRadius: "var(--radius-md)",
+                padding: "12px 16px",
+                maxWidth: "320px",
+                boxShadow: "var(--shadow-lg)"
+              }}>
+                <div style={{ fontSize: "12px", fontWeight: 700, color: "#fff", marginBottom: "4px" }}>
+                  No active deliveries in {currentMarket.name} right now.
+                </div>
+                <div style={{ fontSize: "11px", color: "var(--text-muted)", lineHeight: 1.5, marginBottom: "8px" }}>
+                  <div>&bull; {unassignedOrders.length} orders require dispatch.</div>
+                  <div>&bull; {idleDrivers.length} couriers available online.</div>
+                </div>
+                <div style={{ display: "flex", gap: "10px", fontSize: "11px", borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: "8px" }}>
+                  <Link href="/admin/orders" style={{ color: "var(--status-blue)", textDecoration: "none", fontWeight: 600 }}>Live Orders &rarr;</Link>
+                  <Link href="/drivers" style={{ color: "var(--status-blue)", textDecoration: "none", fontWeight: 600 }}>Driver Fleet &rarr;</Link>
+                  <Link href="/zones" style={{ color: "var(--status-blue)", textDecoration: "none", fontWeight: 600 }}>All Zones &rarr;</Link>
+                </div>
+              </div>
+            )}
+
             <MapComponent
-              orders={orders}
-              drivers={drivers}
+              orders={marketOrders}
+              drivers={marketDrivers}
               selectedDriverId={selectedDriverId}
               selectedOrderId={selectedOrderId}
               selectedMerchantId={selectedMerchantId}

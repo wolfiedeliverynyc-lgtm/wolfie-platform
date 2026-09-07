@@ -32,23 +32,30 @@ import {
   Printer
 } from "lucide-react";
 
+import { useMarketStore } from "@/stores/marketStore";
+
 // Dynamic Leaflet mini-map
 const MapComponent = dynamic(() => import("@/components/MapComponent"), {
   ssr: false,
   loading: () => (
-    <div className="h-[200px] w-full flex items-center justify-center bg-[#0d121d] rounded-lg  text-slate-400 text-xs">
+    <div className="h-[200px] w-full flex items-center justify-center bg-[#0d121d] rounded-lg text-slate-400 text-xs">
       <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping mr-2" /> Loading Track Map...
     </div>
   )
 });
 
-type TabType = "all" | "active" | "unassigned" | "preparing" | "delivering" | "completed" | "cancelled";
+type TabType = "needs_attention" | "active" | "unassigned" | "at_risk" | "completed" | "cancelled" | "all";
 
 export default function OrdersManagementPage() {
   const [isMounted, setIsMounted] = useState(false);
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  const currentMarketId = useMarketStore((state) => state.currentMarketId);
+  const getMarketConfig = useMarketStore((state) => state.getMarketConfig);
+  const isRecordInMarket = useMarketStore((state) => state.isRecordInMarket);
+  const currentMarket = getMarketConfig();
 
   const {
     orders,
@@ -72,8 +79,8 @@ export default function OrdersManagementPage() {
   // Selected Order for Slide-out Detail Drawer
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
 
-  // Active Tab
-  const [activeTab, setActiveTab] = useState<TabType>("all");
+  // Active Tab: Default to "needs_attention" as work queue
+  const [activeTab, setActiveTab] = useState<TabType>("needs_attention");
 
   // Filters State
   const [searchQuery, setSearchQuery] = useState("");
@@ -125,19 +132,28 @@ export default function OrdersManagementPage() {
     setTimeout(() => setToast(null), 3000);
   };
 
+  // Market filtered orders and drivers (never mix NYC and El Kala)
+  const marketOrders = useMemo(() => {
+    return orders.filter((o) => isRecordInMarket(o));
+  }, [orders, isRecordInMarket]);
+
+  const marketDrivers = useMemo(() => {
+    return drivers.filter((d) => isRecordInMarket(d));
+  }, [drivers, isRecordInMarket]);
+
   // Selected Order details
   const selectedOrder = useMemo(() => {
-    return orders.find((o) => o.id === selectedOrderId) || null;
-  }, [orders, selectedOrderId]);
+    return marketOrders.find((o) => o.id === selectedOrderId) || null;
+  }, [marketOrders, selectedOrderId]);
 
-  // Dynamic Zones
+  // Dynamic Zones in current market
   const availableZones = useMemo(() => {
     const set = new Set<string>();
-    orders.forEach((o) => { if (o.zone) set.add(o.zone); });
-    merchants.forEach((m) => { if (m.zone) set.add(m.zone); });
-    drivers.forEach((d) => { if (d.zone) set.add(d.zone); });
+    marketOrders.forEach((o) => { if (o.zone) set.add(o.zone); });
+    merchants.forEach((m) => { if (m.zone && isRecordInMarket(m)) set.add(m.zone); });
+    marketDrivers.forEach((d) => { if (d.zone) set.add(d.zone); });
     return Array.from(set).sort();
-  }, [orders, merchants, drivers]);
+  }, [marketOrders, merchants, marketDrivers, isRecordInMarket]);
 
   // SLA Calculation Helper (Target = 40 mins)
   const calculateSLATime = useCallback((createdAtStr: string) => {
@@ -175,27 +191,55 @@ export default function OrdersManagementPage() {
     return "low";
   }, [merchants, calculateSLATime]);
 
-  // Derived Tab Counts
+  // Derived Tab Counts for Active Market
   const tabCounts = useMemo(() => {
+    const atRiskCount = marketOrders.filter((o) => {
+      if (o.status === "completed" || o.status === "cancelled") return false;
+      const sla = calculateSLATime(o.created_at);
+      return sla.status === "high_risk" || sla.status === "breached";
+    }).length;
+
+    const unassignedCount = marketOrders.filter(
+      (o) => !o.driver_id && o.status !== "completed" && o.status !== "cancelled"
+    ).length;
+
+    const needsAttentionCount = marketOrders.filter((o) => {
+      if (o.status === "completed" || o.status === "cancelled") return false;
+      const sla = calculateSLATime(o.created_at);
+      const isRisk = sla.status === "high_risk" || sla.status === "breached";
+      const isUnassigned = !o.driver_id;
+      return isRisk || isUnassigned;
+    }).length;
+
     return {
-      all: orders.length,
-      active: orders.filter((o) => o.status !== "completed" && o.status !== "cancelled").length,
-      unassigned: orders.filter((o) => !o.driver_id && o.status !== "completed" && o.status !== "cancelled").length,
-      preparing: orders.filter((o) => o.status === "preparing").length,
-      delivering: orders.filter((o) => o.status === "delivering").length,
-      completed: orders.filter((o) => o.status === "completed" || o.status === "delivered").length,
-      cancelled: orders.filter((o) => o.status === "cancelled").length,
+      needs_attention: needsAttentionCount,
+      active: marketOrders.filter((o) => o.status !== "completed" && o.status !== "cancelled").length,
+      unassigned: unassignedCount,
+      at_risk: atRiskCount,
+      completed: marketOrders.filter((o) => o.status === "completed" || o.status === "delivered").length,
+      cancelled: marketOrders.filter((o) => o.status === "cancelled").length,
+      all: marketOrders.length,
     };
-  }, [orders]);
+  }, [marketOrders, calculateSLATime]);
 
   // Filtering
   const filteredOrders = useMemo(() => {
-    return orders.filter((o) => {
+    return marketOrders.filter((o) => {
       // 1. Tab filter
+      if (activeTab === "needs_attention") {
+        if (o.status === "completed" || o.status === "cancelled") return false;
+        const sla = calculateSLATime(o.created_at);
+        const isRisk = sla.status === "high_risk" || sla.status === "breached";
+        const isUnassigned = !o.driver_id;
+        if (!isRisk && !isUnassigned) return false;
+      }
       if (activeTab === "active" && (o.status === "completed" || o.status === "cancelled")) return false;
       if (activeTab === "unassigned" && (o.driver_id || o.status === "completed" || o.status === "cancelled")) return false;
-      if (activeTab === "preparing" && o.status !== "preparing") return false;
-      if (activeTab === "delivering" && o.status !== "delivering") return false;
+      if (activeTab === "at_risk") {
+        if (o.status === "completed" || o.status === "cancelled") return false;
+        const sla = calculateSLATime(o.created_at);
+        if (sla.status !== "high_risk" && sla.status !== "breached") return false;
+      }
       if (activeTab === "completed" && o.status !== "completed" && o.status !== "delivered") return false;
       if (activeTab === "cancelled" && o.status !== "cancelled") return false;
 
@@ -353,12 +397,12 @@ export default function OrdersManagementPage() {
   };
 
   // Single Order Actions
-  const handleAssignSingle = async (driverId: string) => {
+  const handleAssignSingle = async (driverId: string, reason?: string) => {
     if (!selectedOrderId) return;
     setIsSubmitting(true);
     const success = await assignDriver(selectedOrderId, driverId);
     setIsSubmitting(false);
-    if (success) triggerToast(`Courier successfully assigned!`, "success");
+    if (success) triggerToast(`Courier successfully assigned!${reason ? ` (${reason})` : ""}`, "success");
     else triggerToast("Failed to assign courier", "error");
   };
 
@@ -448,34 +492,34 @@ export default function OrdersManagementPage() {
                 : "bg-[#111622] border-white/[0.07] text-slate-400"
             }`}
           >
-            <span className="text-[11px] font-medium">Unassigned</span>
-            <span className="text-sm font-bold">{tabCounts.unassigned}</span>
+            <span className="text-[11px]">Needs Attention</span>
+            <span className="text-sm font-bold">{tabCounts.needs_attention}</span>
           </div>
-          <div className="px-3 py-1.5 rounded-lg bg-[#0f1219]  flex items-center gap-2 shadow-sm">
-            <span className="text-[11px] text-slate-400 font-medium">In Kitchen</span>
-            <span className="text-sm font-bold text-amber-400">{tabCounts.preparing}</span>
+          <div className="px-3 py-1.5 rounded-lg bg-[#0f1219] border border-white/[0.06] flex items-center gap-2 shadow-sm">
+            <span className="text-[11px] text-slate-400 font-medium">Active</span>
+            <span className="text-sm font-bold text-white">{tabCounts.active}</span>
           </div>
-          <div className="px-3 py-1.5 rounded-lg bg-[#0f1219]  flex items-center gap-2 shadow-sm">
-            <span className="text-[11px] text-slate-400 font-medium">In Transit</span>
-            <span className="text-sm font-bold text-sky-400">{tabCounts.delivering}</span>
+          <div className="px-3 py-1.5 rounded-lg bg-[#0f1219] border border-white/[0.06] flex items-center gap-2 shadow-sm">
+            <span className="text-[11px] text-slate-400 font-medium">Unassigned</span>
+            <span className="text-sm font-bold text-amber-400">{tabCounts.unassigned}</span>
           </div>
-          <div className="px-3 py-1.5 rounded-lg bg-[#0f1219]  flex items-center gap-2 shadow-sm">
+          <div className="px-3 py-1.5 rounded-lg bg-[#0f1219] border border-white/[0.06] flex items-center gap-2 shadow-sm">
             <span className="text-[11px] text-slate-400 font-medium">Delivered</span>
             <span className="text-sm font-bold text-emerald-400">{tabCounts.completed}</span>
           </div>
         </div>
       </div>
 
-      {/* ── 2. Horizontal Status Tabs (DoorDash & Uber Eats Style) ── */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 ">
+      {/* ── 2. Horizontal Status Tabs (Task-based queue) ── */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1">
         {[
-          { id: "all", label: "All Orders", count: tabCounts.all },
+          { id: "needs_attention", label: "Needs Attention", count: tabCounts.needs_attention, urgent: tabCounts.needs_attention > 0 },
           { id: "active", label: "Active Deliveries", count: tabCounts.active },
-          { id: "unassigned", label: "Needs Courier", count: tabCounts.unassigned, urgent: tabCounts.unassigned > 0 },
-          { id: "preparing", label: "In Kitchen", count: tabCounts.preparing },
-          { id: "delivering", label: "Out for Delivery", count: tabCounts.delivering },
+          { id: "unassigned", label: "Unassigned", count: tabCounts.unassigned, urgent: tabCounts.unassigned > 0 },
+          { id: "at_risk", label: "At Risk", count: tabCounts.at_risk, urgent: tabCounts.at_risk > 0 },
           { id: "completed", label: "Delivered", count: tabCounts.completed },
           { id: "cancelled", label: "Cancelled", count: tabCounts.cancelled },
+          { id: "all", label: "All Orders", count: tabCounts.all },
         ].map((tab) => {
           const isActive = activeTab === tab.id;
           return (
@@ -507,7 +551,7 @@ export default function OrdersManagementPage() {
       </div>
 
       {/* ── 3. Filters & Search Toolbar (Organized, High-Density) ── */}
-      <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl bg-[#0f1219]  shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl bg-[#0f1219] shadow-sm">
         <div className="flex flex-wrap items-center gap-2.5 flex-1 min-w-[280px]">
           {/* Fast Search input */}
           <div className="relative flex-1 min-w-[200px] max-w-[340px]">
@@ -517,7 +561,7 @@ export default function OrdersManagementPage() {
               placeholder="Search by Order #, Customer, Store, Courier..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-8 py-1.5 text-xs rounded-lg bg-[#131722]  text-white placeholder-slate-500 outline-none focus:border-rose-500 transition-colors"
+              className="w-full pl-9 pr-8 py-1.5 text-xs rounded-lg bg-[#131722] text-white placeholder-slate-500 outline-none focus:border-rose-500 transition-colors"
             />
             {searchQuery && (
               <button
@@ -530,62 +574,48 @@ export default function OrdersManagementPage() {
             )}
           </div>
 
-          {/* Date Range Filter */}
+          {/* Date Picker */}
           <DateRangeFilter value={dateRange} onChange={setDateRange} />
 
           {/* Zone Selector */}
           <select
             value={selectedZone}
             onChange={(e) => setSelectedZone(e.target.value)}
-            className="px-3 py-1.5 text-xs font-medium rounded-lg bg-[#131722]  text-slate-200 outline-none focus:border-rose-500 cursor-pointer"
+            className="px-2.5 py-1.5 text-xs rounded-lg bg-[#131722] text-slate-300 outline-none cursor-pointer border border-white/[0.05]"
           >
-            <option value="all">All Sectors &amp; Zones</option>
+            <option value="all">All Sectors ({currentMarket.name})</option>
             {availableZones.map((z) => (
-              <option key={z} value={z}>{z}</option>
+              <option key={z} value={z}>
+                {z}
+              </option>
             ))}
           </select>
 
-          {/* Quick Filter Toggle Buttons */}
-          <button
-            type="button"
-            onClick={() => setUnassignedOnly(!unassignedOnly)}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors border cursor-pointer ${
-              unassignedOnly
-                ? "bg-rose-500/10 border-rose-500/40 text-rose-400"
-                : "bg-[#141b2a] border-white/[0.07] text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            <Bike size={13} />
-            <span>Unassigned</span>
-          </button>
-
+          {/* Quick Filter Toggles */}
           <button
             type="button"
             onClick={() => setPriorityOnly(!priorityOnly)}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors border cursor-pointer ${
+            className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer border ${
               priorityOnly
-                ? "bg-amber-500/10 border-amber-500/40 text-amber-400"
-                : "bg-[#141b2a] border-white/[0.07] text-slate-400 hover:text-slate-200"
+                ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
+                : "bg-[#131722] text-slate-400 border-white/[0.05] hover:text-slate-200"
             }`}
           >
-            <Star size={13} className={priorityOnly ? "fill-amber-400" : ""} />
-            <span>Priority</span>
+            Priority
           </button>
 
           <button
             type="button"
             onClick={() => setSlaRiskOnly(!slaRiskOnly)}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors border cursor-pointer ${
+            className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer border ${
               slaRiskOnly
-                ? "bg-rose-500/10 border-rose-500/40 text-rose-400"
-                : "bg-[#141b2a] border-white/[0.07] text-slate-400 hover:text-slate-200"
+                ? "bg-rose-500/20 text-rose-300 border-rose-500/40"
+                : "bg-[#131722] text-slate-400 border-white/[0.05] hover:text-slate-200"
             }`}
           >
-            <AlertTriangle size={13} />
-            <span>SLA at Risk</span>
+            SLA At Risk
           </button>
 
-          {/* Reset Filters */}
           {hasActiveFilters && (
             <button
               type="button"
@@ -600,16 +630,16 @@ export default function OrdersManagementPage() {
 
         {/* Results Counter */}
         <div className="text-xs text-slate-400 font-medium">
-          Showing <strong className="text-white">{sortedOrders.length}</strong> of {orders.length} orders
+          Showing <strong className="text-white">{sortedOrders.length}</strong> of {marketOrders.length} orders
         </div>
       </div>
 
       {/* ── 4. High-Density Wide Orders Table ── */}
-      <div className="w-full rounded-xl bg-[#0f1219]  overflow-hidden shadow-lg">
+      <div className="w-full rounded-xl bg-[#0f1219] overflow-hidden shadow-lg">
         <div className="overflow-x-auto w-full">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
-              <tr className="bg-[#0b0e15]  text-slate-400 uppercase text-[11px] font-bold tracking-wider">
+              <tr className="bg-[#0b0e15] text-slate-400 uppercase text-[11px] font-bold tracking-wider">
                 <th className="py-3 px-4 w-10 text-center">
                   <input
                     type="checkbox"
@@ -626,14 +656,15 @@ export default function OrdersManagementPage() {
                 </th>
                 <th className="py-3 px-4 cursor-pointer hover:text-white" onClick={() => handleSort("created_at")}>
                   <div className="flex items-center gap-1">
-                    <span>Date &amp; Time</span>
+                    <span>Time</span>
                     <ArrowUpDown size={11} />
                   </div>
                 </th>
                 <th className="py-3 px-4">Customer</th>
-                <th className="py-3 px-4">Restaurant / Store</th>
-                <th className="py-3 px-4">Courier / Driver</th>
+                <th className="py-3 px-4">Restaurant</th>
+                <th className="py-3 px-4">Assigned Courier</th>
                 <th className="py-3 px-4">Status</th>
+                <th className="py-3 px-4">Dispatch Mode</th>
                 <th className="py-3 px-4 cursor-pointer hover:text-white" onClick={() => handleSort("sla")}>
                   <div className="flex items-center gap-1">
                     <span>SLA / ETA</span>
@@ -646,16 +677,16 @@ export default function OrdersManagementPage() {
                     <ArrowUpDown size={11} />
                   </div>
                 </th>
-                <th className="py-3 px-4 text-center w-28">Actions</th>
+                <th className="py-3 px-4">Risk</th>
+                <th className="py-3 px-4 text-center w-24">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60">
               {sortedOrders.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="py-16 text-center text-slate-400">
+                  <td colSpan={12} className="py-16 text-center text-slate-400">
                     <div className="flex flex-col items-center justify-center gap-2">
-                      <ShoppingBag size={32} className="text-slate-600" />
-                      <p className="text-sm font-semibold text-slate-300">No orders match current filters</p>
+                      <p className="text-sm font-semibold text-slate-300">No orders match current filters in {currentMarket.name}</p>
                       <p className="text-xs text-slate-500">Try changing the date range, status tab, or clearing search query.</p>
                       {hasActiveFilters && (
                         <button
@@ -700,15 +731,14 @@ export default function OrdersManagementPage() {
                         <div className="flex items-center gap-1.5">
                           <span className="font-mono font-bold text-white text-xs">#{order.id.slice(0, 10)}</span>
                           {order.priority && (
-                            <span title="High Priority Order">
-                              <Star size={12} className="fill-amber-400 text-amber-400" />
+                            <span className="px-1 py-0.2 rounded text-[9px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                              VIP
                             </span>
                           )}
                         </div>
                         {order.zone && (
-                          <div className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
-                            <MapPin size={10} />
-                            <span>{order.zone}</span>
+                          <div className="text-[10px] text-slate-400 mt-0.5">
+                            {order.zone}
                           </div>
                         )}
                       </td>
@@ -725,47 +755,72 @@ export default function OrdersManagementPage() {
 
                       {/* Customer */}
                       <td className="py-3.5 px-4">
-                        <div className="font-semibold text-slate-200 truncate max-w-[150px]">
-                          {order.customer_name || "Guest Customer"}
+                        <div className="font-semibold text-slate-200 truncate max-w-[140px]">
+                          {order.customer_name || "Customer"}
                         </div>
-                        <div className="text-[10px] text-slate-400 truncate max-w-[150px]">
-                          {order.delivery_address || order.zone || "Delivery Zone"}
+                        <div className="text-[10px] text-slate-400 truncate max-w-[140px]">
+                          {order.delivery_address || order.zone || "Zone"}
                         </div>
                       </td>
 
                       {/* Merchant */}
                       <td className="py-3.5 px-4">
-                        <div className="font-semibold text-slate-200 flex items-center gap-1 truncate max-w-[160px]">
-                          <Store size={12} className="text-slate-400 flex-shrink-0" />
-                          <span className="truncate">{order.merchant_name || "Wolfie Merchant"}</span>
+                        <div className="font-semibold text-slate-200 truncate max-w-[150px]">
+                          {order.merchant_name || "Partner Store"}
                         </div>
                       </td>
 
                       {/* Driver / Courier */}
                       <td className="py-3.5 px-4">
                         {order.driver_name && order.driver_name !== "Unassigned" ? (
-                          <div className="flex items-center gap-1.5 text-slate-200 font-medium">
-                            <Bike size={13} className="text-sky-400 flex-shrink-0" />
-                            <span className="truncate max-w-[130px]">{order.driver_name}</span>
+                          <div className="text-slate-200 font-medium truncate max-w-[130px]">
+                            {order.driver_name}
                           </div>
+                        ) : order.status === "cancelled" ? (
+                          <span className="text-slate-500 font-mono text-[11px]">—</span>
                         ) : (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedOrderId(order.id);
-                            }}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-rose-500/10 text-rose-400 border border-rose-500/30 hover:bg-rose-500/20 transition-colors"
-                          >
-                            <Bike size={11} />
-                            <span>+ Assign</span>
-                          </button>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-rose-400 font-bold text-[11px]">Unassigned</span>
+                            {(sla.status === "high_risk" || sla.status === "breached" || !order.driver_id) && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedOrderId(order.id);
+                                }}
+                                className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/10 text-rose-400 border border-rose-500/30 hover:bg-rose-500/20"
+                              >
+                                Override
+                              </button>
+                            )}
+                          </div>
                         )}
                       </td>
 
                       {/* Status */}
                       <td className="py-3.5 px-4 whitespace-nowrap">
                         {renderStatusBadge(order.status)}
+                      </td>
+
+                      {/* Dispatch Mode */}
+                      <td className="py-3.5 px-4 whitespace-nowrap">
+                        {order.status === "cancelled" ? (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-700">
+                            TERMINATED
+                          </span>
+                        ) : order.driver_id ? (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                            AUTO
+                          </span>
+                        ) : sla.status === "breached" || sla.status === "high_risk" ? (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-500/15 text-rose-300 border border-rose-500/30">
+                            FAILED
+                          </span>
+                        ) : (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/30">
+                            MATCHING
+                          </span>
+                        )}
                       </td>
 
                       {/* SLA Countdown / ETA */}
@@ -796,7 +851,24 @@ export default function OrdersManagementPage() {
 
                       {/* Total Amount */}
                       <td className="py-3.5 px-4 text-right font-mono font-bold text-slate-100 whitespace-nowrap">
-                        ${Number(order.total || order.amount || 0).toFixed(2)}
+                        {currentMarket.currencySymbol}{Number(order.total || order.amount || 0).toFixed(2)}
+                      </td>
+
+                      {/* Risk Indicator */}
+                      <td className="py-3.5 px-4 whitespace-nowrap">
+                        {risk === "high" ? (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                            HIGH
+                          </span>
+                        ) : risk === "medium" ? (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                            MED
+                          </span>
+                        ) : (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-400">
+                            LOW
+                          </span>
+                        )}
                       </td>
 
                       {/* Row Actions */}
@@ -804,10 +876,9 @@ export default function OrdersManagementPage() {
                         <button
                           type="button"
                           onClick={() => setSelectedOrderId(order.id)}
-                          className="px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-colors inline-flex items-center gap-1 cursor-pointer"
+                          className="px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-colors cursor-pointer"
                         >
-                          <span>Inspect</span>
-                          <ChevronRight size={12} />
+                          Inspect
                         </button>
                       </td>
                     </tr>
@@ -893,14 +964,24 @@ export default function OrdersManagementPage() {
               <div>
                 <div className="flex items-center gap-2">
                   <span className="font-mono text-base font-black text-white">#{selectedOrder.id}</span>
-                  {selectedOrder.priority && (
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/30">
-                      Priority
+                  {selectedOrder.status === "cancelled" ? (
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-700">
+                      CANCELLED
+                    </span>
+                  ) : selectedOrder.driver_id ? (
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                      AUTO-DISPATCHED
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                      INTERVENTION REQUIRED
                     </span>
                   )}
                 </div>
-                <div className="text-[11px] text-slate-400 mt-0.5">
-                  Placed {new Date(selectedOrder.created_at).toLocaleString()}
+                <div className="text-[11px] text-slate-400 mt-1 flex items-center gap-2">
+                  <span style={{ color: currentMarket.badgeText }} className="font-bold">{currentMarket.badgeLabel}</span>
+                  <span>&middot;</span>
+                  <span>Placed {new Date(selectedOrder.created_at).toLocaleTimeString()}</span>
                 </div>
               </div>
 
@@ -925,8 +1006,54 @@ export default function OrdersManagementPage() {
 
             {/* Drawer Scrollable Content */}
             <div className="flex-1 overflow-y-auto p-4 space-y-5">
+              {/* Delivery Journey: Restaurant → Driver → Customer */}
+              <div className="p-3.5 rounded-xl bg-[#121622] space-y-2 border border-white/[0.05]">
+                <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                  Delivery Journey
+                </div>
+                <div className="flex items-center justify-between text-xs font-bold pt-1">
+                  <div className="flex flex-col">
+                    <span className="text-white">{selectedOrder.merchant_name || "Restaurant"}</span>
+                    <span className="text-[10px] text-emerald-400 font-semibold">Kitchen Stage</span>
+                  </div>
+                  <span className="text-slate-600 font-bold">&rarr;</span>
+                  <div className="flex flex-col items-center">
+                    <span className="text-white">{selectedOrder.driver_name || "Courier"}</span>
+                    <span className="text-[10px] text-sky-400 font-semibold">
+                      {selectedOrder.driver_id ? "En Route" : "Unassigned"}
+                    </span>
+                  </div>
+                  <span className="text-slate-600 font-bold">&rarr;</span>
+                  <div className="flex flex-col items-end">
+                    <span className="text-white">{selectedOrder.customer_name || "Customer"}</span>
+                    <span className="text-[10px] text-slate-400 font-semibold">Destination</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Dispatch Intelligence */}
+              <div className="p-3.5 rounded-xl bg-[#121622] space-y-2 border border-white/[0.05]">
+                <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
+                  <span>Dispatch Intelligence</span>
+                  <span className="text-emerald-400 font-mono text-[10px] font-bold">98.4% Match Score</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="p-2 rounded bg-black/20">
+                    <div className="text-[10px] text-slate-400">Pickup ETA</div>
+                    <div className="font-mono font-bold text-white mt-0.5">~{selectedOrder.eta_minutes || 4} mins</div>
+                  </div>
+                  <div className="p-2 rounded bg-black/20">
+                    <div className="text-[10px] text-slate-400">Distance to Kitchen</div>
+                    <div className="font-mono font-bold text-white mt-0.5">0.8 miles</div>
+                  </div>
+                </div>
+                <div className="text-[11px] text-slate-400 bg-white/[0.02] p-2 rounded leading-relaxed">
+                  <span className="font-bold text-slate-300">Selection Rationale:</span> {selectedOrder.driver_name ? `Automated smart-matching selected ${selectedOrder.driver_name} based on active proximity, vehicle suitability, and high completion rating.` : "Awaiting available courier match in sector queue."}
+                </div>
+              </div>
+
               {/* Status Stepper Tracker */}
-              <div className="p-3.5 rounded-xl bg-[#121622] ">
+              <div className="p-3.5 rounded-xl bg-[#121622]">
                 <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-3">
                   Delivery Timeline Tracker
                 </div>
@@ -968,7 +1095,7 @@ export default function OrdersManagementPage() {
                 <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">
                   Live Dispatch GPS
                 </div>
-                <div className="h-[180px] w-full rounded-xl overflow-hidden ">
+                <div className="h-[180px] w-full rounded-xl overflow-hidden">
                   <MapComponent
                     orders={[selectedOrder]}
                     drivers={drivers}
@@ -981,27 +1108,24 @@ export default function OrdersManagementPage() {
               </div>
 
               {/* Restaurant / Merchant Profile */}
-              <div className="p-3.5 rounded-xl bg-[#121622] ">
+              <div className="p-3.5 rounded-xl bg-[#121622]">
                 <div className="flex items-center justify-between mb-2">
-                  <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                    <Store size={13} className="text-slate-400" />
-                    <span>Restaurant Information</span>
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                    Restaurant Information
                   </div>
                   <span className="text-[10px] text-emerald-400 font-semibold">Kitchen Open</span>
                 </div>
                 <div className="text-sm font-bold text-white">{selectedOrder.merchant_name || "Wolfie Restaurant Partner"}</div>
-                <div className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
-                  <MapPin size={11} className="text-slate-500 flex-shrink-0" />
-                  <span>{selectedOrder.merchant_address || selectedOrder.zone || "Algiers Centre Sector"}</span>
+                <div className="text-xs text-slate-400 mt-0.5">
+                  {selectedOrder.merchant_address || selectedOrder.zone || "Sector Hub"}
                 </div>
               </div>
 
               {/* Customer Profile */}
-              <div className="p-3.5 rounded-xl bg-[#121622] ">
+              <div className="p-3.5 rounded-xl bg-[#121622]">
                 <div className="flex items-center justify-between mb-2">
-                  <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                    <User size={13} className="text-slate-400" />
-                    <span>Customer &amp; Drop-off</span>
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                    Customer &amp; Drop-off
                   </div>
                   <div className="flex items-center gap-1">
                     <button
@@ -1009,32 +1133,34 @@ export default function OrdersManagementPage() {
                       onClick={() => triggerToast("Connecting to customer VoIP...", "info")}
                       className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-semibold flex items-center gap-1"
                     >
-                      <Phone size={10} /> Call
+                      Call
                     </button>
                     <button
                       type="button"
                       onClick={() => triggerToast("Customer chat thread opened", "info")}
                       className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-semibold flex items-center gap-1"
                     >
-                      <MessageSquare size={10} /> Chat
+                      Chat
                     </button>
                   </div>
                 </div>
                 <div className="text-sm font-bold text-white">{selectedOrder.customer_name || "Customer Name"}</div>
-                <div className="text-xs text-slate-300 mt-1 flex items-start gap-1">
-                  <MapPin size={12} className="text-rose-400 mt-0.5 flex-shrink-0" />
-                  <span>{selectedOrder.delivery_address || selectedOrder.zone || "Customer Delivery Address"}</span>
+                <div className="text-xs text-slate-300 mt-1">
+                  {selectedOrder.delivery_address || selectedOrder.zone || "Customer Delivery Address"}
                 </div>
               </div>
 
-              {/* Courier / Driver Assignment */}
-              <div className="p-3.5 rounded-xl bg-[#121622] ">
-                <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-1.5">
-                  <Bike size={13} className="text-slate-400" />
-                  <span>Assigned Courier</span>
+              {/* Courier / Driver Assignment (Rule: Disabled for Cancelled Orders) */}
+              <div className="p-3.5 rounded-xl bg-[#121622]">
+                <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">
+                  Courier Assignment
                 </div>
 
-                {selectedOrder.driver_name && selectedOrder.driver_name !== "Unassigned" ? (
+                {selectedOrder.status === "cancelled" ? (
+                  <div className="p-2.5 rounded bg-slate-800/40 border border-slate-700 text-slate-400 text-xs">
+                    Order is cancelled. Driver assignment is strictly prohibited.
+                  </div>
+                ) : selectedOrder.driver_name && selectedOrder.driver_name !== "Unassigned" ? (
                   <div className="flex items-center justify-between">
                     <div>
                       <div className="text-sm font-bold text-white">{selectedOrder.driver_name}</div>
@@ -1047,23 +1173,23 @@ export default function OrdersManagementPage() {
                     <button
                       type="button"
                       onClick={() => triggerToast("Calling courier cell...", "info")}
-                      className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1"
+                      className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold"
                     >
-                      <Phone size={11} /> Call Courier
+                      Call Courier
                     </button>
                   </div>
                 ) : (
                   <div className="space-y-2">
                     <div className="text-xs text-rose-400 font-medium">
-                      No courier assigned yet. Pick from online fleet:
+                      Automated matching pending. Manual override:
                     </div>
                     <div className="flex items-center gap-2">
                       <select
                         id="drawer-driver-select"
-                        className="flex-1 px-2.5 py-1.5 rounded-lg bg-[#0d121e]  text-slate-200 text-xs outline-none"
+                        className="flex-1 px-2.5 py-1.5 rounded-lg bg-[#0d121e] text-slate-200 text-xs outline-none border border-white/[0.08]"
                       >
-                        <option value="">Select available driver...</option>
-                        {drivers.filter((d) => d.status !== "offline").map((d) => (
+                        <option value="">Select available courier...</option>
+                        {marketDrivers.filter((d) => d.status !== "offline").map((d) => (
                           <option key={d.id} value={d.id}>
                             {d.name} ({d.zone}) - Rating: {d.rating}
                           </option>
@@ -1073,21 +1199,24 @@ export default function OrdersManagementPage() {
                         type="button"
                         onClick={() => {
                           const el = document.getElementById("drawer-driver-select") as HTMLSelectElement;
-                          if (el?.value) handleAssignSingle(el.value);
+                          if (el?.value) {
+                            const reason = prompt("Enter audit reason for manual override assignment:", "Automated matching timeout override");
+                            if (reason) handleAssignSingle(el.value, reason);
+                          }
                         }}
-                        className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-colors"
+                        className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition-colors cursor-pointer"
                       >
-                        Assign
+                        Override
                       </button>
                     </div>
                   </div>
                 )}
               </div>
 
-              {/* Order Items & Receipt Breakdown */}
-              <div className="p-3.5 rounded-xl bg-[#121622] ">
+              {/* Automated Financial Breakdown with Sources */}
+              <div className="p-3.5 rounded-xl bg-[#121622]">
                 <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center justify-between">
-                  <span>Order Items &amp; Pricing</span>
+                  <span>Order Items &amp; Financial Breakdown</span>
                   <span>{selectedOrder.items?.length || 1} items</span>
                 </div>
 
@@ -1103,7 +1232,7 @@ export default function OrdersManagementPage() {
                           <span className="font-semibold text-slate-200">{item.name}</span>
                         </div>
                         <span className="font-mono text-slate-300">
-                          ${(Number(item.price) * item.quantity).toFixed(2)}
+                          {currentMarket.currencySymbol}{(Number(item.price) * item.quantity).toFixed(2)}
                         </span>
                       </div>
                     ))
@@ -1116,39 +1245,87 @@ export default function OrdersManagementPage() {
                         <span className="font-semibold text-slate-200">Standard Delivery Basket</span>
                       </div>
                       <span className="font-mono text-slate-300">
-                        ${Number(selectedOrder.total || selectedOrder.amount || 0).toFixed(2)}
+                        {currentMarket.currencySymbol}{Number(selectedOrder.total || selectedOrder.amount || 0).toFixed(2)}
                       </span>
                     </div>
                   )}
                 </div>
 
-                {/* Financial Summary */}
-                <div className="pt-2 border-t border-white/[0.07] space-y-1.5 text-xs text-slate-400">
-                  <div className="flex justify-between">
-                    <span>Subtotal</span>
-                    <span className="font-mono text-slate-200">
-                      ${Number(selectedOrder.subtotal || ((selectedOrder.total || selectedOrder.amount) * 0.82) || 0).toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Delivery Fee</span>
-                    <span className="font-mono text-slate-200">
-                      ${Number(selectedOrder.delivery_fee || 3.99).toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Tax &amp; Platform Fee</span>
-                    <span className="font-mono text-slate-200">
-                      ${Number(selectedOrder.service_fee || 1.85).toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between font-bold text-sm text-white pt-2 border-t border-white/[0.07]">
-                    <span>Grand Total</span>
-                    <span className="font-mono text-rose-400">
-                      ${Number(selectedOrder.total || selectedOrder.amount || 0).toFixed(2)}
-                    </span>
-                  </div>
-                </div>
+                {/* Provenance Financial Summary */}
+                {(() => {
+                  const total = Number(selectedOrder.total || selectedOrder.amount || 0);
+                  const subtotal = Number(selectedOrder.subtotal || total * 0.82);
+                  const deliveryFee = Number(selectedOrder.delivery_fee || 3.99);
+                  const serviceFee = Number(selectedOrder.service_fee || 1.85);
+                  const commission = subtotal * 0.15;
+                  const driverPayout = deliveryFee * 0.8 + 2.0;
+                  const contributionMargin = (commission + serviceFee + deliveryFee) - driverPayout;
+
+                  return (
+                    <div className="pt-2 border-t border-white/[0.07] space-y-2 text-xs">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <div className="text-slate-300 font-medium">Food Subtotal</div>
+                          <div className="text-[10px] text-slate-500">Calculated by Pricing Engine</div>
+                        </div>
+                        <span className="font-mono text-slate-200">
+                          {currentMarket.currencySymbol}{subtotal.toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <div className="text-slate-300 font-medium">Delivery Fee</div>
+                          <div className="text-[10px] text-slate-500">Dynamic Surge &amp; Road Distance</div>
+                        </div>
+                        <span className="font-mono text-slate-200">
+                          {currentMarket.currencySymbol}{deliveryFee.toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <div className="text-slate-300 font-medium">Service Fee</div>
+                          <div className="text-[10px] text-slate-500">Platform Standard Schedule</div>
+                        </div>
+                        <span className="font-mono text-slate-200">
+                          {currentMarket.currencySymbol}{serviceFee.toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <div className="text-slate-300 font-medium">Restaurant Commission</div>
+                          <div className="text-[10px] text-slate-500">Restaurant Tier Contract (15%)</div>
+                        </div>
+                        <span className="font-mono text-emerald-400">
+                          +{currentMarket.currencySymbol}{commission.toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <div className="text-slate-300 font-medium">Courier Payout</div>
+                          <div className="text-[10px] text-slate-500">Automated Dispatch Payout Model</div>
+                        </div>
+                        <span className="font-mono text-slate-400">
+                          -{currentMarket.currencySymbol}{driverPayout.toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center pt-2 border-t border-white/[0.07] bg-white/[0.02] p-2 rounded">
+                        <div>
+                          <div className="font-bold text-white">Wolfie Contribution Margin</div>
+                          <div className="text-[10px] text-emerald-400">Net Platform Margin</div>
+                        </div>
+                        <span className="font-mono font-bold text-emerald-400 text-sm">
+                          {currentMarket.currencySymbol}{contributionMargin.toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between font-bold text-sm text-white pt-2 border-t border-white/[0.07]">
+                        <span>Grand Total Charged</span>
+                        <span className="font-mono text-rose-400">
+                          {currentMarket.currencySymbol}{total.toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
 

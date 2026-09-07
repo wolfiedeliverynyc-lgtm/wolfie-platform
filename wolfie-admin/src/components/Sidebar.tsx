@@ -3,25 +3,7 @@ import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useDashboardStore } from "@/stores/dashboardStore";
-import {
-  Activity,
-  ShoppingBag,
-  Users,
-  ShieldCheck,
-  Compass,
-  Layers,
-  Store,
-  UtensilsCrossed,
-  CreditCard,
-  BarChart3,
-  Server,
-  Bell,
-  Cpu,
-  Settings,
-  LifeBuoy,
-  X,
-  ChevronRight
-} from "lucide-react";
+import { X } from "lucide-react";
 
 interface SidebarProps {
   isOpen?: boolean;
@@ -40,44 +22,42 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
 
   const NAV_SECTIONS = [
     {
-      label: "Operations & Dispatch",
+      label: "Daily Operations",
       items: [
-        { label: "Operations Hub", href: "/",             Icon: Activity },
+        { label: "Operations Overview", href: "/" },
         { 
           label: "Live Orders",     
           href: "/admin/orders", 
-          Icon: ShoppingBag, 
           badge: unassignedCount > 0 ? `${unassignedCount} new` : (activeOrdersCount > 0 ? activeOrdersCount : undefined),
           badgeType: unassignedCount > 0 ? "urgent" : "normal"
         },
-        { label: "Dispatch Map",   href: "/admin/map",    Icon: Compass },
-        { label: "Driver Fleet",   href: "/drivers",      Icon: Users },
-        { label: "KYC Compliance", href: "/kyc",          Icon: ShieldCheck },
-        { label: "Delivery Zones", href: "/zones",        Icon: Layers },
+        { label: "Dispatch Map",   href: "/admin/map" },
+        { label: "Driver Fleet",   href: "/drivers" },
+        { 
+          label: "Exceptions Center", 
+          href: "/exceptions",
+          badge: activeAlertsCount > 0 ? `${activeAlertsCount} pending` : undefined,
+          badgeType: "urgent"
+        },
       ],
     },
     {
-      label: "Merchant Partner",
+      label: "Business Management",
       items: [
-        { label: "Restaurants",    href: "/merchants",  Icon: Store },
-        { label: "Menu Catalog",   href: "/menu",       Icon: UtensilsCrossed },
-        { label: "Financials",     href: "/finance",    Icon: CreditCard },
+        { label: "Restaurants",    href: "/merchants" },
+        { label: "Delivery Zones", href: "/zones" },
+        { label: "Pricing & Contracts", href: "/pricing" },
+        { label: "Financials",     href: "/finance" },
+        { label: "Analytics",      href: "/analytics" },
       ],
     },
     {
-      label: "Intelligence & AI",
+      label: "Administration",
       items: [
-        { label: "Analytics & CSAT", href: "/analytics",   Icon: BarChart3 },
-        { label: "WAP Diagnostics",  href: "/metricswolf", Icon: Server },
-        { label: "Live Alerts",      href: "/alerts",      Icon: Bell, badge: activeAlertsCount > 0 ? activeAlertsCount : undefined, badgeType: "urgent" },
-        { label: "AI Monitor",       href: "/ai-monitor",  Icon: Cpu }
-      ],
-    },
-    {
-      label: "System Administration",
-      items: [
-        { label: "Support Tickets", href: "/admin/support", Icon: LifeBuoy, badge: openTicketsCount > 0 ? openTicketsCount : undefined },
-        { label: "Platform Settings", href: "/settings",    Icon: Settings },
+        { label: "Support Tickets", href: "/admin/support", badge: openTicketsCount > 0 ? openTicketsCount : undefined },
+        { label: "KYC Compliance", href: "/kyc" },
+        { label: "Platform Settings", href: "/settings" },
+        { label: "Diagnostics", href: "/metricswolf" },
       ],
     },
   ];
@@ -131,8 +111,6 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
                   ? pathname === "/"
                   : pathname.startsWith(item.href);
 
-              const { Icon } = item;
-
               return (
                 <Link
                   key={item.href}
@@ -140,18 +118,12 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
                   onClick={onClose}
                   className={`sidebar-item ${isActive ? "active" : ""}`}
                 >
-                  <Icon
-                    className="sidebar-item-icon"
-                    size={16}
-                    strokeWidth={isActive ? 2.2 : 1.7}
-                  />
+                  <span className={`w-1.5 h-1.5 rounded-full mr-2.5 transition-all ${isActive ? "bg-rose-500 scale-125" : "bg-slate-700"}`} />
                   <span className="flex-1 truncate">{item.label}</span>
-                  {item.badge ? (
+                  {item.badge && (
                     <span className={`sidebar-item-badge ${(item as any).badgeType === "urgent" ? "bg-rose-600 text-white" : "bg-slate-800 text-slate-300 border border-slate-700"}`}>
                       {item.badge}
                     </span>
-                  ) : (
-                    isActive && <ChevronRight size={13} className="text-slate-500 opacity-60 ml-auto" />
                   )}
                 </Link>
               );
