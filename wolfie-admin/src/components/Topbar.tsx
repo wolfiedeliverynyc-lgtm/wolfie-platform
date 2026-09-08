@@ -3,22 +3,7 @@ import React, { useMemo, useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useRealtime } from "@/hooks/useRealtime";
 import { useDashboardStore } from "@/stores/dashboardStore";
-import {
-  Search,
-  Bell,
-  Settings,
-  Menu,
-  CheckCircle2,
-  XCircle,
-  AlertTriangle,
-  RefreshCw,
-  Server,
-  Database,
-  Zap,
-  Activity,
-  ChevronDown,
-  X
-} from "lucide-react";
+
 import { useMarketStore, MARKETS, MarketId } from "@/stores/marketStore";
 
 interface TopbarProps {
@@ -167,7 +152,7 @@ export default function Topbar({
           title="Toggle Navigation Menu (Press [)"
           aria-label="Toggle Navigation Menu"
         >
-          <Menu size={16} className="text-white" />
+          
           <span className="font-semibold text-slate-100">Menu</span>
         </button>
 
@@ -210,7 +195,7 @@ export default function Topbar({
               style={{ backgroundColor: currentMarket.badgeText }}
             />
             <span className="font-bold">{currentMarket.badgeLabel}</span>
-            <ChevronDown size={11} className="opacity-70" />
+            <span style={{ fontSize: 9, opacity: 0.7 }}>▼</span>
           </button>
 
           {showMarketDropdown && (
@@ -261,7 +246,7 @@ export default function Topbar({
 
       {/* Center: Search */}
       <div className="topbar-search">
-        <Search className="topbar-search-icon" size={14} />
+        
         <input
           type="text"
           className="topbar-search-input"
@@ -310,7 +295,7 @@ export default function Topbar({
               style={{ backgroundColor: isSystemHealthy ? "var(--status-green)" : "var(--status-red)" }}
             />
             <span>{isSystemHealthy ? "99.9% Live" : `${offlineCount} Alert${offlineCount !== 1 ? 's' : ''}`}</span>
-            <ChevronDown size={11} className="opacity-70" />
+            <span style={{ fontSize: 9, opacity: 0.7 }}>▼</span>
           </button>
 
           {/* Health Diagnostics Dropdown Popover */}
@@ -325,7 +310,7 @@ export default function Topbar({
                 <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-white/[0.06]">
                   <div>
                     <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
-                      <Server size={13} className="text-slate-400" />
+                      
                       Infrastructure Diagnostics
                     </h4>
                     <p className="text-[10px] text-slate-400 mt-0.5">
@@ -341,7 +326,7 @@ export default function Topbar({
                     className="p-1 rounded-md bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 transition-colors"
                     title="Re-ping services now"
                   >
-                    <RefreshCw size={12} className={isRechecking ? "animate-spin text-sky-400" : ""} />
+                    <span style={{ fontSize: 11, fontWeight: 700 }}>Re-check</span>
                   </button>
                 </div>
 
@@ -354,9 +339,9 @@ export default function Topbar({
                     >
                       <div className="flex items-center gap-2">
                         {service.up ? (
-                          <CheckCircle2 size={13} className="text-emerald-400" />
+                          <span style={{ color: "var(--status-green)", fontSize: 11, fontWeight: 700 }}>●</span>
                         ) : (
-                          <XCircle size={13} className="text-rose-400" />
+                          <span style={{ color: "var(--status-red)", fontSize: 11, fontWeight: 700 }}>●</span>
                         )}
                         <div>
                           <div className="text-xs font-semibold text-slate-200">{service.label}</div>
@@ -382,7 +367,7 @@ export default function Topbar({
                 {unacknowledgedAlerts.length > 0 && (
                   <div className="pt-2 border-t border-white/[0.06] mb-2">
                     <div className="text-[10px] font-bold text-amber-400 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                      <AlertTriangle size={11} />
+                      <span style={{ color: "var(--status-amber)", fontSize: 11, fontWeight: 700 }}>[!]</span>
                       <span>Active Dispatch Incidents ({unacknowledgedAlerts.length})</span>
                     </div>
                     <div className="space-y-1 max-h-24 overflow-y-auto">
@@ -444,8 +429,8 @@ export default function Topbar({
             title="Click to view WebSocket connection telemetry"
           >
             <span className={`rt-dot ${isLive ? "live" : "offline"}`} />
-            <span>{isLive ? "Live Sync" : status === "connecting" ? "Connecting" : "Offline"}</span>
-            <ChevronDown size={10} className="opacity-70 ml-0.5" />
+            <span>{isLive ? "Connected" : status === "connecting" ? "Connecting" : "Offline"}</span>
+            <span style={{ fontSize: 9, opacity: 0.7 }}>▼</span>
           </button>
 
           {/* Realtime Gateway Popover */}
@@ -458,15 +443,15 @@ export default function Topbar({
               <div className="absolute right-0 mt-2 w-72 p-3.5 rounded-xl bg-[#11141e] shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150">
                 <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/[0.06]">
                   <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
-                    <Activity size={13} className="text-sky-400" />
+                    <span className="text-sky-400 font-bold">●</span>
                     WebSocket Gateway
                   </h4>
                   <button
                     type="button"
                     onClick={() => setShowRealtimePopover(false)}
-                    className="text-slate-400 hover:text-white"
+                    className="text-slate-400 hover:text-white text-xs font-bold"
                   >
-                    <X size={13} />
+                    ✕
                   </button>
                 </div>
 
@@ -512,23 +497,29 @@ export default function Topbar({
 
         {/* Alerts Bell Button */}
         <button
-          className="topbar-btn cursor-pointer"
+          type="button"
+          className="px-2.5 py-1 rounded-md text-xs font-semibold text-slate-300 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] transition-colors cursor-pointer flex items-center gap-1.5"
           id="topbar-alerts"
           title={`Alerts (${alerts.filter((a) => !a.acknowledged).length} active)`}
           onClick={() => router.push("/alerts")}
         >
-          <Bell size={16} />
-          {alerts.filter((a) => !a.acknowledged).length > 0 && <span className="topbar-btn-dot" />}
+          <span>Alerts</span>
+          {alerts.filter((a) => !a.acknowledged).length > 0 && (
+            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-500 text-white">
+              {alerts.filter((a) => !a.acknowledged).length}
+            </span>
+          )}
         </button>
 
         {/* Settings Button */}
         <button
-          className="topbar-btn cursor-pointer"
+          type="button"
+          className="px-2.5 py-1 rounded-md text-xs font-semibold text-slate-300 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] transition-colors cursor-pointer"
           id="topbar-settings"
           title="Platform Settings"
           onClick={() => router.push("/settings")}
         >
-          <Settings size={16} />
+          Settings
         </button>
 
         <div className="topbar-divider" />

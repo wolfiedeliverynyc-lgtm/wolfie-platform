@@ -471,7 +471,7 @@ export default function OrdersManagementPage() {
             <h1 className="text-xl font-black tracking-tight text-white">Live Orders Dispatch</h1>
             <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              Live Sync
+              Realtime Feed
             </span>
           </div>
           <p className="text-xs text-slate-400 mt-1">
